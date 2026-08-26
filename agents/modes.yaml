@@ -80,7 +80,7 @@ customModes:
         - fileRegex: \.md$
           description: Markdown files only — for documentation review
       - mcp
-    source: project
+    source: global
 
   - slug: orchestrator
     name: 🪃 Orchestrator
@@ -143,7 +143,7 @@ customModes:
       - Making architectural decisions unilaterally — escalate to the user.
 
     groups: []
-    source: project
+    source: global
 
   - slug: security-review
     name: 🛡️ Security Review
@@ -229,4 +229,4 @@ customModes:
         - fileRegex: \.md$
           description: Markdown files only — for documentation review
       - mcp
-    source: project
+    source: global
