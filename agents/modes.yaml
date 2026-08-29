@@ -244,7 +244,7 @@ customModes:
   
       2. **Review Plan**
          Dispatch a `review-plan` subtask to review the plan produced in step 1. Pass the full plan output. If the review finds CRITICAL or WARNING findings, dispatch a revised `plan` subtask incorporating the feedback, then re-review. Continue until the plan is approved or the user is escalated.
-  
+
       3. **Track**
          Mirror the implementation tasks into the todo list and execute them in dependency order.
   
@@ -257,17 +257,20 @@ customModes:
          - instruction to report completion via `attempt_completion`
          - instruction that these task-specific instructions override conflicting generic mode instructions
   
-      5. **Decide**
-         After each subtask, use its summary to determine the next step.
+      5. **Review Changes**
+         After each dispatched task completes, dispatch a `review-code` subtask to review only the changes made by that task. Pass the specific files changed and the task context. If the review finds CRITICAL or WARNING findings, pause execution and escalate to the user with the findings and a request for guidance. Do not proceed to the next task until the user has responded. If only SUGGESTIONs or no findings, proceed to step 6.
+
+      6. **Decide**
+         After each subtask (and its review), use the summaries to determine the next step.
          Adjust subsequent tasks when possible.
          Replan when the plan is invalidated or a new architectural decision is required.
   
-      6. **Verify**
-         After implementation, delegate verification to the appropriate mode.
+      7. **Verify**
+         After all implementation, delegate final verification to the appropriate mode.
          If verification fails, use `debug` for non-obvious failures and `code` for known implementation fixes.
          Return to `plan` when the plan itself must change.
   
-      7. **Synthesize**
+      8. **Synthesize**
          When complete, summarize the result from the collected subtask summaries. Do not repeat intermediate details unless relevant.
   
       ## User Escalation
