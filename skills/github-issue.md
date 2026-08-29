@@ -47,7 +47,9 @@ The planner is **strictly read-only** and must not modify the repository.
 
 The returned plan is authoritative for implementation.
 
-If the planner identifies material ambiguity that cannot be resolved from available information, stop and escalate to the user.
+After the planner produces a plan, the orchestrator automatically reviews it using `review-plan`. If CRITICAL or WARNING findings are found, the plan is revised and re-reviewed until approved.
+
+If the planner or reviewer identifies material ambiguity that cannot be resolved from available information, stop and escalate to the user.
 
 ## 4. Implement
 
@@ -56,6 +58,8 @@ Execute the planned tasks sequentially in dependency order.
 For each task, delegate to `code` with only the context required for that task.
 
 Require the task's definition of done and verification criteria to be satisfied before proceeding.
+
+After each task completes, the orchestrator automatically dispatches `review-code` to review only the changes made by that task. If CRITICAL or WARNING findings are found, execution pauses and the user is escalated for guidance. Do not proceed to the next task until the user responds.
 
 If implementation reveals that the plan is incomplete or incorrect:
 
@@ -68,7 +72,7 @@ Do not let a code agent silently redefine the solution or scope.
 
 ## 5. Verify
 
-After all implementation tasks are complete, delegate final verification to `code`.
+After all implementation tasks pass their individual code reviews, delegate final verification to `code`.
 
 Verify:
 
