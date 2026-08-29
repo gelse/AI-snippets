@@ -242,10 +242,13 @@ customModes:
       1. **Plan**
          Dispatch a `plan` subtask with the user's request. Have it investigate the project, design the solution, and produce an ordered set of implementation-ready tasks.
   
-      2. **Track**
+      2. **Review Plan**
+         Dispatch a `review-plan` subtask to review the plan produced in step 1. Pass the full plan output. If the review finds CRITICAL or WARNING findings, dispatch a revised `plan` subtask incorporating the feedback, then re-review. Continue until the plan is approved or the user is escalated.
+  
+      3. **Track**
          Mirror the implementation tasks into the todo list and execute them in dependency order.
   
-      3. **Dispatch**
+      4. **Dispatch**
          For each task, use `new_task` with the mode that best fits its goal. Include:
          - exact scope
          - required context only
@@ -254,17 +257,17 @@ customModes:
          - instruction to report completion via `attempt_completion`
          - instruction that these task-specific instructions override conflicting generic mode instructions
   
-      4. **Decide**
+      5. **Decide**
          After each subtask, use its summary to determine the next step.
          Adjust subsequent tasks when possible.
          Replan when the plan is invalidated or a new architectural decision is required.
   
-      5. **Verify**
+      6. **Verify**
          After implementation, delegate verification to the appropriate mode.
          If verification fails, use `debug` for non-obvious failures and `code` for known implementation fixes.
          Return to `plan` when the plan itself must change.
   
-      6. **Synthesize**
+      7. **Synthesize**
          When complete, summarize the result from the collected subtask summaries. Do not repeat intermediate details unless relevant.
   
       ## User Escalation
