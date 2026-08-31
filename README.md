@@ -129,35 +129,39 @@ If the original issue contains **material ambiguity** that cannot be resolved fr
 
 ## 5. Mode → Model Mapping
 
-The model assignments are configured in [`roo-code-settings.json`](/home/werner/roo-code-settings.json) (the Zoo Code settings file) under `modeApiConfigs`. The workspace defines two API providers via OmniRoute at `brainbox:20128`:
+Model assignments live in the Zoo Code extension state, stored in VS Code's global state database (`~/.config/Code/User/globalStorage/state.vscdb`, key `ZooCodeOrganization.zoo-code`). The relevant fields are `listApiConfigMeta` (available provider profiles) and the global `currentApiConfigName` / `openAiModelId` (the default model for all modes). The stale export at [`roo-code-settings.json`](/home/werner/roo-code-settings.json) contains outdated mappings from the previous Roo Code extension and should not be treated as authoritative.
 
-| Provider profile | Model ID | Notes |
-|-----------------|----------|-------|
-| OmniRoute - DeepSeekV4Pro | `DeepSeek-v4-Pro` | 128k context, reasoning model, reasoning effort: low |
-| owl-then-qwen | `owl-then-qwencoder` | 128k context, encoder-style model |
+The current configuration connects to a **Bifrost** gateway at `brainbox.gelse.local` and defines five provider profiles, all served as OpenAI-compatible endpoints:
+
+| Provider profile | Profile ID | Model ID | Notes |
+|-----------------|------------|----------|-------|
+| DeepSeekV4Flash | `78jxzl7f2p8` | `deepseek-v4-flash` | Available but not the current default |
+| DeepSeekV4Pro | `abm0z27ee6i` | `deepseek-v4-pro` | Pinned; 128k context, reasoning model |
+| **Xiaomi MiMo - default** | `scr09uh1xd` | **`mimo-v2.5`** | **Current default** — 128k context, supports images and prompt cache |
+| Xiaomi MiMo - expert | `w8obhwg7o2s` | `mimo-v2.5-pro` | Heavier MiMo variant |
+| Qwen3.8 Flash | `hde8a4xiron` | `qwen3.8-flash` | Lightweight flash model |
 
 ### Mode → Model table
 
-| Mode | Slug | Assigned Model | Rationale / Notes |
-|------|------|----------------|-------------------|
-| 🪃 Orchestrator | `orchestrator` | **DeepSeek V4 Pro** | Reasoning model for coordination decisions |
-| 💻 Code | `code` | **owl-then-qwencoder** | Coding model for implementation tasks |
-| 🪲 Debug *(built-in)* | `debug` | **owl-then-qwencoder** | Same coding model for investigation and fixes |
-| ❌ Architect *(deprecated)* | `architect` | *(unmapped — configuration reference exists but provider profile not defined)* | Deprecated; replaced by `plan` |
-| ❓ Ask *(built-in)* | `ask` | *(unmapped — configuration reference exists but provider profile not defined)* | Built-in default model |
-| 📋 Planner | `plan` | **default / unassigned** | No explicit mapping; uses the global default model |
-| 👀 Review Code | `review-code` | **default / unassigned** | No explicit mapping; uses the global default model |
-| 📋 Review Plan | `review-plan` | **default / unassigned** | No explicit mapping; uses the global default model |
-| 🛡️ Security Review | `security-review` | **default / unassigned** | No explicit mapping; uses the global default model |
+No per-mode API config overrides exist in the live configuration (the `modeApiConfigs` map is absent from the state DB). **Every mode uses the global default model.**
+
+| Mode | Slug | Assigned Model | Notes |
+|------|------|----------------|-------|
+| 🪃 Orchestrator | `orchestrator` | **Xiaomi MiMo v2.5** (global default) | No per-mode override |
+| 💻 Code | `code` | **Xiaomi MiMo v2.5** (global default) | No per-mode override |
+| 🪲 Debug *(built-in)* | `debug` | **Xiaomi MiMo v2.5** (global default) | Built-in mode; no per-mode override |
+| ❌ Architect *(deprecated)* | `architect` | **Xiaomi MiMo v2.5** (global default) | Deprecated; replaced by `plan` |
+| ❓ Ask *(built-in)* | `ask` | **Xiaomi MiMo v2.5** (global default) | Built-in mode; no per-mode override |
+| 📋 Planner | `plan` | **Xiaomi MiMo v2.5** (global default) | No per-mode override |
+| 👀 Review Code | `review-code` | **Xiaomi MiMo v2.5** (global default) | No per-mode override |
+| 📋 Review Plan | `review-plan` | **Xiaomi MiMo v2.5** (global default) | No per-mode override |
+| 🛡️ Security Review | `security-review` | **Xiaomi MiMo v2.5** (global default) | No per-mode override |
 
 ### Impact on autonomy
 
-The current configuration maps the orchestrator to a strong reasoning model (DeepSeek V4 Pro) and `code`/`debug` to an encoder model (owl-then-qwen). However, **`plan`, `review-plan`, `review-code`, and `security-review` have no explicit model mapping** and fall back to the global default. For fully autonomous operation to be reliable, these roles should be backed by models with:
+Since no per-mode overrides are configured, every role in the autonomous pipeline — orchestrator, planner, reviewer, coder, and debugger — runs on the same model: **Xiaomi MiMo v2.5**. This is a 128k-context model with image support and prompt caching. The trade-off is uniformity: there is no opportunity to assign a heavier reasoning model (e.g. DeepSeek V4 Pro, which is pinned and available) to the high-leverage orchestration and planning roles, nor a lighter model to the code-execution roles.
 
-- **`plan` / `review-plan`**: Strong reasoning capability (comparable to the orchestrator's model) — these roles require codebase investigation and architectural judgement.
-- **`review-code` / `security-review`**: Strong reasoning and attention to detail — these roles must identify real bugs and security issues, not just surface-level style concerns.
-
-Until explicit mappings are configured for these roles, the autonomous pipeline may produce incomplete plans or miss findings during review, requiring human intervention.
+In practice this means the orchestrator's coordination, the planner's decomposition, and the reviewers' analysis all share the same capability ceiling. For fully autonomous operation to be reliable, this model must be strong enough across all dimensions — reasoning, code comprehension, and attention to detail — because a single weak point affects every role equally. If the autonomous pipeline produces incomplete plans or misses findings during review, the remedy is to configure per-mode overrides, assigning heavier reasoning models to `orchestrator`, `plan`, `review-plan`, `review-code`, and `security-review`.
 
 ---
 
