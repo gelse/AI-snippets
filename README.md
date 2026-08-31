@@ -89,7 +89,7 @@ The [`github-issue`](skills/github-issue.md:1) skill combines the orchestrator's
 
 - The skill defines **every phase** as a deterministic step — no human prompting is required between phases.
 - The orchestrator delegates **all implementation** to subtasks; it never writes code itself, keeping context lean.
-- Auto-approval settings in `roo-code-settings.json` allow subtasks to execute without manual confirmation. The key settings are `autoApprovalEnabled: true` (top-level auto-approval gate), `alwaysAllowReadOnly: true`, `alwaysAllowWrite: true`, and `alwaysAllowExecute: true` (permits command execution). The orchestrator dispatches work via `new_task`, which routes through the auto-approval pipeline — individual subtask approval prompts are skipped when these flags are set.
+- Zoo Code's auto-approval configuration allows dispatched subtasks and their tool calls (file writes, command execution) to proceed without manual confirmation, so the orchestrator's `new_task` dispatches run unattended from phase to phase.
 - The `gh` CLI handles all GitHub interactions (issue retrieval, branch creation, PR creation) without browser or API key prompts.
 
 ### The one hard stop
@@ -129,39 +129,33 @@ If the original issue contains **material ambiguity** that cannot be resolved fr
 
 ## 5. Mode → Model Mapping
 
-Model assignments live in the Zoo Code extension state, stored in VS Code's global state database (`~/.config/Code/User/globalStorage/state.vscdb`, key `ZooCodeOrganization.zoo-code`). The relevant fields are `listApiConfigMeta` (available provider profiles) and the global `currentApiConfigName` / `openAiModelId` (the default model for all modes). The stale export at [`roo-code-settings.json`](/home/werner/roo-code-settings.json) contains outdated mappings from the previous Roo Code extension and should not be treated as authoritative.
-
-The current configuration connects to a **Bifrost** gateway at `brainbox.gelse.local` and defines five provider profiles, all served as OpenAI-compatible endpoints:
-
-| Provider profile | Profile ID | Model ID | Notes |
-|-----------------|------------|----------|-------|
-| DeepSeekV4Flash | `78jxzl7f2p8` | `deepseek-v4-flash` | Available; not the current default |
-| DeepSeekV4Pro | `abm0z27ee6i` | `deepseek-v4-pro` | Pinned; 128k context, reasoning model |
-| Xiaomi MiMo - default | `scr09uh1xd` | `mimo-v2.5` | 128k context, supports images and prompt cache |
-| Xiaomi MiMo - expert | `w8obhwg7o2s` | `mimo-v2.5-pro` | Heavier MiMo variant |
-| **Qwen3.8 Flash** | `hde8a4xiron` | `opencode-go/qwen3.8-flash` | **Current default** (`currentApiConfigName: "Qwen3.8 Flash"`) |
+The model backing each mode is selected in the Zoo Code settings of the installation running this workspace. The mapping currently in use is shown below; it is the only element of the setup that lives outside this repository.
 
 ### Mode → Model table
 
-No per-mode API config overrides exist in the live configuration (the `modeApiConfigs` map is absent from the state DB). **Every mode uses the global default model.**
-
-| Mode | Slug | Assigned Model | Notes |
-|------|------|----------------|-------|
-| 🪃 Orchestrator | `orchestrator` | **Qwen3.8 Flash** (global default) | No per-mode override |
-| 💻 Code | `code` | **Qwen3.8 Flash** (global default) | No per-mode override |
-| 🪲 Debug *(built-in)* | `debug` | **Qwen3.8 Flash** (global default) | Built-in mode; no per-mode override |
-| ❌ Architect *(deprecated)* | `architect` | **Qwen3.8 Flash** (global default) | Deprecated; replaced by `plan` |
-| ❓ Ask *(built-in)* | `ask` | **Qwen3.8 Flash** (global default) | Built-in mode; no per-mode override |
-| 📋 Planner | `plan` | **Qwen3.8 Flash** (global default) | No per-mode override |
-| 👀 Review Code | `review-code` | **Qwen3.8 Flash** (global default) | No per-mode override |
-| 📋 Review Plan | `review-plan` | **Qwen3.8 Flash** (global default) | No per-mode override |
-| 🛡️ Security Review | `security-review` | **Qwen3.8 Flash** (global default) | No per-mode override |
+| Mode | Slug | Assigned Model |
+|------|------|----------------|
+| *(default — all unmapped modes)* | — | **Xiaomi MiMo v2.5** |
+| 🪃 Orchestrator | `orchestrator` | **Qwen3.8 Flash** |
+| 📋 Planner | `plan` | **Qwen3.8 Flash** |
+| 💻 Code | `code` | **Xiaomi MiMo v2.5** |
+| 🪲 Debug *(built-in)* | `debug` | **DeepSeek V4 Flash** |
+| ❓ Ask *(built-in)* | `ask` | **DeepSeek V4 Flash** |
+| 👀 Review Code | `review-code` | **DeepSeek V4 Flash** |
+| 📋 Review Plan | `review-plan` | **Xiaomi MiMo v2.5 Pro** |
+| 🛡️ Security Review | `security-review` | **DeepSeek V4 Pro** |
+| ❌ Architect *(deprecated)* | `architect` | *(default)* |
 
 ### Impact on autonomy
 
-Since no per-mode overrides are configured, every role in the autonomous pipeline — orchestrator, planner, reviewer, coder, and debugger — runs on the same model: **Qwen3.8 Flash** (`opencode-go/qwen3.8-flash`, the lightweight flash profile). The trade-off is uniformity: there is no opportunity to assign a heavier reasoning model (e.g. DeepSeek V4 Pro, which is pinned and available) to the high-leverage orchestration and planning roles, nor a dedicated coding model to the code-execution roles.
+The mapping above is a deliberate spread, not an accident: each role is backed by the model class its job actually demands.
 
-In practice this means the orchestrator's coordination, the planner's decomposition, and the reviewers' analysis all share the same capability ceiling. For fully autonomous operation to be reliable, this model must be strong enough across all dimensions — reasoning, code comprehension, and attention to detail — because a single weak point affects every role equally. If the autonomous pipeline produces incomplete plans or misses findings during review, the remedy is to configure per-mode overrides, assigning heavier reasoning models to `orchestrator`, `plan`, `review-plan`, `review-code`, and `security-review`.
+- **Reasoning roles** (`orchestrator`, `plan`) sit on a fast flash-tier model strong enough for structured decomposition and decision-making.
+- **Implementation** (`code`) runs on the default general-purpose model, which handles instruction-following and edits well.
+- **Review and investigation roles** (`review-code`, `debug`, `ask`) sit on flash-tier DeepSeek models tuned for careful reading of diffs and hypotheses.
+- **Highest-stakes judgement** (`security-review`, `review-plan`) is assigned the heaviest available variants, because a missed finding there fails the whole pipeline silently.
+
+The point of this table is not the specific models — those will change over time — but the principle: **never leave the pipeline's roles on a single uniform default.** Autonomy quality is bounded by the weakest model in the loop, and different roles fail in different ways.
 
 ---
 
@@ -175,17 +169,4 @@ In practice this means the orchestrator's coordination, the planner's decomposit
 │   └── modes.yaml             ← all custom mode definitions
 └── skills/
     └── github-issue.md        ← github-issue skill runbook
-```
-
-Global Zoo Code rules and the installed `github-issue` skill are located under `~/.roo/`:
-
-```
-~/.roo/
-├── rules/
-│   ├── 01-documentation.md
-│   ├── 04-git.md
-│   └── 06-hosts.md
-└── skills/
-    └── github-issue/
-        └── SKILL.md
 ```
