@@ -170,3 +170,11 @@ The point of this table is not the specific models — those will change over ti
 └── skills/
     └── github-issue.md        ← github-issue skill runbook
 ```
+
+---
+
+## Gaps
+
+This documentation — and the workflow it describes — is a work in progress. Known gaps:
+
+- **Tests are probably underrepresented in their importance.** The pipeline currently treats verification (tests, checks) as a single late phase. In reality, tests are the backbone of trustworthy autonomy: they are what lets the orchestrator *prove* a subtask's work instead of merely reviewing it. Expect the plan/implement/review/verify loop to evolve toward test-first delegation, where each dispatched task carries executable acceptance criteria, not just a prose definition of done.
