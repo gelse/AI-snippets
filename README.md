@@ -135,11 +135,11 @@ The current configuration connects to a **Bifrost** gateway at `brainbox.gelse.l
 
 | Provider profile | Profile ID | Model ID | Notes |
 |-----------------|------------|----------|-------|
-| DeepSeekV4Flash | `78jxzl7f2p8` | `deepseek-v4-flash` | Available but not the current default |
+| DeepSeekV4Flash | `78jxzl7f2p8` | `deepseek-v4-flash` | Available; not the current default |
 | DeepSeekV4Pro | `abm0z27ee6i` | `deepseek-v4-pro` | Pinned; 128k context, reasoning model |
-| **Xiaomi MiMo - default** | `scr09uh1xd` | **`mimo-v2.5`** | **Current default** — 128k context, supports images and prompt cache |
+| Xiaomi MiMo - default | `scr09uh1xd` | `mimo-v2.5` | 128k context, supports images and prompt cache |
 | Xiaomi MiMo - expert | `w8obhwg7o2s` | `mimo-v2.5-pro` | Heavier MiMo variant |
-| Qwen3.8 Flash | `hde8a4xiron` | `qwen3.8-flash` | Lightweight flash model |
+| **Qwen3.8 Flash** | `hde8a4xiron` | `opencode-go/qwen3.8-flash` | **Current default** (`currentApiConfigName: "Qwen3.8 Flash"`) |
 
 ### Mode → Model table
 
@@ -147,19 +147,19 @@ No per-mode API config overrides exist in the live configuration (the `modeApiCo
 
 | Mode | Slug | Assigned Model | Notes |
 |------|------|----------------|-------|
-| 🪃 Orchestrator | `orchestrator` | **Xiaomi MiMo v2.5** (global default) | No per-mode override |
-| 💻 Code | `code` | **Xiaomi MiMo v2.5** (global default) | No per-mode override |
-| 🪲 Debug *(built-in)* | `debug` | **Xiaomi MiMo v2.5** (global default) | Built-in mode; no per-mode override |
-| ❌ Architect *(deprecated)* | `architect` | **Xiaomi MiMo v2.5** (global default) | Deprecated; replaced by `plan` |
-| ❓ Ask *(built-in)* | `ask` | **Xiaomi MiMo v2.5** (global default) | Built-in mode; no per-mode override |
-| 📋 Planner | `plan` | **Xiaomi MiMo v2.5** (global default) | No per-mode override |
-| 👀 Review Code | `review-code` | **Xiaomi MiMo v2.5** (global default) | No per-mode override |
-| 📋 Review Plan | `review-plan` | **Xiaomi MiMo v2.5** (global default) | No per-mode override |
-| 🛡️ Security Review | `security-review` | **Xiaomi MiMo v2.5** (global default) | No per-mode override |
+| 🪃 Orchestrator | `orchestrator` | **Qwen3.8 Flash** (global default) | No per-mode override |
+| 💻 Code | `code` | **Qwen3.8 Flash** (global default) | No per-mode override |
+| 🪲 Debug *(built-in)* | `debug` | **Qwen3.8 Flash** (global default) | Built-in mode; no per-mode override |
+| ❌ Architect *(deprecated)* | `architect` | **Qwen3.8 Flash** (global default) | Deprecated; replaced by `plan` |
+| ❓ Ask *(built-in)* | `ask` | **Qwen3.8 Flash** (global default) | Built-in mode; no per-mode override |
+| 📋 Planner | `plan` | **Qwen3.8 Flash** (global default) | No per-mode override |
+| 👀 Review Code | `review-code` | **Qwen3.8 Flash** (global default) | No per-mode override |
+| 📋 Review Plan | `review-plan` | **Qwen3.8 Flash** (global default) | No per-mode override |
+| 🛡️ Security Review | `security-review` | **Qwen3.8 Flash** (global default) | No per-mode override |
 
 ### Impact on autonomy
 
-Since no per-mode overrides are configured, every role in the autonomous pipeline — orchestrator, planner, reviewer, coder, and debugger — runs on the same model: **Xiaomi MiMo v2.5**. This is a 128k-context model with image support and prompt caching. The trade-off is uniformity: there is no opportunity to assign a heavier reasoning model (e.g. DeepSeek V4 Pro, which is pinned and available) to the high-leverage orchestration and planning roles, nor a lighter model to the code-execution roles.
+Since no per-mode overrides are configured, every role in the autonomous pipeline — orchestrator, planner, reviewer, coder, and debugger — runs on the same model: **Qwen3.8 Flash** (`opencode-go/qwen3.8-flash`, the lightweight flash profile). The trade-off is uniformity: there is no opportunity to assign a heavier reasoning model (e.g. DeepSeek V4 Pro, which is pinned and available) to the high-leverage orchestration and planning roles, nor a dedicated coding model to the code-execution roles.
 
 In practice this means the orchestrator's coordination, the planner's decomposition, and the reviewers' analysis all share the same capability ceiling. For fully autonomous operation to be reliable, this model must be strong enough across all dimensions — reasoning, code comprehension, and attention to detail — because a single weak point affects every role equally. If the autonomous pipeline produces incomplete plans or misses findings during review, the remedy is to configure per-mode overrides, assigning heavier reasoning models to `orchestrator`, `plan`, `review-plan`, `review-code`, and `security-review`.
 
