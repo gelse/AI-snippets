@@ -1,6 +1,6 @@
 # AI-Snippets: Skills and Agent Mode Synergy
 
-A workspace where **Roo Code agent modes** collaborate as a multi-agent system and **local skills** drive end-to-end autonomous workflows. This document explains how the pieces fit together.
+A workspace where **Zoo Code agent modes** collaborate as a multi-agent system and **local skills** drive end-to-end autonomous workflows. This document explains how the pieces fit together.
 
 ---
 
@@ -10,7 +10,7 @@ The workspace defines two complementary building blocks:
 
 | Layer | What it is | Example |
 |-------|-----------|---------|
-| **Agent modes** | Specialised Roo Code subagents, each scoped to a single responsibility (planning, coding, reviewing, debugging, etc.) | [`plan`](agents/modes.yaml:2), [`code`](agents/modes.yaml:457), [`orchestrator`](agents/modes.yaml:227) |
+| **Agent modes** | Specialised Zoo Code subagents, each scoped to a single responsibility (planning, coding, reviewing, debugging, etc.) | [`plan`](agents/modes.yaml:2), [`code`](agents/modes.yaml:457), [`orchestrator`](agents/modes.yaml:227) |
 | **Local skills** | Reusable prompt-driven runbooks that tell an orchestrator which steps to execute and in what order | [`github-issue`](skills/github-issue.md:1) |
 
 A **skill** (like `github-issue`) is the *what* — a high-level workflow specification.  
@@ -49,10 +49,10 @@ flowchart TD
 | **Plan** | [`plan`](agents/modes.yaml:2) | Investigate codebase, design solution, produce ordered implementation tasks |
 | **Review Plan** | [`review-plan`](agents/modes.yaml:387) | Check plan for completeness, feasibility, correctness; iterate until approved |
 | **Track** | *(orchestrator internal)* | Mirror plan tasks into the todo list; respect dependency order |
-| **Dispatch** | [`code`](agents/modes.yaml:457), [`debug`](agents/modes.yaml:478), etc. | Spawn a subtask per implementation task with scope, context, definition of done |
+| **Dispatch** | [`code`](agents/modes.yaml:457), `debug`, etc. | Spawn a subtask per implementation task with scope, context, definition of done |
 | **Review Changes** | [`review-code`](agents/modes.yaml:152) | After each subtask, review only that task's diff for bugs, performance, style |
 | **Decide** | *(orchestrator internal)* | Use summaries to adjust remaining tasks or replan if the plan is invalidated |
-| **Verify** | [`code`](agents/modes.yaml:457), [`debug`](agents/modes.yaml:478) | Final end-to-end verification; dispatch `debug` for non-obvious failures, `code` for known fixes |
+| **Verify** | [`code`](agents/modes.yaml:457), `debug` | Final end-to-end verification; dispatch `debug` for non-obvious failures, `code` for known fixes |
 | **Synthesize** | *(orchestrator internal)* | Collect all subtask summaries into a final human-readable report |
 
 ### Failure handling
@@ -89,7 +89,7 @@ The [`github-issue`](skills/github-issue.md:1) skill combines the orchestrator's
 
 - The skill defines **every phase** as a deterministic step — no human prompting is required between phases.
 - The orchestrator delegates **all implementation** to subtasks; it never writes code itself, keeping context lean.
-- Auto-approval settings in the workspace (`alwaysAllowSubtasks: true`, `autoApprovalEnabled: true`) allow subtasks to execute without manual confirmation.
+- Auto-approval settings in `roo-code-settings.json` allow subtasks to execute without manual confirmation. The key settings are `autoApprovalEnabled: true` (top-level auto-approval gate), `alwaysAllowReadOnly: true`, `alwaysAllowWrite: true`, and `alwaysAllowExecute: true` (permits command execution). The orchestrator dispatches work via `new_task`, which routes through the auto-approval pipeline — individual subtask approval prompts are skipped when these flags are set.
 - The `gh` CLI handles all GitHub interactions (issue retrieval, branch creation, PR creation) without browser or API key prompts.
 
 ### The one hard stop
@@ -129,7 +129,7 @@ If the original issue contains **material ambiguity** that cannot be resolved fr
 
 ## 5. Mode → Model Mapping
 
-The model assignments are configured in [`roo-code-settings.json`](/home/werner/roo-code-settings.json) under `modeApiConfigs`. The workspace defines two API providers via OmniRoute at `brainbox:20128`:
+The model assignments are configured in [`roo-code-settings.json`](/home/werner/roo-code-settings.json) (the Zoo Code settings file) under `modeApiConfigs`. The workspace defines two API providers via OmniRoute at `brainbox:20128`:
 
 | Provider profile | Model ID | Notes |
 |-----------------|----------|-------|
@@ -142,9 +142,9 @@ The model assignments are configured in [`roo-code-settings.json`](/home/werner/
 |------|------|----------------|-------------------|
 | 🪃 Orchestrator | `orchestrator` | **DeepSeek V4 Pro** | Reasoning model for coordination decisions |
 | 💻 Code | `code` | **owl-then-qwencoder** | Coding model for implementation tasks |
-| 🪲 Debug | `debug` | **owl-then-qwencoder** | Same coding model for investigation and fixes |
+| 🪲 Debug *(built-in)* | `debug` | **owl-then-qwencoder** | Same coding model for investigation and fixes |
 | ❌ Architect *(deprecated)* | `architect` | *(unmapped — configuration reference exists but provider profile not defined)* | Deprecated; replaced by `plan` |
-| ❓ Ask | `ask` | *(unmapped — configuration reference exists but provider profile not defined)* | Default model |
+| ❓ Ask *(built-in)* | `ask` | *(unmapped — configuration reference exists but provider profile not defined)* | Built-in default model |
 | 📋 Planner | `plan` | **default / unassigned** | No explicit mapping; uses the global default model |
 | 👀 Review Code | `review-code` | **default / unassigned** | No explicit mapping; uses the global default model |
 | 📋 Review Plan | `review-plan` | **default / unassigned** | No explicit mapping; uses the global default model |
@@ -173,7 +173,7 @@ Until explicit mappings are configured for these roles, the autonomous pipeline 
     └── github-issue.md        ← github-issue skill runbook
 ```
 
-Global Roo Code rules and the installed `github-issue` skill are located under `~/.roo/`:
+Global Zoo Code rules and the installed `github-issue` skill are located under `~/.roo/`:
 
 ```
 ~/.roo/
