@@ -173,8 +173,16 @@ The point of this table is not the specific models — those will change over ti
 
 ---
 
-## Gaps
+## Gaps and downsides /  FAQ
 
 This documentation — and the workflow it describes — is a work in progress. Known gaps:
 
 - **Tests are probably underrepresented in their importance.** The pipeline currently treats verification (tests, checks) as a single late phase. In reality, tests are the backbone of trustworthy autonomy: they are what lets the orchestrator *prove* a subtask's work instead of merely reviewing it. Expect the plan/implement/review/verify loop to evolve toward test-first delegation, where each dispatched task carries executable acceptance criteria, not just a prose definition of done.
+
+- **Some crucial modes are not yet customized** Some modes, like "Code", are not present yet in the corresponding yaml file. The reason is, because the default configuration that comes with zoo code isn't that bad at all and i did not yet have time or urgency to improve on it.
+
+- **Overthinking** Even small tasks that would not need extensive planning are going through the plan/review plan loop, which is nice to look at, but propably completely useless. The solution is to either NOT use the orchestrator as the starting point (for small single-agent tasks) or tell the orchestrator in the prompt to not go through all the hoops in planning (because - for example - you already have a implementation plan ready).
+
+- **Zoo code only: orchestrator loses grip on subtasks** There seems to be a bug in zoo code that if a subtask gets interrupted (by human interaction, for example, or by loss of network connection or any other reason) and restarted again, the subtask finishes, but does not report it's results to the orchestrator. The workaround is: open the result of the subtask (only the result) as markdown, save it as file somewhere and tell the orchestrator something like "Subtask failed to respond properly, results can be found at `plans/000-results.md`". The orchestrator then continues it's work as if it got the results directly from the subtask.
+
+- **Model assign examples are fluid** As new models evolve nearly every week, at least every month, i am experimenting a lot with re-assigning. For example: currently i have "GLM-5.3-flash" (very promising) and "Qwen3.8-27B" (very slow, on-prem, but promising) as additional models in various roles. Because i have a combination of different providers glued together with on-prem [Bifrost AI Gateway](https://docs.getbifrost.ai/overview) i try to find the most cost-effective solution and switch around using my quota from different services a lot.
