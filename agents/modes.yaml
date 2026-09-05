@@ -345,17 +345,20 @@ customModes:
       - Treat subtask completion summaries as the source of truth for subsequent decisions.
   
       ## Workflow
-  
-      1. **Plan**
-         Dispatch a `plan` subtask with the user's request. Have it investigate the project, design the solution, and produce an ordered set of implementation-ready tasks.
-  
-      2. **Review Plan**
-         Dispatch a `review-plan` subtask to review the plan produced in step 1. Pass the full plan output. If the review finds CRITICAL or WARNING findings, dispatch a revised `plan` subtask incorporating the feedback, then re-review. Continue until the plan is approved or the user is escalated.
 
-      3. **Track**
+      1. **Investigate**
+         Dispatch an `investigator` subtask with the user's request. Have it explore the codebase and produce a structured Investigation Report. Pass the full report to the planner.
+
+      2. **Plan**
+         Dispatch a `plan` subtask with the user's request and the Investigation Report from step 1. Have it design the solution and produce an ordered set of implementation-ready tasks.
+
+      3. **Review Plan**
+         Dispatch a `review-plan` subtask to review the plan produced in step 2. Pass the full plan output and the Investigation Report. If the review finds CRITICAL or WARNING findings, dispatch an `investigator` subtask scoped to the review's findings, then dispatch a revised `plan` subtask incorporating both reports and the review feedback, then re-review. Continue until the plan is approved or the user is escalated.
+
+      4. **Track**
          Mirror the implementation tasks into the todo list and execute them in dependency order.
-  
-      4. **Dispatch**
+
+      5. **Dispatch**
          For each task, use `new_task` with the mode that best fits its goal. Include:
          - exact scope
          - required context only
@@ -363,21 +366,20 @@ customModes:
          - non-goals where applicable
          - instruction to report completion via `attempt_completion`
          - instruction that these task-specific instructions override conflicting generic mode instructions
-  
-      5. **Review Changes**
-         After each dispatched task completes, dispatch a `review-code` subtask to review only the changes made by that task. Pass the specific files changed and the task context. If the review finds CRITICAL or WARNING findings, pause execution and escalate to the user with the findings and a request for guidance. Do not proceed to the next task until the user has responded. If only SUGGESTIONs or no findings, proceed to step 6.
 
-      6. **Decide**
+      6. **Review Changes**
+         After each dispatched task completes, dispatch a `review-code` subtask to review only the changes made by that task. Pass the specific files changed and the task context. If the review finds CRITICAL or WARNING findings, pause execution and escalate to the user with the findings and a request for guidance. Do not proceed to the next task until the user has responded. If only SUGGESTIONs or no findings, proceed to step 7.
+
+      7. **Decide**
          After each subtask (and its review), use the summaries to determine the next step.
          Adjust subsequent tasks when possible.
-         Replan when the plan is invalidated or a new architectural decision is required.
-  
-      7. **Verify**
+         When the plan is invalidated or a new architectural decision is required, dispatch an `investigator` subtask scoped to what changed, then dispatch a revised `plan` subtask with the new report plus existing context.
+
+      8. **Verify**
          After all implementation, delegate final verification to the appropriate mode.
-         If verification fails, use `debug` for non-obvious failures and `code` for known implementation fixes.
-         Return to `plan` when the plan itself must change.
-  
-      8. **Synthesize**
+         If verification fails, follow the Verification & Failures decision tree below.
+
+      9. **Synthesize**
          When complete, summarize the result from the collected subtask summaries. Do not repeat intermediate details unless relevant.
   
       ## User Escalation
@@ -399,7 +401,7 @@ customModes:
       1. If the failure is obvious and within task scope, let `code` fix it.
       2. If the cause is unclear, unexpected, or outside task scope, dispatch `debug`.
       3. If `debug` identifies a concrete implementation fix, dispatch `code`.
-      4. If `debug` identifies a planning/design problem, dispatch `plan`.
+      4. If `debug` identifies a planning/design problem, dispatch `investigator` scoped to the failure, then dispatch `plan` with the new report and existing context.
       5. If the issue requires a user decision, escalate to the user.
       6. Re-verify after every fix.
 
