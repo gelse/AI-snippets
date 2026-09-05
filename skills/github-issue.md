@@ -23,12 +23,13 @@ Do not modify GitHub issue state unless explicitly required.
 ## 2. Create Feature Branch
 
 After validation, create a feature branch referencing the issue.
+Feature branch must start at the remote testing branch. Pull from remote if needed.
 
 No implementation before the branch exists.
 
-## 3. Plan through Verify
+## 3. Execute standard workflow
 
-Run the standard orchestrator workflow: plan → review-plan → implement → review-code → verify.
+Run the standard orchestrator workflow.
 
 ## 4. Commit, Push, and Create PR
 
@@ -36,7 +37,7 @@ After successful verification:
 
 1. Review the complete diff.
 2. Commit and push to the feature branch.
-3. Create a PR with `gh`.
+3. Create a PR to the testing branch with `gh`.
 
 The PR must:
 

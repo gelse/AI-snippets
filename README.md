@@ -10,7 +10,7 @@ The workspace defines two complementary building blocks:
 
 | Layer | What it is | Example |
 |-------|-----------|---------|
-| **Agent modes** | Specialised Zoo Code subagents, each scoped to a single responsibility (planning, coding, reviewing, debugging, etc.) | [`plan`](agents/modes.yaml:2), [`code`](agents/modes.yaml:457), [`orchestrator`](agents/modes.yaml:227) |
+| **Agent modes** | Specialised Zoo Code subagents, each scoped to a single responsibility (planning, coding, reviewing, debugging, etc.) | [`plan`](agents/modes.yaml:2), [`investigator`](agents/modes.yaml:159), [`code`](agents/modes.yaml:566), [`orchestrator`](agents/modes.yaml:334) |
 | **Local skills** | Reusable prompt-driven runbooks that tell an orchestrator which steps to execute and in what order | [`github-issue`](skills/github-issue.md:1) |
 
 A **skill** (like `github-issue`) is the *what* — a high-level workflow specification.  
@@ -22,37 +22,40 @@ Together they form a system where a single human instruction (e.g. "resolve issu
 
 ## 2. The Orchestrator's Work Loop
 
-The orchestrator mode ([`orchestrator`](agents/modes.yaml:227)) never writes code itself. It acts as a strategic coordinator, delegating every concrete action to a specialised subtask and retaining only orchestration-level context. Its workflow follows a fixed loop:
+The orchestrator mode ([`orchestrator`](agents/modes.yaml:334)) never writes code itself. It acts as a strategic coordinator, delegating every concrete action to a specialised subtask and retaining only orchestration-level context. Its workflow follows a fixed loop:
 
 ```mermaid
 flowchart TD
-    A["1. Plan\nDispatch plan subtask"] --> B["2. Review Plan\nDispatch review-plan subtask"]
-    B -->|Findings| C["Revise plan\nRe-dispatch plan"]
-    C --> B
-    B -->|Approved| D["3. Track\nMirror tasks into todo list"]
-    D --> E["4. Dispatch\nnew_task → specialised mode"]
-    E --> F["5. Review Changes\ndispatch review-code"]
-    F -->|CRITICAL / WARNING| G["Escalate to user"]
-    F -->|SUGGESTION / None| H["6. Decide\nAdjust subsequent tasks"]
-    H --> I{"More tasks?"}
-    I -->|Yes| E
-    I -->|No| J["7. Verify\nFinal verification"]
-    J -->|Fail| K["Debug or fix loop"]
-    K --> J
-    J -->|Pass| L["8. Synthesize\nCollect summaries → report"]
+    A["1. Investigate\nDispatch investigator subtask"] --> B["2. Plan\nDispatch plan subtask with report"]
+    B --> C["3. Review Plan\nDispatch review-plan subtask"]
+    C -->|Findings| D["Revise plan\nRe-dispatch plan"]
+    D --> C
+    C -->|Approved| E["4. Track\nMirror tasks into todo list"]
+    E --> F["5. Dispatch\nnew_task → specialised mode"]
+    F --> G["6. Review Changes\ndispatch review-code"]
+    G -->|CRITICAL / WARNING| H["Escalate to user"]
+    G -->|SUGGESTION / None| I["7. Decide\nAdjust subsequent tasks"]
+    I --> J{"More tasks?"}
+    J -->|Yes| F
+    J -->|No| K["8. Verify\nFinal verification"]
+    K -->|Fail| L["Re-investigate or debug loop"]
+    L -->|Re-investigate| A
+    L -->|Debug or fix| K
+    K -->|Pass| M["9. Synthesize\nCollect summaries → report"]
 ```
 
 ### Step-by-step
 
 | Step | Mode(s) delegated to | Purpose |
 |------|---------------------|---------|
-| **Plan** | [`plan`](agents/modes.yaml:2) | Investigate codebase, design solution, produce ordered implementation tasks |
-| **Review Plan** | [`review-plan`](agents/modes.yaml:387) | Check plan for completeness, feasibility, correctness; iterate until approved |
+| **Investigate** | [`investigator`](agents/modes.yaml:159) | Produce an Investigation Report with repository evidence, file references, and resolved open questions |
+| **Plan** | [`plan`](agents/modes.yaml:2) | Use the Investigation Report to design solution, decompose into ordered implementation tasks |
+| **Review Plan** | [`review-plan`](agents/modes.yaml:496) | Check plan for completeness, feasibility, correctness; iterate until approved |
 | **Track** | *(orchestrator internal)* | Mirror plan tasks into the todo list; respect dependency order |
-| **Dispatch** | [`code`](agents/modes.yaml:457), `debug`, etc. | Spawn a subtask per implementation task with scope, context, definition of done |
-| **Review Changes** | [`review-code`](agents/modes.yaml:152) | After each subtask, review only that task's diff for bugs, performance, style |
+| **Dispatch** | [`code`](agents/modes.yaml:566), `debug`, etc. | Spawn a subtask per implementation task with scope, context, definition of done |
+| **Review Changes** | [`review-code`](agents/modes.yaml:259) | After each subtask, review only that task's diff for bugs, performance, style |
 | **Decide** | *(orchestrator internal)* | Use summaries to adjust remaining tasks or replan if the plan is invalidated |
-| **Verify** | [`code`](agents/modes.yaml:457), `debug` | Final end-to-end verification; dispatch `debug` for non-obvious failures, `code` for known fixes |
+| **Verify** | [`code`](agents/modes.yaml:566), `debug` | Final end-to-end verification; dispatch `debug` for non-obvious failures, `code` for known fixes |
 | **Synthesize** | *(orchestrator internal)* | Collect all subtask summaries into a final human-readable report |
 
 ### Failure handling
@@ -62,7 +65,7 @@ When verification fails the orchestrator follows a decision tree:
 1. Obvious, in-scope failure → let `code` fix it.
 2. Unclear or out-of-scope → dispatch `debug`.
 3. `debug` finds implementation fix → dispatch `code`.
-4. `debug` finds design issue → dispatch `plan` (replan).
+4. `debug` finds design issue or new evidence is needed → dispatch `investigator` scoped to failure, then dispatch `plan` with new report.
 5. Requires human decision → escalate to user.
 6. Re-verify after every fix.
 
@@ -138,6 +141,7 @@ The model backing each mode is selected in the Zoo Code settings of the installa
 | *(default — all unmapped modes)* | — | **Xiaomi MiMo v2.5** |
 | 🪃 Orchestrator | `orchestrator` | **Qwen3.8 Flash** |
 | 📋 Planner | `plan` | **Qwen3.8 Flash** |
+| 🔍 Investigator | `investigator` | **DeepSeek V4 Flash** |
 | 💻 Code | `code` | **Xiaomi MiMo v2.5** |
 | 🪲 Debug *(built-in)* | `debug` | **DeepSeek V4 Flash** |
 | ❓ Ask *(built-in)* | `ask` | **DeepSeek V4 Flash** |
@@ -152,7 +156,7 @@ The mapping above is a deliberate spread, not an accident: each role is backed b
 
 - **Reasoning roles** (`orchestrator`, `plan`) sit on a fast flash-tier model strong enough for structured decomposition and decision-making.
 - **Implementation** (`code`) runs on the default general-purpose model, which handles instruction-following and edits well.
-- **Review and investigation roles** (`review-code`, `debug`, `ask`) sit on flash-tier DeepSeek models tuned for careful reading of diffs and hypotheses.
+- **Review and investigation roles** (`investigator`, `review-code`, `debug`, `ask`) sit on flash-tier DeepSeek models tuned for careful reading of diffs and hypotheses.
 - **Highest-stakes judgement** (`security-review`, `review-plan`) is assigned the heaviest available variants, because a missed finding there fails the whole pipeline silently.
 
 The point of this table is not the specific models — those will change over time — but the principle: **never leave the pipeline's roles on a single uniform default.** Autonomy quality is bounded by the weakest model in the loop, and different roles fail in different ways.
