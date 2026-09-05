@@ -1,6 +1,6 @@
 # AI-Snippets: Skills and Agent Mode Synergy
 
-A workspace where **Roo Code agent modes** collaborate as a multi-agent system and **local skills** drive end-to-end autonomous workflows. This document explains how the pieces fit together.
+A workspace where **Zoo Code agent modes** collaborate as a multi-agent system and **local skills** drive end-to-end autonomous workflows. This document explains how the pieces fit together.
 
 ---
 
@@ -10,7 +10,7 @@ The workspace defines two complementary building blocks:
 
 | Layer | What it is | Example |
 |-------|-----------|---------|
-| **Agent modes** | Specialised Roo Code subagents, each scoped to a single responsibility (planning, coding, reviewing, verifying, etc.) | [`plan`](agents/modes.yaml:271), [`investigator`](agents/modes.yaml:211), [`code`](agents/modes.yaml:631), [`verify`](agents/modes.yaml:672), [`orchestrator`](agents/modes.yaml:2) |
+| **Agent modes** | Specialised Zoo Code subagents, each scoped to a single responsibility (planning, coding, reviewing, verifying, etc.) | [`plan`](agents/modes.yaml:271), [`investigator`](agents/modes.yaml:211), [`code`](agents/modes.yaml:631), [`verify`](agents/modes.yaml:672), [`orchestrator`](agents/modes.yaml:2) |
 | **Local skills** | Reusable prompt-driven runbooks that tell an orchestrator which steps to execute and in what order | [`github-issue`](skills/github-issue.md:1) |
 
 A **skill** (like `github-issue`) is the *what* — a high-level workflow specification.  
@@ -89,7 +89,7 @@ The [`github-issue`](skills/github-issue.md:1) skill combines the orchestrator's
 
 - The skill defines **every phase** as a deterministic step — no human prompting is required between phases.
 - The orchestrator delegates **all implementation** to subtasks; it never writes code itself, keeping context lean.
-- Roo Code's auto-approval configuration allows dispatched subtasks and their tool calls (file writes, command execution) to proceed without manual confirmation, so the orchestrator's `new_task` dispatches run unattended from phase to phase.
+- Zoo Code's auto-approval configuration allows dispatched subtasks and their tool calls (file writes, command execution) to proceed without manual confirmation, so the orchestrator's `new_task` dispatches run unattended from phase to phase.
 - The `gh` CLI handles all GitHub interactions (issue retrieval, branch creation, PR creation) without browser or API key prompts.
 
 ### The one hard stop
@@ -129,7 +129,7 @@ If the original issue contains **material ambiguity** that cannot be resolved fr
 
 ## 5. Mode → Model Mapping
 
-The model backing each mode is selected in the Roo Code settings of the installation running this workspace. The mapping currently in use is shown below; it is the only element of the setup that lives outside this repository.
+The model backing each mode is selected in the Zoo Code settings of the installation running this workspace. The mapping currently in use is shown below; it is the only element of the setup that lives outside this repository.
 
 ### Mode → Model table
 
@@ -186,6 +186,6 @@ This documentation — and the workflow it describes — is a work in progress. 
 
 - **Overthinking** Even small tasks that would not need extensive planning are going through the plan/review plan loop, which is nice to look at, but propably completely useless. The solution is to either NOT use the orchestrator as the starting point (for small single-agent tasks) or tell the orchestrator in the prompt to not go through all the hoops in planning (because - for example - you already have a implementation plan ready).
 
-- **Roo Code only: orchestrator loses grip on subtasks** There seems to be a bug in Roo Code that if a subtask gets interrupted (by human interaction, for example, or by loss of network connection or any other reason) and restarted again, the subtask finishes, but does not report it's results to the orchestrator. The workaround is: open the result of the subtask (only the result) as markdown, save it as file somewhere and tell the orchestrator something like "Subtask failed to respond properly, results can be found at `plans/000-results.md`". The orchestrator then continues it's work as if it got the results directly from the subtask.
+- **Zoo Code only: orchestrator loses grip on subtasks** There seems to be a bug in Zoo Code that if a subtask gets interrupted (by human interaction, for example, or by loss of network connection or any other reason) and restarted again, the subtask finishes, but does not report it's results to the orchestrator. The workaround is: open the result of the subtask (only the result) as markdown, save it as file somewhere and tell the orchestrator something like "Subtask failed to respond properly, results can be found at `plans/000-results.md`". The orchestrator then continues it's work as if it got the results directly from the subtask.
 
 - **Model assign examples are fluid** As new models evolve nearly every week, at least every month, i am experimenting a lot with re-assigning. For example: currently i have "GLM-5.3-flash" (very promising) and "Qwen3.8-27B" (very slow, on-prem, but promising) as additional models in various roles. Because i have a combination of different providers glued together with on-prem [Bifrost AI Gateway](https://docs.getbifrost.ai/overview) i try to find the most cost-effective solution and switch around using my quota from different services a lot.
