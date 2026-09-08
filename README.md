@@ -10,7 +10,7 @@ The workspace defines two complementary building blocks:
 
 | Layer | What it is | Example |
 |-------|-----------|---------|
-| **Agent modes** | Specialised Zoo Code subagents, each scoped to a single responsibility (planning, coding, reviewing, debugging, etc.) | [`plan`](agents/modes.yaml:2), [`code`](agents/modes.yaml:457), [`orchestrator`](agents/modes.yaml:227) |
+| **Agent modes** | Specialised Zoo Code subagents, each scoped to a single responsibility (planning, coding, reviewing, verifying, etc.) | [`plan`](agents/modes.yaml:271), [`investigator`](agents/modes.yaml:211), [`code`](agents/modes.yaml:631), [`verify`](agents/modes.yaml:672), [`security-review`](agents/modes.yaml:477), [`orchestrator`](agents/modes.yaml:2) |
 | **Local skills** | Reusable prompt-driven runbooks that tell an orchestrator which steps to execute and in what order | [`github-issue`](skills/github-issue.md:1) |
 
 A **skill** (like `github-issue`) is the *what* — a high-level workflow specification.  
@@ -22,37 +22,40 @@ Together they form a system where a single human instruction (e.g. "resolve issu
 
 ## 2. The Orchestrator's Work Loop
 
-The orchestrator mode ([`orchestrator`](agents/modes.yaml:227)) never writes code itself. It acts as a strategic coordinator, delegating every concrete action to a specialised subtask and retaining only orchestration-level context. Its workflow follows a fixed loop:
+The orchestrator mode ([`orchestrator`](agents/modes.yaml:2)) never writes code itself. It acts as a strategic coordinator, delegating every concrete action to a specialised subtask and retaining only orchestration-level context. Its workflow follows a fixed loop:
 
 ```mermaid
 flowchart TD
-    A["1. Plan\nDispatch plan subtask"] --> B["2. Review Plan\nDispatch review-plan subtask"]
-    B -->|Findings| C["Revise plan\nRe-dispatch plan"]
-    C --> B
-    B -->|Approved| D["3. Track\nMirror tasks into todo list"]
-    D --> E["4. Dispatch\nnew_task → specialised mode"]
-    E --> F["5. Review Changes\ndispatch review-code"]
-    F -->|CRITICAL / WARNING| G["Escalate to user"]
-    F -->|SUGGESTION / None| H["6. Decide\nAdjust subsequent tasks"]
-    H --> I{"More tasks?"}
-    I -->|Yes| E
-    I -->|No| J["7. Verify\nFinal verification"]
-    J -->|Fail| K["Debug or fix loop"]
-    K --> J
-    J -->|Pass| L["8. Synthesize\nCollect summaries → report"]
+    A["1. Investigate\nDispatch investigator subtask"] --> B["2. Plan\nDispatch plan subtask with report"]
+    B --> C["3. Review Plan\nDispatch review-plan subtask"]
+    C -->|Findings| D["Revise plan\nRe-dispatch plan"]
+    D --> C
+    C -->|Approved| E["4. Track\nMirror tasks into todo list"]
+    E --> F["5. Dispatch\nnew_task → specialised mode"]
+    F --> G["6. Review Changes\ndispatch review-code"]
+    G -->|CRITICAL / WARNING| H["Escalate to user"]
+    G -->|SUGGESTION / None| I["7. Decide\nAdjust subsequent tasks"]
+    I --> J{"More tasks?"}
+    J -->|Yes| F
+    J -->|No| K["8. Verify\nDispatch verify subtask"]
+    K -->|Fail| L["Re-investigate or verify loop"]
+    L -->|Re-investigate| A
+    L -->|Verify and fix| K
+    K -->|Pass| M["9. Synthesize\nCollect summaries → report"]
 ```
 
 ### Step-by-step
 
 | Step | Mode(s) delegated to | Purpose |
 |------|---------------------|---------|
-| **Plan** | [`plan`](agents/modes.yaml:2) | Investigate codebase, design solution, produce ordered implementation tasks |
-| **Review Plan** | [`review-plan`](agents/modes.yaml:387) | Check plan for completeness, feasibility, correctness; iterate until approved |
+| **Investigate** | [`investigator`](agents/modes.yaml:211) | Produce an Investigation Report with repository evidence, file references, and resolved open questions |
+| **Plan** | [`plan`](agents/modes.yaml:271) | Use the Investigation Report to design solution, decompose into ordered implementation tasks |
+| **Review Plan** | [`review-plan`](agents/modes.yaml:555) | Check plan for completeness, feasibility, correctness; iterate until approved |
 | **Track** | *(orchestrator internal)* | Mirror plan tasks into the todo list; respect dependency order |
-| **Dispatch** | [`code`](agents/modes.yaml:457), `debug`, etc. | Spawn a subtask per implementation task with scope, context, definition of done |
-| **Review Changes** | [`review-code`](agents/modes.yaml:152) | After each subtask, review only that task's diff for bugs, performance, style |
+| **Dispatch** | [`code`](agents/modes.yaml:631), [`verify`](agents/modes.yaml:672), etc. | Spawn a subtask per implementation task with scope, context, definition of done |
+| **Review Changes** | [`review-code`](agents/modes.yaml:384) | After each subtask, review only that task's diff for bugs, performance, style |
 | **Decide** | *(orchestrator internal)* | Use summaries to adjust remaining tasks or replan if the plan is invalidated |
-| **Verify** | [`code`](agents/modes.yaml:457), `debug` | Final end-to-end verification; dispatch `debug` for non-obvious failures, `code` for known fixes |
+| **Verify** | [`verify`](agents/modes.yaml:672) | Final end-to-end verification; dispatch `verify` to diagnose failures and apply verification-specific fixes, `code` for known implementation fixes |
 | **Synthesize** | *(orchestrator internal)* | Collect all subtask summaries into a final human-readable report |
 
 ### Failure handling
@@ -60,9 +63,9 @@ flowchart TD
 When verification fails the orchestrator follows a decision tree:
 
 1. Obvious, in-scope failure → let `code` fix it.
-2. Unclear or out-of-scope → dispatch `debug`.
-3. `debug` finds implementation fix → dispatch `code`.
-4. `debug` finds design issue → dispatch `plan` (replan).
+2. Unclear or out-of-scope → dispatch `verify`.
+3. `verify` finds implementation fix → dispatch `code`.
+4. `verify` finds design issue or new evidence is needed → dispatch `investigator` scoped to failure, then dispatch `plan` with new report.
 5. Requires human decision → escalate to user.
 6. Re-verify after every fix.
 
@@ -78,12 +81,9 @@ The [`github-issue`](skills/github-issue.md:1) skill combines the orchestrator's
 |-------|-------------|----------------|
 | **1. Retrieve & Validate** | Fetch issue, comments, labels, linked PRs via `gh`. Stop if ambiguous. | orchestrator (reads only) |
 | **2. Feature Branch** | Create a branch referencing the issue. No code yet. | orchestrator (git via `execute_command`) |
-| **3. Plan** | Investigate codebase, design solution, decompose into tasks. | orchestrator → `plan` → `review-plan` |
-| **4. Implement** | Execute each plan task sequentially. | orchestrator → `code` (per task) |
-| **5. Review** | After every task, review the diff. | orchestrator → `review-code` |
-| **6. Verify** | Run tests, checks, confirm definition of done. | orchestrator → `code` / `debug` |
-| **7. Commit, Push, PR** | Review final diff, commit, push, open PR referencing the issue. | orchestrator (git/gh via `execute_command`) |
-| **8. Report** | Summarize branch, implementation, tests, PR link, limitations. | orchestrator (synthesis) |
+| **3. Execute** | Run the standard orchestrator workflow (investigate → plan → review → implement → verify). | orchestrator → `investigator` → `plan` → `review-plan` → `code` → `review-code` → `verify` |
+| **4. Commit, Push, PR** | Review final diff, commit, push, open PR referencing the issue. | orchestrator (git/gh via `execute_command`) |
+| **5. Report** | Summarize branch, implementation, tests, PR link, limitations. | orchestrator (synthesis) |
 
 ### What makes this autonomous
 
@@ -110,7 +110,7 @@ If the original issue contains **material ambiguity** that cannot be resolved fr
 | **plan / review-plan** | Strong reasoning, codebase comprehension | Must investigate files, understand architecture, produce actionable task lists |
 | **review-code / security-review** | Strong reasoning, attention to detail | Must find real bugs (not style nits), trace data flow, assess exploitability |
 | **code** | Strong coding ability, instruction following | Must implement precisely within scope, write tests, run verification |
-| **debug** | Strong reasoning + coding | Must hypothesise root causes from limited info, propose targeted fixes |
+| **verify** | Strong reasoning + coding | Must diagnose failures, design and run targeted tests, propose targeted fixes |
 
 ### What breaks with weak models
 
@@ -121,7 +121,7 @@ If the original issue contains **material ambiguity** that cannot be resolved fr
 | **review-plan** | Approves broken plans; misses CRITICAL findings |
 | **code** | Implements outside scope; ignores conventions; skips verification |
 | **review-code** | Reports style nits but misses logic bugs; misses security issues |
-| **debug** | Hypothesises wrong root causes; applies incorrect fixes; loops indefinitely |
+| **verify** | Misdiagnoses failures; applies incorrect fixes; loops indefinitely; misses missing test coverage |
 
 **Rule of thumb:** The orchestrator and planning/review roles are the highest-leverage model assignments. A weak orchestrator breaks the entire system. A weak coder breaks one task; the orchestrator's review loop can catch and recover from that.
 
@@ -131,28 +131,29 @@ If the original issue contains **material ambiguity** that cannot be resolved fr
 
 The model backing each mode is selected in the Zoo Code settings of the installation running this workspace. The mapping currently in use is shown below; it is the only element of the setup that lives outside this repository.
 
-### Mode → Model table
+### Mode → Model table (2026-09-08)
 
 | Mode | Slug | Assigned Model |
 |------|------|----------------|
 | *(default — all unmapped modes)* | — | **Xiaomi MiMo v2.5** |
-| 🪃 Orchestrator | `orchestrator` | **Qwen3.8 Flash** |
-| 📋 Planner | `plan` | **Qwen3.8 Flash** |
+| 🪃 Orchestrator | `orchestrator` | **GLM-5.3** |
+| 📋 Planner | `plan` | **Xiaomi MiMo V2.5 Pro** |
+| 🔍 Investigator | `investigator` | **GLM-5.3 Flash** |
 | 💻 Code | `code` | **Xiaomi MiMo v2.5** |
-| 🪲 Debug *(built-in)* | `debug` | **DeepSeek V4 Flash** |
-| ❓ Ask *(built-in)* | `ask` | **DeepSeek V4 Flash** |
-| 👀 Review Code | `review-code` | **DeepSeek V4 Flash** |
-| 📋 Review Plan | `review-plan` | **Xiaomi MiMo v2.5 Pro** |
+| 🧪 Verify | `verify` | **DeepSeek V4 Flash** |
+| 👀 Review Code | `review-code` | **GLM-5.3 Flash** |
+| 📋 Review Plan | `review-plan` | **GLM-5.3** |
 | 🛡️ Security Review | `security-review` | **DeepSeek V4 Pro** |
+| ❌ Debug *(deprecated)* | `debug` | *(default)* |
 | ❌ Architect *(deprecated)* | `architect` | *(default)* |
 
 ### Impact on autonomy
 
 The mapping above is a deliberate spread, not an accident: each role is backed by the model class its job actually demands.
 
-- **Reasoning roles** (`orchestrator`, `plan`) sit on a fast flash-tier model strong enough for structured decomposition and decision-making.
+- **Coordination and planning** (`orchestrator`, `plan`) sit on full-tier reasoning models — decomposition, state tracking, and task design are the highest-leverage decisions in the loop.
 - **Implementation** (`code`) runs on the default general-purpose model, which handles instruction-following and edits well.
-- **Review and investigation roles** (`review-code`, `debug`, `ask`) sit on flash-tier DeepSeek models tuned for careful reading of diffs and hypotheses.
+- **Investigation and verification** (`investigator`, `review-code`, `verify`) sit on flash-tier variants tuned for fast, careful reading of diffs and hypotheses.
 - **Highest-stakes judgement** (`security-review`, `review-plan`) is assigned the heaviest available variants, because a missed finding there fails the whole pipeline silently.
 
 The point of this table is not the specific models — those will change over time — but the principle: **never leave the pipeline's roles on a single uniform default.** Autonomy quality is bounded by the weakest model in the loop, and different roles fail in different ways.
@@ -167,6 +168,7 @@ The point of this table is not the specific models — those will change over ti
 ├── LICENSE
 ├── agents/
 │   └── modes.yaml             ← all custom mode definitions
+├── plans/                     ← plan artifacts and subtask results
 └── skills/
     └── github-issue.md        ← github-issue skill runbook
 ```
@@ -177,12 +179,12 @@ The point of this table is not the specific models — those will change over ti
 
 This documentation — and the workflow it describes — is a work in progress. Known gaps:
 
-- **Tests are probably underrepresented in their importance.** The pipeline currently treats verification (tests, checks) as a single late phase. In reality, tests are the backbone of trustworthy autonomy: they are what lets the orchestrator *prove* a subtask's work instead of merely reviewing it. Expect the plan/implement/review/verify loop to evolve toward test-first delegation, where each dispatched task carries executable acceptance criteria, not just a prose definition of done.
+- **Tests are probably underrepresented in their importance.** The verify phase now includes a diagnostic loop — `verify` can create or improve tests, diagnose failures, and apply verification-specific fixes before escalating to `code`. Still, the pipeline does not yet enforce test-first delegation, where each dispatched task carries executable acceptance criteria. Expect the loop to evolve toward that model.
 
-- **Some crucial modes are not yet customized** Some modes, like "Code", are not present yet in the corresponding yaml file. The reason is, because the default configuration that comes with zoo code isn't that bad at all and i did not yet have time or urgency to improve on it.
+- **Mode definitions require ongoing maintenance** All orchestrator workflow modes now have custom instructions in [`agents/modes.yaml`](agents/modes.yaml), but as workflows evolve, the definitions need regular review to stay aligned with actual orchestrator behavior.
 
-- **Overthinking** Even small tasks that would not need extensive planning are going through the plan/review plan loop, which is nice to look at, but propably completely useless. The solution is to either NOT use the orchestrator as the starting point (for small single-agent tasks) or tell the orchestrator in the prompt to not go through all the hoops in planning (because - for example - you already have a implementation plan ready).
+- **Overthinking** Even small tasks that would not need extensive planning are going through the plan/review plan loop, which is nice to look at, but probably completely useless. The solution is to either NOT use the orchestrator as the starting point (for small single-agent tasks) or tell the orchestrator in the prompt to not go through all the hoops in planning (because - for example - you already have a implementation plan ready).
 
-- **Zoo code only: orchestrator loses grip on subtasks** There seems to be a bug in zoo code that if a subtask gets interrupted (by human interaction, for example, or by loss of network connection or any other reason) and restarted again, the subtask finishes, but does not report it's results to the orchestrator. The workaround is: open the result of the subtask (only the result) as markdown, save it as file somewhere and tell the orchestrator something like "Subtask failed to respond properly, results can be found at `plans/000-results.md`". The orchestrator then continues it's work as if it got the results directly from the subtask.
+- **Zoo Code only: orchestrator loses grip on subtasks** There seems to be a bug in Zoo Code that if a subtask gets interrupted (by human interaction, for example, or by loss of network connection or any other reason) and restarted again, the subtask finishes, but does not report it's results to the orchestrator. The workaround is: open the result of the subtask (only the result) as markdown, save it as file somewhere and tell the orchestrator something like "Subtask failed to respond properly, results can be found at `plans/000-results.md`". The orchestrator then continues it's work as if it got the results directly from the subtask.
 
-- **Model assign examples are fluid** As new models evolve nearly every week, at least every month, i am experimenting a lot with re-assigning. For example: currently i have "GLM-5.3-flash" (very promising) and "Qwen3.8-27B" (very slow, on-prem, but promising) as additional models in various roles. Because i have a combination of different providers glued together with on-prem [Bifrost AI Gateway](https://docs.getbifrost.ai/overview) i try to find the most cost-effective solution and switch around using my quota from different services a lot.
+- **Model assign examples are fluid** As new models evolve nearly every week, at least every month, i am experimenting a lot with re-assigning. For example: flash-tier and on-prem models are frequently rotated into various roles as they become available. Because i have a combination of different providers glued together with on-prem [Bifrost AI Gateway](https://docs.getbifrost.ai/overview) i try to find the most cost-effective solution and switch around using my quota from different services a lot.
