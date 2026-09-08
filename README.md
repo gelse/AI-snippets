@@ -131,19 +131,18 @@ If the original issue contains **material ambiguity** that cannot be resolved fr
 
 The model backing each mode is selected in the Zoo Code settings of the installation running this workspace. The mapping currently in use is shown below; it is the only element of the setup that lives outside this repository.
 
-### Mode → Model table
+### Mode → Model table (2026-09-08)
 
 | Mode | Slug | Assigned Model |
 |------|------|----------------|
 | *(default — all unmapped modes)* | — | **Xiaomi MiMo v2.5** |
-| 🪃 Orchestrator | `orchestrator` | **Qwen3.8 Flash** |
-| 📋 Planner | `plan` | **Qwen3.8 Flash** |
-| 🔍 Investigator | `investigator` | **DeepSeek V4 Flash** |
+| 🪃 Orchestrator | `orchestrator` | **GLM-5.3** |
+| 📋 Planner | `plan` | **Xiaomi MiMo V2.5 Pro** |
+| 🔍 Investigator | `investigator` | **GLM-5.3 Flash** |
 | 💻 Code | `code` | **Xiaomi MiMo v2.5** |
 | 🧪 Verify | `verify` | **DeepSeek V4 Flash** |
-| ❓ Ask | `ask` | **DeepSeek V4 Flash** |
-| 👀 Review Code | `review-code` | **DeepSeek V4 Flash** |
-| 📋 Review Plan | `review-plan` | **Xiaomi MiMo v2.5 Pro** |
+| 👀 Review Code | `review-code` | **GLM-5.3 Flash** |
+| 📋 Review Plan | `review-plan` | **GLM-5.3** |
 | 🛡️ Security Review | `security-review` | **DeepSeek V4 Pro** |
 | ❌ Debug *(deprecated)* | `debug` | *(default)* |
 | ❌ Architect *(deprecated)* | `architect` | *(default)* |
@@ -152,9 +151,9 @@ The model backing each mode is selected in the Zoo Code settings of the installa
 
 The mapping above is a deliberate spread, not an accident: each role is backed by the model class its job actually demands.
 
-- **Reasoning roles** (`orchestrator`, `plan`) sit on a fast flash-tier model strong enough for structured decomposition and decision-making.
+- **Coordination and planning** (`orchestrator`, `plan`) sit on full-tier reasoning models — decomposition, state tracking, and task design are the highest-leverage decisions in the loop.
 - **Implementation** (`code`) runs on the default general-purpose model, which handles instruction-following and edits well.
-- **Review and investigation roles** (`investigator`, `review-code`, `verify`, `ask`) sit on flash-tier DeepSeek models tuned for careful reading of diffs and hypotheses.
+- **Investigation and verification** (`investigator`, `review-code`, `verify`) sit on flash-tier variants tuned for fast, careful reading of diffs and hypotheses.
 - **Highest-stakes judgement** (`security-review`, `review-plan`) is assigned the heaviest available variants, because a missed finding there fails the whole pipeline silently.
 
 The point of this table is not the specific models — those will change over time — but the principle: **never leave the pipeline's roles on a single uniform default.** Autonomy quality is bounded by the weakest model in the loop, and different roles fail in different ways.
