@@ -242,7 +242,12 @@ done
 
 ### Deploy to OpenCode
 
-OpenCode reads agents from `.opencode/agents/*.md` ([OpenCode docs](https://opencode.ai/docs/agents/)) and skills from `.opencode/skills/<name>/SKILL.md` ([OpenCode docs](https://opencode.ai/docs/skills/)).
+OpenCode reads agents and skills from both per-project and global locations. Use per-project paths when you want to check the config into a repository; use global paths to make the same agents and skills available in all projects on your machine.
+
+Agents: `.opencode/agents/*.md` (per-project) or `~/.config/opencode/agents/*.md` (global) — [docs](https://opencode.ai/docs/agents/).
+Skills: `.opencode/skills/<name>/SKILL.md` (per-project) or `~/.config/opencode/skills/<name>/SKILL.md` (global) — [docs](https://opencode.ai/docs/skills/).
+
+**Per-project deploy** (add to the project repo):
 
 ```bash
 make opencode
@@ -254,6 +259,21 @@ for f in output/opencode/skill/*.md; do
   cp "$f" .opencode/skills/"$n"/SKILL.md
 done
 ```
+
+**Global deploy** (available to all projects for your user):
+
+```bash
+make opencode
+mkdir -p ~/.config/opencode/agents
+cp output/opencode/agents/*.md ~/.config/opencode/agents/
+for f in output/opencode/skill/*.md; do
+  n=$(basename "$f" .md)
+  mkdir -p ~/.config/opencode/skills/"$n"
+  cp "$f" ~/.config/opencode/skills/"$n"/SKILL.md
+done
+```
+
+> Extra skill sources can also be configured via a `"skills"` array in `opencode.json`.
 
 ### Deploy to Claude Code
 
