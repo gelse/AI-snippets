@@ -316,13 +316,33 @@ done
 
 ### Deploy to Claude Code
 
-Claude Code reads agents from `.claude/agents/*.md` and skills from `.claude/skills/<name>/SKILL.md`.
+Claude Code reads agents and skills from both per-project and global locations. Use per-project paths when you want to check the config into a repository; use global paths to make the same agents and skills available in all projects on your machine. A project-level agent with the same name takes priority over its global counterpart; likewise, a project-level skill overrides a same-named global skill. If an agents directory is created while a session is running, Claude Code must be restarted to detect the new subagents.
+
+Agents: `.claude/agents/*.md` (per-project) or `~/.claude/agents/*.md` (global).
+Skills: `.claude/skills/<name>/SKILL.md` (per-project) or `~/.claude/skills/<name>/SKILL.md` (global).
+
+**Install**
+
+- **Per-project (devcontainer):** add the feature to your `.devcontainer.json` — `"features": { "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {} }` — which installs the latest CLI and VS Code extension into the project container.
+- **Global (npm):** `npm install -g @anthropic-ai/claude-code` — requires Node.js 22 or later; avoid `sudo` to prevent permission issues.
+- **Global (native installer, recommended):** `curl -fsSL https://claude.ai/install.sh | bash` for macOS/Linux/WSL (Windows PowerShell: `irm https://claude.ai/install.ps1 | iex`). Native installations auto-update in the background and are the fallback when npm produces permission errors.
+
+**Per-project deploy** (add to the project repo):
 
 ```bash
 make claude
 mkdir -p .claude/agents .claude/skills
 cp -r output/claude/agents/* .claude/agents/
 cp -r output/claude/skills/* .claude/skills/
+```
+
+**Global deploy** (available to all projects for your user):
+
+```bash
+make claude
+mkdir -p ~/.claude/agents ~/.claude/skills
+cp -r output/claude/agents/* ~/.claude/agents/
+cp -r output/claude/skills/* ~/.claude/skills/
 ```
 
 ---
