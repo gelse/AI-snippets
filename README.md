@@ -144,6 +144,7 @@ The model backing each mode is selected in the Zoo Code settings of the installa
 | 👀 Review Code | `review-code` | **GLM-5.3 Flash** |
 | 📋 Review Plan | `review-plan` | **GLM-5.3** |
 | 🛡️ Security Review | `security-review` | **DeepSeek V4 Pro** |
+| ❓ Ask | `ask` | *(default)* |
 | ❌ Debug *(deprecated)* | `debug` | *(default)* |
 | ❌ Architect *(deprecated)* | `architect` | *(default)* |
 
@@ -167,14 +168,16 @@ The point of this table is not the specific models — those will change over ti
 ├── README.md                  ← this file
 ├── LICENSE
 ├── modes.json                 ← single source of truth for all custom mode definitions
-├── Makefile                   ← build targets: verify, zoo, kilo, opencode, claude, all, clean
+├── Makefile                   ← build targets: help, verify, zoo/kilo/opencode/claude, all, clean, install-zoo-*
 ├── scripts/
 │   ├── generate.py            ← emits tool-specific artifacts into output/
 │   └── verify.py              ← validates modes.json + round-trip check
-├── plans/                     ← plan artifacts and subtask results
+├── plans/                     ← (local scratch, untracked)
+├── .gitignore
 ├── skills/
 │   ├── github-issue.md        ← github-issue skill runbook
-│   └── grilling.md            ← grilling skill runbook
+│   ├── grilling.md            ← grilling skill runbook
+│   └── writing-for-humans.md  ← writing-for-humans skill runbook
 └── output/                    ← generated tool artifacts (gitignored)
     ├── zoo/                   ← .roomodes + skills/
     ├── kilo/                  ← .kilocodemodes + skills/
