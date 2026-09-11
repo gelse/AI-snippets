@@ -7,6 +7,8 @@ Usage:
 import argparse
 import json
 import re
+import shutil
+import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -18,11 +20,27 @@ def load_modes():
         return json.load(f)
 
 
-def load_skill_content(skill_name):
-    """Load skill .md content from skills/ directory."""
-    skill_path = REPO_ROOT / "skills" / f"{skill_name}.md"
+def load_skill_content(skill_file):
+    """Load skill .md content using the file path from modes.json."""
+    skill_path = REPO_ROOT / skill_file
     with open(skill_path) as f:
         return f.read()
+
+
+def _find_frontmatter_end(content):
+    """Find the closing '---' of YAML frontmatter.
+
+    Returns the index of the closing delimiter, or exits with a clear
+    message if the closing delimiter is missing.
+    """
+    try:
+        return content.index("---", 3)
+    except ValueError:
+        print(
+            "ERROR: Frontmatter starts with '---' but closing '---' not found.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
 
 def ensure_skill_frontmatter(content, skill_name):
@@ -30,8 +48,8 @@ def ensure_skill_frontmatter(content, skill_name):
 
     Preserves existing frontmatter if present; adds missing fields.
     """
-    if content.startswith("---"):
-        end = content.index("---", 3)
+    if content.startswith("---\n"):
+        end = _find_frontmatter_end(content)
         frontmatter = content[3:end].strip()
         body = content[end + 3:].removeprefix("\n")
 
@@ -65,8 +83,8 @@ def has_edit_group(groups):
 
 def extract_skill_description(content):
     """Extract description from skill frontmatter."""
-    if content.startswith("---"):
-        end = content.index("---", 3)
+    if content.startswith("---\n"):
+        end = _find_frontmatter_end(content)
         fm = content[3:end]
         m = re.search(r"^description:\s*(.+)$", fm, re.MULTILINE)
         if m:
@@ -76,8 +94,8 @@ def extract_skill_description(content):
 
 def extract_body_after_frontmatter(content):
     """Extract body content after YAML frontmatter."""
-    if content.startswith("---"):
-        end = content.index("---", 3)
+    if content.startswith("---\n"):
+        end = _find_frontmatter_end(content)
         body = content[end + 3:].removeprefix("\n")
         return body
     return content
@@ -97,6 +115,7 @@ def emit_zoo(data, out_dir):
     import yaml
 
     zoo_dir = out_dir / "zoo"
+    shutil.rmtree(zoo_dir, ignore_errors=True)
     zoo_dir.mkdir(parents=True, exist_ok=True)
 
     custom_modes = [mode_to_dict(m) for m in data["customModes"]]
@@ -108,7 +127,7 @@ def emit_zoo(data, out_dir):
     skills_dir = zoo_dir / "skills"
     skills_dir.mkdir(parents=True, exist_ok=True)
     for skill in data["skills"]:
-        content = load_skill_content(skill["name"])
+        content = load_skill_content(skill["file"])
         content = ensure_skill_frontmatter(content, skill["name"])
         with open(skills_dir / f"{skill['name']}.md", "w") as f:
             f.write(content)
@@ -125,6 +144,7 @@ def emit_kilo(data, out_dir):
     import yaml
 
     kilo_dir = out_dir / "kilo"
+    shutil.rmtree(kilo_dir, ignore_errors=True)
     kilo_dir.mkdir(parents=True, exist_ok=True)
 
     custom_modes = [mode_to_dict(m) for m in data["customModes"]]
@@ -136,7 +156,7 @@ def emit_kilo(data, out_dir):
     skills_dir = kilo_dir / "skills"
     skills_dir.mkdir(parents=True, exist_ok=True)
     for skill in data["skills"]:
-        content = load_skill_content(skill["name"])
+        content = load_skill_content(skill["file"])
         content = ensure_skill_frontmatter(content, skill["name"])
         with open(skills_dir / f"{skill['name']}.md", "w") as f:
             f.write(content)
@@ -153,6 +173,7 @@ def emit_opencode(data, out_dir):
     import yaml
 
     oc_dir = out_dir / "opencode"
+    shutil.rmtree(oc_dir, ignore_errors=True)
     agents_dir = oc_dir / "agents"
     agents_dir.mkdir(parents=True, exist_ok=True)
 
@@ -188,7 +209,7 @@ def emit_opencode(data, out_dir):
     skill_dir = oc_dir / "skill"
     skill_dir.mkdir(parents=True, exist_ok=True)
     for skill in data["skills"]:
-        raw = load_skill_content(skill["name"])
+        raw = load_skill_content(skill["file"])
         skill_desc = extract_skill_description(raw)
         body = extract_body_after_frontmatter(raw)
 
@@ -212,6 +233,7 @@ def emit_claude(data, out_dir):
     import yaml
 
     claude_dir = out_dir / "claude"
+    shutil.rmtree(claude_dir, ignore_errors=True)
     agents_dir = claude_dir / "agents"
     agents_dir.mkdir(parents=True, exist_ok=True)
 
@@ -244,7 +266,7 @@ def emit_claude(data, out_dir):
         skill_dir = claude_dir / "skills" / skill["name"]
         skill_dir.mkdir(parents=True, exist_ok=True)
 
-        raw = load_skill_content(skill["name"])
+        raw = load_skill_content(skill["file"])
         skill_desc = extract_skill_description(raw)
         body = extract_body_after_frontmatter(raw)
 

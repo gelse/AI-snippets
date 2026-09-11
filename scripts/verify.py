@@ -7,6 +7,7 @@ Exits non-zero with a clear message on failure.
 """
 
 import json
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -75,6 +76,8 @@ def validate_structure():
     slugs = []
     for i, mode in enumerate(modes):
         slug = mode.get("slug", f"<missing at index {i}>")
+        if not re.fullmatch(r"[a-z0-9-]+", slug):
+            fail(f"Mode slug '{slug}' must match ^[a-z0-9-]+$")
         slugs.append(slug)
 
         missing = REQUIRED_MODE_KEYS - set(mode.keys())
@@ -111,6 +114,14 @@ def validate_structure():
     for skill in skills:
         if "name" not in skill or "file" not in skill:
             fail(f"Skill entry missing 'name' or 'file': {skill}")
+        name = skill["name"]
+        if not re.fullmatch(r"[a-z0-9-]+", name):
+            fail(f"Skill name '{name}' must match ^[a-z0-9-]+$")
+        if skill["file"] != f"skills/{name}.md":
+            fail(
+                f"Skill 'file' mismatch for '{name}': "
+                f"expected 'skills/{name}.md', got '{skill['file']}'"
+            )
         skill_path = REPO_ROOT / skill["file"]
         if not skill_path.exists():
             fail(f"Skill file not found: {skill_path}")
