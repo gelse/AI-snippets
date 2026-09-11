@@ -246,6 +246,7 @@ OpenCode reads agents from `.opencode/agent/*.md` and skills from `.opencode/ski
 
 ```bash
 make opencode
+mkdir -p .opencode/agent
 cp output/opencode/agents/*.md .opencode/agent/
 for f in output/opencode/skill/*.md; do
   n=$(basename "$f" .md)
@@ -260,6 +261,7 @@ Claude Code reads agents from `.claude/agents/*.md` and skills from `.claude/ski
 
 ```bash
 make claude
+mkdir -p .claude/agents .claude/skills
 cp -r output/claude/agents/* .claude/agents/
 cp -r output/claude/skills/* .claude/skills/
 ```
