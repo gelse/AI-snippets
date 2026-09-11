@@ -207,8 +207,8 @@ Generated `output/` files are not committed — regenerate with `make all`.
 | `output/zoo/skills/*.md` | `.roo/skills/<name>/SKILL.md` |
 | `output/kilo/.kilocodemodes` | Project root as `.kilocodemodes` |
 | `output/kilo/skills/*.md` | `.kilo/skills/<name>/SKILL.md` |
-| `output/opencode/agents/*.md` | `.opencode/agent/*.md` |
-| `output/opencode/skill/*.md` | `.opencode/skill/<name>/SKILL.md` |
+| `output/opencode/agents/*.md` | `.opencode/agents/*.md` |
+| `output/opencode/skill/*.md` | `.opencode/skills/<name>/SKILL.md` |
 | `output/claude/agents/*.md` | `.claude/agents/*.md` |
 | `output/claude/skills/<n>/SKILL.md` | `.claude/skills/<n>/SKILL.md` |
 
@@ -228,7 +228,7 @@ done
 
 ### Deploy to Kilo Code
 
-Kilo Code reads modes from `.kilocodemodes` at the project root and skills from `.kilo/skills/<name>/SKILL.md`.
+Kilo Code reads modes from `.kilocodemodes` at the project root and skills from `.kilo/skills/<name>/SKILL.md`. Note: `.kilocodemodes` is the legacy format; current Kilo Code versions read it and auto-migrate it to Markdown agent files on startup.
 
 ```bash
 make kilo
@@ -242,16 +242,16 @@ done
 
 ### Deploy to OpenCode
 
-OpenCode reads agents from `.opencode/agent/*.md` and skills from `.opencode/skill/<name>/SKILL.md`.
+OpenCode reads agents from `.opencode/agents/*.md` ([OpenCode docs](https://opencode.ai/docs/agents/)) and skills from `.opencode/skills/<name>/SKILL.md` ([OpenCode docs](https://opencode.ai/docs/skills/)).
 
 ```bash
 make opencode
-mkdir -p .opencode/agent
-cp output/opencode/agents/*.md .opencode/agent/
+mkdir -p .opencode/agents
+cp output/opencode/agents/*.md .opencode/agents/
 for f in output/opencode/skill/*.md; do
   n=$(basename "$f" .md)
-  mkdir -p .opencode/skill/"$n"
-  cp "$f" .opencode/skill/"$n"/SKILL.md
+  mkdir -p .opencode/skills/"$n"
+  cp "$f" .opencode/skills/"$n"/SKILL.md
 done
 ```
 
