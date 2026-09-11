@@ -58,6 +58,7 @@ customModes:
       - relevant constraints/decisions
 
       Require an implementation-ready plan.
+      Use the `grilling` skill in the plan mode if the plan needs human input.
 
       Do not use `plan` for obvious single-step changes.
 
