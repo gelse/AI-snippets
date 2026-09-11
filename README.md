@@ -198,6 +198,12 @@ Generated `output/` files are not committed — regenerate with `make all`.
 | `make claude` | Generate Claude Code artifacts (`output/claude/`) |
 | `make all` | Generate all four tool artifact trees |
 | `make clean` | Remove `output/` |
+| `make install-zoo-local` | Install zoo skills and agents locally (project root) |
+| `make install-zoo-local-skills` | Install zoo skills locally |
+| `make install-zoo-local-agents` | Install zoo agents locally (`.roomodes`) |
+| `make install-zoo-global` | Install zoo skills and agents globally (`~/.roo/`) |
+| `make install-zoo-global-skills` | Install zoo skills globally |
+| `make install-zoo-global-agents` | Install zoo agents globally (overwrites `~/.roo/custom_modes.yaml`) |
 
 ### Where generated files go
 
@@ -222,29 +228,30 @@ Skills: `.roo/skills/<name>/SKILL.md` (per-project) or `~/.roo/skills/<name>/SKI
 **Per-project deploy** (add to the project repo):
 
 ```bash
-make zoo
-cp output/zoo/.roomodes .roomodes
-mkdir -p .roo/skills
-for f in output/zoo/skills/*.md; do
-  n=$(basename "$f" .md)
-  mkdir -p .roo/skills/"$n"
-  cp "$f" .roo/skills/"$n"/SKILL.md
-done
+make install-zoo-local          # installs both skills and agents
+```
+
+Or install individually:
+
+```bash
+make install-zoo-local-skills   # only skills
+make install-zoo-local-agents   # only agents (.roomodes)
 ```
 
 **Global deploy** (available to all projects for your user):
 
 ```bash
-make zoo
-mkdir -p ~/.roo/skills
-for f in output/zoo/skills/*.md; do
-  n=$(basename "$f" .md)
-  mkdir -p ~/.roo/skills/"$n"
-  cp "$f" ~/.roo/skills/"$n"/SKILL.md
-done
+make install-zoo-global          # installs both skills and agents
 ```
 
-For global modes, there is no `~/.roomodes` file — modes live in the global `custom_modes.yaml` (or `custom_modes.json`). Open the Zoo Code Modes page and click **Edit Global Modes** to open that file, then paste or merge the `customModes` array from `output/zoo/.roomodes` into it.
+Or install individually:
+
+```bash
+make install-zoo-global-skills   # only skills
+make install-zoo-global-agents   # only agents (⚠ overwrites ~/.roo/custom_modes.yaml)
+```
+
+> **Note:** `install-zoo-global-agents` overwrites the entire `~/.roo/custom_modes.yaml` file with the generated modes. Any existing global modes not present in the generated file will be lost.
 
 ### Deploy to Kilo Code
 
