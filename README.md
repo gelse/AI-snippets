@@ -248,7 +248,12 @@ For global modes, there is no `~/.roomodes` file — modes live in the global `c
 
 ### Deploy to Kilo Code
 
-Kilo Code reads modes from `.kilocodemodes` at the project root and skills from `.kilo/skills/<name>/SKILL.md`. Note: `.kilocodemodes` is the legacy format; current Kilo Code versions read it and auto-migrate it to Markdown agent files on startup.
+Kilo Code reads modes and skills from both per-project and global locations. Use per-project paths when you want to check the config into a repository; use global paths to make the same modes and skills available in all projects on your machine. A project-level mode with the same slug completely overrides its global counterpart; likewise, a project-level skill overrides a same-named global skill.
+
+Modes: `.kilocodemodes` (YAML or JSON) in the project root — this is the legacy format; current Kilo Code versions read it and auto-migrate it to Markdown agent files on startup. Global modes live as Markdown agent files in `~/.config/kilo/agent/`.
+Skills: `.kilo/skills/<name>/SKILL.md` (per-project) or `~/.kilo/skills/<name>/SKILL.md` (global).
+
+**Per-project deploy** (add to the project repo):
 
 ```bash
 make kilo
@@ -259,6 +264,20 @@ for f in output/kilo/skills/*.md; do
   cp "$f" .kilo/skills/"$n"/SKILL.md
 done
 ```
+
+**Global deploy** (available to all projects for your user):
+
+```bash
+make kilo
+mkdir -p ~/.kilo/skills
+for f in output/kilo/skills/*.md; do
+  n=$(basename "$f" .md)
+  mkdir -p ~/.kilo/skills/"$n"
+  cp "$f" ~/.kilo/skills/"$n"/SKILL.md
+done
+```
+
+For global modes, there is no single file to copy — modes live as individual Markdown agent files in `~/.config/kilo/agent/`. Open the Kilo Code Modes view and paste or import the modes from `output/kilo/.kilocodemodes` into the global modes editor, or copy them manually into `~/.config/kilo/agent/`.
 
 ### Deploy to OpenCode
 
