@@ -214,17 +214,37 @@ Generated `output/` files are not committed — regenerate with `make all`.
 
 ### Deploy to Zoo Code
 
-Zoo Code reads modes from `.roomodes` at the project root and skills from `.roo/skills/<name>/SKILL.md`.
+Zoo Code reads modes and skills from both per-project and global locations. Use per-project paths when you want to check the config into a repository; use global paths to make the same modes and skills available in all projects on your machine. A project-level mode with the same slug completely overrides its global counterpart; likewise, a project-level skill overrides a same-named global skill.
+
+Modes: `.roomodes` in the project root (YAML or JSON) or the global `custom_modes.yaml` / `custom_modes.json` config (edited via Modes page → "Edit Global Modes").
+Skills: `.roo/skills/<name>/SKILL.md` (per-project) or `~/.roo/skills/<name>/SKILL.md` (Zoo-specific global). There is also a cross-agent global location `~/.agents/skills/<name>/SKILL.md` shared with other agent tools.
+
+**Per-project deploy** (add to the project repo):
 
 ```bash
 make zoo
 cp output/zoo/.roomodes .roomodes
+mkdir -p .roo/skills
 for f in output/zoo/skills/*.md; do
   n=$(basename "$f" .md)
   mkdir -p .roo/skills/"$n"
   cp "$f" .roo/skills/"$n"/SKILL.md
 done
 ```
+
+**Global deploy** (available to all projects for your user):
+
+```bash
+make zoo
+mkdir -p ~/.roo/skills
+for f in output/zoo/skills/*.md; do
+  n=$(basename "$f" .md)
+  mkdir -p ~/.roo/skills/"$n"
+  cp "$f" ~/.roo/skills/"$n"/SKILL.md
+done
+```
+
+For global modes, there is no `~/.roomodes` file — modes live in the global `custom_modes.yaml` (or `custom_modes.json`). Open the Zoo Code Modes page and click **Edit Global Modes** to open that file, then paste or merge the `customModes` array from `output/zoo/.roomodes` into it.
 
 ### Deploy to Kilo Code
 
