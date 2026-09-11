@@ -10,7 +10,7 @@ The workspace defines two complementary building blocks:
 
 | Layer | What it is | Example |
 |-------|-----------|---------|
-| **Agent modes** | Specialised Zoo Code subagents, each scoped to a single responsibility (planning, coding, reviewing, verifying, etc.) | [`plan`](agents/modes.yaml:271), [`investigator`](agents/modes.yaml:211), [`code`](agents/modes.yaml:631), [`verify`](agents/modes.yaml:672), [`security-review`](agents/modes.yaml:477), [`orchestrator`](agents/modes.yaml:2) |
+| **Agent modes** | Specialised Zoo Code subagents, each scoped to a single responsibility (planning, coding, reviewing, verifying, etc.) | [`plan`](modes.json), [`investigator`](modes.json), [`code`](modes.json), [`verify`](modes.json), [`security-review`](modes.json), [`orchestrator`](modes.json) |
 | **Local skills** | Reusable prompt-driven runbooks that tell an orchestrator which steps to execute and in what order | [`github-issue`](skills/github-issue.md:1) |
 
 A **skill** (like `github-issue`) is the *what* — a high-level workflow specification.  
@@ -22,7 +22,7 @@ Together they form a system where a single human instruction (e.g. "resolve issu
 
 ## 2. The Orchestrator's Work Loop
 
-The orchestrator mode ([`orchestrator`](agents/modes.yaml:2)) never writes code itself. It acts as a strategic coordinator, delegating every concrete action to a specialised subtask and retaining only orchestration-level context. Its workflow follows a fixed loop:
+The orchestrator mode ([`orchestrator`](modes.json)) never writes code itself. It acts as a strategic coordinator, delegating every concrete action to a specialised subtask and retaining only orchestration-level context. Its workflow follows a fixed loop:
 
 ```mermaid
 flowchart TD
@@ -48,14 +48,14 @@ flowchart TD
 
 | Step | Mode(s) delegated to | Purpose |
 |------|---------------------|---------|
-| **Investigate** | [`investigator`](agents/modes.yaml:211) | Produce an Investigation Report with repository evidence, file references, and resolved open questions |
-| **Plan** | [`plan`](agents/modes.yaml:271) | Use the Investigation Report to design solution, decompose into ordered implementation tasks |
-| **Review Plan** | [`review-plan`](agents/modes.yaml:555) | Check plan for completeness, feasibility, correctness; iterate until approved |
+| **Investigate** | [`investigator`](modes.json) | Produce an Investigation Report with repository evidence, file references, and resolved open questions |
+| **Plan** | [`plan`](modes.json) | Use the Investigation Report to design solution, decompose into ordered implementation tasks |
+| **Review Plan** | [`review-plan`](modes.json) | Check plan for completeness, feasibility, correctness; iterate until approved |
 | **Track** | *(orchestrator internal)* | Mirror plan tasks into the todo list; respect dependency order |
-| **Dispatch** | [`code`](agents/modes.yaml:631), [`verify`](agents/modes.yaml:672), etc. | Spawn a subtask per implementation task with scope, context, definition of done |
-| **Review Changes** | [`review-code`](agents/modes.yaml:384) | After each subtask, review only that task's diff for bugs, performance, style |
+| **Dispatch** | [`code`](modes.json), [`verify`](modes.json), etc. | Spawn a subtask per implementation task with scope, context, definition of done |
+| **Review Changes** | [`review-code`](modes.json) | After each subtask, review only that task's diff for bugs, performance, style |
 | **Decide** | *(orchestrator internal)* | Use summaries to adjust remaining tasks or replan if the plan is invalidated |
-| **Verify** | [`verify`](agents/modes.yaml:672) | Final end-to-end verification; dispatch `verify` to diagnose failures and apply verification-specific fixes, `code` for known implementation fixes |
+| **Verify** | [`verify`](modes.json) | Final end-to-end verification; dispatch `verify` to diagnose failures and apply verification-specific fixes, `code` for known implementation fixes |
 | **Synthesize** | *(orchestrator internal)* | Collect all subtask summaries into a final human-readable report |
 
 ### Failure handling
@@ -166,12 +166,51 @@ The point of this table is not the specific models — those will change over ti
 .
 ├── README.md                  ← this file
 ├── LICENSE
-├── agents/
-│   └── modes.yaml             ← all custom mode definitions
+├── modes.json                 ← single source of truth for all custom mode definitions
+├── Makefile                   ← build targets: verify, zoo, kilo, opencode, claude, all, clean
+├── scripts/
+│   ├── generate.py            ← emits tool-specific artifacts into output/
+│   └── verify.py              ← validates modes.json + round-trip check
 ├── plans/                     ← plan artifacts and subtask results
-└── skills/
-    └── github-issue.md        ← github-issue skill runbook
+├── skills/
+│   ├── github-issue.md        ← github-issue skill runbook
+│   └── grilling.md            ← grilling skill runbook
+└── output/                    ← generated tool artifacts (gitignored)
+    ├── zoo/                   ← .roomodes + skills/
+    ├── kilo/                  ← .kilocodemodes + skills/
+    ├── opencode/              ← agents/*.md + skill/*.md
+    └── claude/                ← agents/*.md + skills/<n>/SKILL.md
 ```
+
+Generated `output/` files are not committed — regenerate with `make all`.
+
+---
+
+## Usage
+
+| Command | What it does |
+|---------|-------------|
+| `make` | Print help with all available targets |
+| `make verify` | Validate [`modes.json`](modes.json) and run round-trip fidelity check; lint scripts with ruff |
+| `make zoo` | Generate Zoo Code artifacts (`output/zoo/`) |
+| `make kilo` | Generate Kilo Code artifacts (`output/kilo/`) |
+| `make opencode` | Generate OpenCode artifacts (`output/opencode/`) |
+| `make claude` | Generate Claude Code artifacts (`output/claude/`) |
+| `make all` | Generate all four tool artifact trees |
+| `make clean` | Remove `output/` |
+
+### Where generated files go
+
+| Generated path | Tool expects it at |
+|----------------|-------------------|
+| `output/zoo/.roomodes` | Project root as `.roomodes` |
+| `output/zoo/skills/*.md` | `skills/` alongside `.roomodes` |
+| `output/kilo/.kilocodemodes` | Project root as `.kilocodemodes` |
+| `output/kilo/skills/*.md` | `skills/` alongside `.kilocodemodes` |
+| `output/opencode/agents/*.md` | `.opencode/agents/*.md` |
+| `output/opencode/skill/*.md` | `.opencode/skill/*.md` |
+| `output/claude/agents/*.md` | `.claude/agents/*.md` |
+| `output/claude/skills/<n>/SKILL.md` | `.claude/skills/<n>/SKILL.md` |
 
 ---
 
@@ -181,7 +220,7 @@ This documentation — and the workflow it describes — is a work in progress. 
 
 - **Tests are probably underrepresented in their importance.** The verify phase now includes a diagnostic loop — `verify` can create or improve tests, diagnose failures, and apply verification-specific fixes before escalating to `code`. Still, the pipeline does not yet enforce test-first delegation, where each dispatched task carries executable acceptance criteria. Expect the loop to evolve toward that model.
 
-- **Mode definitions require ongoing maintenance** All orchestrator workflow modes now have custom instructions in [`agents/modes.yaml`](agents/modes.yaml), but as workflows evolve, the definitions need regular review to stay aligned with actual orchestrator behavior.
+- **Mode definitions require ongoing maintenance** All orchestrator workflow modes now have custom instructions in [`modes.json`](modes.json), but as workflows evolve, the definitions need regular review to stay aligned with actual orchestrator behavior.
 
 - **Overthinking** Even small tasks that would not need extensive planning are going through the plan/review plan loop, which is nice to look at, but probably completely useless. The solution is to either NOT use the orchestrator as the starting point (for small single-agent tasks) or tell the orchestrator in the prompt to not go through all the hoops in planning (because - for example - you already have a implementation plan ready).
 
