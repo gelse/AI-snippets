@@ -204,13 +204,65 @@ Generated `output/` files are not committed — regenerate with `make all`.
 | Generated path | Tool expects it at |
 |----------------|-------------------|
 | `output/zoo/.roomodes` | Project root as `.roomodes` |
-| `output/zoo/skills/*.md` | `skills/` alongside `.roomodes` |
+| `output/zoo/skills/*.md` | `.roo/skills/<name>/SKILL.md` |
 | `output/kilo/.kilocodemodes` | Project root as `.kilocodemodes` |
-| `output/kilo/skills/*.md` | `skills/` alongside `.kilocodemodes` |
-| `output/opencode/agents/*.md` | `.opencode/agents/*.md` |
-| `output/opencode/skill/*.md` | `.opencode/skill/*.md` |
+| `output/kilo/skills/*.md` | `.kilo/skills/<name>/SKILL.md` |
+| `output/opencode/agents/*.md` | `.opencode/agent/*.md` |
+| `output/opencode/skill/*.md` | `.opencode/skill/<name>/SKILL.md` |
 | `output/claude/agents/*.md` | `.claude/agents/*.md` |
 | `output/claude/skills/<n>/SKILL.md` | `.claude/skills/<n>/SKILL.md` |
+
+### Deploy to Zoo Code
+
+Zoo Code reads modes from `.roomodes` at the project root and skills from `.roo/skills/<name>/SKILL.md`.
+
+```bash
+make zoo
+cp output/zoo/.roomodes .roomodes
+for f in output/zoo/skills/*.md; do
+  n=$(basename "$f" .md)
+  mkdir -p .roo/skills/"$n"
+  cp "$f" .roo/skills/"$n"/SKILL.md
+done
+```
+
+### Deploy to Kilo Code
+
+Kilo Code reads modes from `.kilocodemodes` at the project root and skills from `.kilo/skills/<name>/SKILL.md`.
+
+```bash
+make kilo
+cp output/kilo/.kilocodemodes .kilocodemodes
+for f in output/kilo/skills/*.md; do
+  n=$(basename "$f" .md)
+  mkdir -p .kilo/skills/"$n"
+  cp "$f" .kilo/skills/"$n"/SKILL.md
+done
+```
+
+### Deploy to OpenCode
+
+OpenCode reads agents from `.opencode/agent/*.md` and skills from `.opencode/skill/<name>/SKILL.md`.
+
+```bash
+make opencode
+cp output/opencode/agents/*.md .opencode/agent/
+for f in output/opencode/skill/*.md; do
+  n=$(basename "$f" .md)
+  mkdir -p .opencode/skill/"$n"
+  cp "$f" .opencode/skill/"$n"/SKILL.md
+done
+```
+
+### Deploy to Claude Code
+
+Claude Code reads agents from `.claude/agents/*.md` and skills from `.claude/skills/<name>/SKILL.md`.
+
+```bash
+make claude
+cp -r output/claude/agents/* .claude/agents/
+cp -r output/claude/skills/* .claude/skills/
+```
 
 ---
 
