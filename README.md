@@ -10,7 +10,7 @@ The workspace defines two complementary building blocks:
 
 | Layer | What it is | Example |
 |-------|-----------|---------|
-| **Agent modes** | Specialised Zoo Code subagents, each scoped to a single responsibility (planning, coding, reviewing, verifying, etc.) | [`plan`](agents/modes.yaml:271), [`investigator`](agents/modes.yaml:211), [`code`](agents/modes.yaml:631), [`verify`](agents/modes.yaml:672), [`security-review`](agents/modes.yaml:477), [`orchestrator`](agents/modes.yaml:2) |
+| **Agent modes** | Specialised Zoo Code subagents, each scoped to a single responsibility (planning, coding, reviewing, verifying, etc.) | [`plan`](modes.json), [`investigator`](modes.json), [`code`](modes.json), [`verify`](modes.json), [`security-review`](modes.json), [`orchestrator`](modes.json) |
 | **Local skills** | Reusable prompt-driven runbooks that tell an orchestrator which steps to execute and in what order | [`github-issue`](skills/github-issue.md:1) |
 
 A **skill** (like `github-issue`) is the *what* — a high-level workflow specification.  
@@ -22,7 +22,7 @@ Together they form a system where a single human instruction (e.g. "resolve issu
 
 ## 2. The Orchestrator's Work Loop
 
-The orchestrator mode ([`orchestrator`](agents/modes.yaml:2)) never writes code itself. It acts as a strategic coordinator, delegating every concrete action to a specialised subtask and retaining only orchestration-level context. Its workflow follows a fixed loop:
+The orchestrator mode ([`orchestrator`](modes.json)) never writes code itself. It acts as a strategic coordinator, delegating every concrete action to a specialised subtask and retaining only orchestration-level context. Its workflow follows a fixed loop:
 
 ```mermaid
 flowchart TD
@@ -48,14 +48,14 @@ flowchart TD
 
 | Step | Mode(s) delegated to | Purpose |
 |------|---------------------|---------|
-| **Investigate** | [`investigator`](agents/modes.yaml:211) | Produce an Investigation Report with repository evidence, file references, and resolved open questions |
-| **Plan** | [`plan`](agents/modes.yaml:271) | Use the Investigation Report to design solution, decompose into ordered implementation tasks |
-| **Review Plan** | [`review-plan`](agents/modes.yaml:555) | Check plan for completeness, feasibility, correctness; iterate until approved |
+| **Investigate** | [`investigator`](modes.json) | Produce an Investigation Report with repository evidence, file references, and resolved open questions |
+| **Plan** | [`plan`](modes.json) | Use the Investigation Report to design solution, decompose into ordered implementation tasks |
+| **Review Plan** | [`review-plan`](modes.json) | Check plan for completeness, feasibility, correctness; iterate until approved |
 | **Track** | *(orchestrator internal)* | Mirror plan tasks into the todo list; respect dependency order |
-| **Dispatch** | [`code`](agents/modes.yaml:631), [`verify`](agents/modes.yaml:672), etc. | Spawn a subtask per implementation task with scope, context, definition of done |
-| **Review Changes** | [`review-code`](agents/modes.yaml:384) | After each subtask, review only that task's diff for bugs, performance, style |
+| **Dispatch** | [`code`](modes.json), [`verify`](modes.json), etc. | Spawn a subtask per implementation task with scope, context, definition of done |
+| **Review Changes** | [`review-code`](modes.json) | After each subtask, review only that task's diff for bugs, performance, style |
 | **Decide** | *(orchestrator internal)* | Use summaries to adjust remaining tasks or replan if the plan is invalidated |
-| **Verify** | [`verify`](agents/modes.yaml:672) | Final end-to-end verification; dispatch `verify` to diagnose failures and apply verification-specific fixes, `code` for known implementation fixes |
+| **Verify** | [`verify`](modes.json) | Final end-to-end verification; dispatch `verify` to diagnose failures and apply verification-specific fixes, `code` for known implementation fixes |
 | **Synthesize** | *(orchestrator internal)* | Collect all subtask summaries into a final human-readable report |
 
 ### Failure handling
@@ -144,6 +144,7 @@ The model backing each mode is selected in the Zoo Code settings of the installa
 | 👀 Review Code | `review-code` | **GLM-5.3 Flash** |
 | 📋 Review Plan | `review-plan` | **GLM-5.3** |
 | 🛡️ Security Review | `security-review` | **DeepSeek V4 Pro** |
+| ❓ Ask | `ask` | *(default)* |
 | ❌ Debug *(deprecated)* | `debug` | *(default)* |
 | ❌ Architect *(deprecated)* | `architect` | *(default)* |
 
@@ -166,11 +167,192 @@ The point of this table is not the specific models — those will change over ti
 .
 ├── README.md                  ← this file
 ├── LICENSE
-├── agents/
-│   └── modes.yaml             ← all custom mode definitions
-├── plans/                     ← plan artifacts and subtask results
-└── skills/
-    └── github-issue.md        ← github-issue skill runbook
+├── modes.json                 ← single source of truth for all custom mode definitions
+├── Makefile                   ← build targets: help, verify, zoo/kilo/opencode/claude, all, clean, install-zoo-*
+├── scripts/
+│   ├── generate.py            ← emits tool-specific artifacts into output/
+│   └── verify.py              ← validates modes.json + round-trip check
+├── plans/                     ← (local scratch, untracked)
+├── .gitignore
+├── skills/
+│   ├── github-issue.md        ← github-issue skill runbook
+│   ├── grilling.md            ← grilling skill runbook
+│   └── writing-for-humans.md  ← writing-for-humans skill runbook
+└── output/                    ← generated tool artifacts (gitignored)
+    ├── zoo/                   ← .roomodes + skills/
+    ├── kilo/                  ← .kilocodemodes + skills/
+    ├── opencode/              ← agents/*.md + skill/*.md
+    └── claude/                ← agents/*.md + skills/<n>/SKILL.md
+```
+
+Generated `output/` files are not committed — regenerate with `make all`.
+
+---
+
+## Usage
+
+| Command | What it does |
+|---------|-------------|
+| `make` | Print help with all available targets |
+| `make verify` | Validate [`modes.json`](modes.json) and run round-trip fidelity check; lint scripts with ruff |
+| `make zoo` | Generate Zoo Code artifacts (`output/zoo/`) |
+| `make kilo` | Generate Kilo Code artifacts (`output/kilo/`) |
+| `make opencode` | Generate OpenCode artifacts (`output/opencode/`) |
+| `make claude` | Generate Claude Code artifacts (`output/claude/`) |
+| `make all` | Generate all four tool artifact trees |
+| `make clean` | Remove `output/` |
+| `make install-zoo-local` | Install zoo skills and agents locally (project root) |
+| `make install-zoo-local-skills` | Install zoo skills locally |
+| `make install-zoo-local-agents` | Install zoo agents locally (`.roomodes`) |
+| `make install-zoo-global` | Install zoo skills and agents globally (`~/.roo/`) |
+| `make install-zoo-global-skills` | Install zoo skills globally |
+| `make install-zoo-global-agents` | Install zoo agents globally (overwrites `~/.roo/custom_modes.yaml`) |
+
+### Where generated files go
+
+| Generated path | Tool expects it at |
+|----------------|-------------------|
+| `output/zoo/.roomodes` | Project root as `.roomodes` |
+| `output/zoo/skills/*.md` | `.roo/skills/<name>/SKILL.md` |
+| `output/kilo/.kilocodemodes` | Project root as `.kilocodemodes` |
+| `output/kilo/skills/*.md` | `.kilo/skills/<name>/SKILL.md` |
+| `output/opencode/agents/*.md` | `.opencode/agents/*.md` |
+| `output/opencode/skill/*.md` | `.opencode/skills/<name>/SKILL.md` |
+| `output/claude/agents/*.md` | `.claude/agents/*.md` |
+| `output/claude/skills/<n>/SKILL.md` | `.claude/skills/<n>/SKILL.md` |
+
+### Deploy to Zoo Code
+
+Zoo Code reads modes and skills from both per-project and global locations. Use per-project paths when you want to check the config into a repository; use global paths to make the same modes and skills available in all projects on your machine. A project-level mode with the same slug completely overrides its global counterpart; likewise, a project-level skill overrides a same-named global skill.
+
+Modes: `.roomodes` in the project root (YAML or JSON) or the global `custom_modes.yaml` / `custom_modes.json` config (edited via Modes page → "Edit Global Modes").
+Skills: `.roo/skills/<name>/SKILL.md` (per-project) or `~/.roo/skills/<name>/SKILL.md` (Zoo-specific global). There is also a cross-agent global location `~/.agents/skills/<name>/SKILL.md` shared with other agent tools.
+
+**Per-project deploy** (add to the project repo):
+
+```bash
+make install-zoo-local          # installs both skills and agents
+```
+
+Or install individually:
+
+```bash
+make install-zoo-local-skills   # only skills
+make install-zoo-local-agents   # only agents (.roomodes)
+```
+
+**Global deploy** (available to all projects for your user):
+
+```bash
+make install-zoo-global          # installs both skills and agents
+```
+
+Or install individually:
+
+```bash
+make install-zoo-global-skills   # only skills
+make install-zoo-global-agents   # only agents (⚠ overwrites ~/.roo/custom_modes.yaml)
+```
+
+> **Note:** `install-zoo-global-agents` overwrites the entire `~/.roo/custom_modes.yaml` file with the generated modes. Any existing global modes not present in the generated file will be lost.
+
+### Deploy to Kilo Code
+
+Kilo Code reads modes and skills from both per-project and global locations. Use per-project paths when you want to check the config into a repository; use global paths to make the same modes and skills available in all projects on your machine. A project-level mode with the same slug completely overrides its global counterpart; likewise, a project-level skill overrides a same-named global skill.
+
+Modes: `.kilocodemodes` (YAML or JSON) in the project root — this is the legacy format; current Kilo Code versions read it and auto-migrate it to Markdown agent files on startup. Global modes live as Markdown agent files in `~/.config/kilo/agent/`.
+Skills: `.kilo/skills/<name>/SKILL.md` (per-project) or `~/.kilo/skills/<name>/SKILL.md` (global).
+
+**Per-project deploy** (add to the project repo):
+
+```bash
+make kilo
+cp output/kilo/.kilocodemodes .kilocodemodes
+for f in output/kilo/skills/*.md; do
+  n=$(basename "$f" .md)
+  mkdir -p .kilo/skills/"$n"
+  cp "$f" .kilo/skills/"$n"/SKILL.md
+done
+```
+
+**Global deploy** (available to all projects for your user):
+
+```bash
+make kilo
+mkdir -p ~/.kilo/skills
+for f in output/kilo/skills/*.md; do
+  n=$(basename "$f" .md)
+  mkdir -p ~/.kilo/skills/"$n"
+  cp "$f" ~/.kilo/skills/"$n"/SKILL.md
+done
+```
+
+For global modes, there is no single file to copy — modes live as individual Markdown agent files in `~/.config/kilo/agent/`. Open the Kilo Code Modes view and paste or import the modes from `output/kilo/.kilocodemodes` into the global modes editor, or copy them manually into `~/.config/kilo/agent/`.
+
+### Deploy to OpenCode
+
+OpenCode reads agents and skills from both per-project and global locations. Use per-project paths when you want to check the config into a repository; use global paths to make the same agents and skills available in all projects on your machine.
+
+Agents: `.opencode/agents/*.md` (per-project) or `~/.config/opencode/agents/*.md` (global) — [docs](https://opencode.ai/docs/agents/).
+Skills: `.opencode/skills/<name>/SKILL.md` (per-project) or `~/.config/opencode/skills/<name>/SKILL.md` (global) — [docs](https://opencode.ai/docs/skills/).
+
+**Per-project deploy** (add to the project repo):
+
+```bash
+make opencode
+mkdir -p .opencode/agents
+cp output/opencode/agents/*.md .opencode/agents/
+for f in output/opencode/skill/*.md; do
+  n=$(basename "$f" .md)
+  mkdir -p .opencode/skills/"$n"
+  cp "$f" .opencode/skills/"$n"/SKILL.md
+done
+```
+
+**Global deploy** (available to all projects for your user):
+
+```bash
+make opencode
+mkdir -p ~/.config/opencode/agents
+cp output/opencode/agents/*.md ~/.config/opencode/agents/
+for f in output/opencode/skill/*.md; do
+  n=$(basename "$f" .md)
+  mkdir -p ~/.config/opencode/skills/"$n"
+  cp "$f" ~/.config/opencode/skills/"$n"/SKILL.md
+done
+```
+
+> Extra skill sources can also be configured via a `"skills"` array in `opencode.json`.
+
+### Deploy to Claude Code
+
+Claude Code reads agents and skills from both per-project and global locations. Use per-project paths when you want to check the config into a repository; use global paths to make the same agents and skills available in all projects on your machine. A project-level agent with the same name takes priority over its global counterpart; likewise, a project-level skill overrides a same-named global skill. If an agents directory is created while a session is running, Claude Code must be restarted to detect the new subagents.
+
+Agents: `.claude/agents/*.md` (per-project) or `~/.claude/agents/*.md` (global).
+Skills: `.claude/skills/<name>/SKILL.md` (per-project) or `~/.claude/skills/<name>/SKILL.md` (global).
+
+**Install**
+
+- **Per-project (devcontainer):** add the feature to your `.devcontainer.json` — `"features": { "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {} }` — which installs the latest CLI and VS Code extension into the project container.
+- **Global (npm):** `npm install -g @anthropic-ai/claude-code` — requires Node.js 22 or later; avoid `sudo` to prevent permission issues.
+- **Global (native installer, recommended):** `curl -fsSL https://claude.ai/install.sh | bash` for macOS/Linux/WSL (Windows PowerShell: `irm https://claude.ai/install.ps1 | iex`). Native installations auto-update in the background and are the fallback when npm produces permission errors.
+
+**Per-project deploy** (add to the project repo):
+
+```bash
+make claude
+mkdir -p .claude/agents .claude/skills
+cp -r output/claude/agents/* .claude/agents/
+cp -r output/claude/skills/* .claude/skills/
+```
+
+**Global deploy** (available to all projects for your user):
+
+```bash
+make claude
+mkdir -p ~/.claude/agents ~/.claude/skills
+cp -r output/claude/agents/* ~/.claude/agents/
+cp -r output/claude/skills/* ~/.claude/skills/
 ```
 
 ---
@@ -181,7 +363,7 @@ This documentation — and the workflow it describes — is a work in progress. 
 
 - **Tests are probably underrepresented in their importance.** The verify phase now includes a diagnostic loop — `verify` can create or improve tests, diagnose failures, and apply verification-specific fixes before escalating to `code`. Still, the pipeline does not yet enforce test-first delegation, where each dispatched task carries executable acceptance criteria. Expect the loop to evolve toward that model.
 
-- **Mode definitions require ongoing maintenance** All orchestrator workflow modes now have custom instructions in [`agents/modes.yaml`](agents/modes.yaml), but as workflows evolve, the definitions need regular review to stay aligned with actual orchestrator behavior.
+- **Mode definitions require ongoing maintenance** All orchestrator workflow modes now have custom instructions in [`modes.json`](modes.json), but as workflows evolve, the definitions need regular review to stay aligned with actual orchestrator behavior.
 
 - **Overthinking** Even small tasks that would not need extensive planning are going through the plan/review plan loop, which is nice to look at, but probably completely useless. The solution is to either NOT use the orchestrator as the starting point (for small single-agent tasks) or tell the orchestrator in the prompt to not go through all the hoops in planning (because - for example - you already have a implementation plan ready).
 
