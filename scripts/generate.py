@@ -11,7 +11,49 @@ import shutil
 import sys
 from pathlib import Path
 
+import yaml
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+# ---------------------------------------------------------------------------
+# YAML helpers – force literal block scalars for multiline strings
+# ---------------------------------------------------------------------------
+
+
+class _LiteralDumper(yaml.SafeDumper):
+    """YAML dumper that uses literal block scalars for multiline strings.
+
+    PyYAML's ``analyze_scalar`` sets ``allow_block = False`` when the string
+    contains non-ASCII characters (treated as "special").  This causes
+    ``choose_scalar_style`` to silently fall back to double-quoted output
+    even when the representer explicitly requested literal/folded style.
+    We override ``choose_scalar_style`` to grant the request unconditionally
+    for ``|`` and ``>`` styles.
+    """
+
+    def choose_scalar_style(self):
+        if (self.event.style in ("|", ">")
+                and not self.flow_level
+                and not self.simple_key_context):
+            return self.event.style
+        return yaml.emitter.Emitter.choose_scalar_style(self)
+
+
+def _str_representer(dumper, data):
+    """Use literal block scalar (|-) for multiline strings, plain for single-line."""
+    if "\n" in data:
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
+    return dumper.represent_scalar("tag:yaml.org,2002:str", data)
+
+
+_LiteralDumper.add_representer(str, _str_representer)
+
+
+def _yaml_dump(obj):
+    """Dump obj to YAML with literal block scalars for multiline strings."""
+    return yaml.dump(obj, Dumper=_LiteralDumper, default_flow_style=False,
+                     allow_unicode=True, sort_keys=False, width=4096)
 
 
 def load_modes():
@@ -112,8 +154,6 @@ def mode_to_dict(mode):
 
 def emit_zoo(data, out_dir):
     """Emit Zoo Code artifacts."""
-    import yaml
-
     zoo_dir = out_dir / "zoo"
     shutil.rmtree(zoo_dir, ignore_errors=True)
     zoo_dir.mkdir(parents=True, exist_ok=True)
@@ -122,7 +162,7 @@ def emit_zoo(data, out_dir):
     roomodes = {"customModes": custom_modes}
 
     with open(zoo_dir / ".roomodes", "w") as f:
-        yaml.dump(roomodes, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+        f.write(_yaml_dump(roomodes))
 
     skills_dir = zoo_dir / "skills"
     skills_dir.mkdir(parents=True, exist_ok=True)
@@ -141,8 +181,6 @@ def emit_zoo(data, out_dir):
 
 def emit_kilo(data, out_dir):
     """Emit Kilo Code artifacts."""
-    import yaml
-
     kilo_dir = out_dir / "kilo"
     shutil.rmtree(kilo_dir, ignore_errors=True)
     kilo_dir.mkdir(parents=True, exist_ok=True)
@@ -151,7 +189,7 @@ def emit_kilo(data, out_dir):
     kilocodemodes = {"customModes": custom_modes}
 
     with open(kilo_dir / ".kilocodemodes", "w") as f:
-        yaml.dump(kilocodemodes, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+        f.write(_yaml_dump(kilocodemodes))
 
     skills_dir = kilo_dir / "skills"
     skills_dir.mkdir(parents=True, exist_ok=True)
@@ -170,8 +208,6 @@ def emit_kilo(data, out_dir):
 
 def emit_opencode(data, out_dir):
     """Emit OpenCode artifacts."""
-    import yaml
-
     oc_dir = out_dir / "opencode"
     shutil.rmtree(oc_dir, ignore_errors=True)
     agents_dir = oc_dir / "agents"
@@ -199,7 +235,7 @@ def emit_opencode(data, out_dir):
 
         body = f"{role}\n\n{instructions}" if instructions else role
 
-        fm_str = yaml.dump(frontmatter, default_flow_style=False, allow_unicode=True, sort_keys=False)
+        fm_str = _yaml_dump(frontmatter)
         content = f"---\n{fm_str}---\n{body}\n"
 
         with open(agents_dir / f"{slug}.md", "w") as f:
@@ -217,7 +253,7 @@ def emit_opencode(data, out_dir):
         if skill_desc:
             frontmatter["description"] = skill_desc
 
-        fm_str = yaml.dump(frontmatter, default_flow_style=False, allow_unicode=True, sort_keys=False)
+        fm_str = _yaml_dump(frontmatter)
         with open(skill_dir / f"{skill['name']}.md", "w") as f:
             f.write(f"---\n{fm_str}---\n{body}\n")
 
@@ -230,8 +266,6 @@ def emit_opencode(data, out_dir):
 
 def emit_claude(data, out_dir):
     """Emit Claude Code artifacts."""
-    import yaml
-
     claude_dir = out_dir / "claude"
     shutil.rmtree(claude_dir, ignore_errors=True)
     agents_dir = claude_dir / "agents"
@@ -255,7 +289,7 @@ def emit_claude(data, out_dir):
 
         body = f"{role}\n\n{instructions}" if instructions else role
 
-        fm_str = yaml.dump(frontmatter, default_flow_style=False, allow_unicode=True, sort_keys=False)
+        fm_str = _yaml_dump(frontmatter)
         content = f"---\n{fm_str}---\n{body}\n"
 
         with open(agents_dir / f"{slug}.md", "w") as f:
@@ -274,7 +308,7 @@ def emit_claude(data, out_dir):
         if skill_desc:
             frontmatter["description"] = skill_desc
 
-        fm_str = yaml.dump(frontmatter, default_flow_style=False, allow_unicode=True, sort_keys=False)
+        fm_str = _yaml_dump(frontmatter)
         with open(skill_dir / "SKILL.md", "w") as f:
             f.write(f"---\n{fm_str}---\n{body}\n")
 
