@@ -11,7 +11,7 @@ The workspace defines two complementary building blocks:
 | Layer | What it is | Example |
 |-------|-----------|---------|
 | **Agent modes** | Specialised Zoo Code subagents, each scoped to a single responsibility (planning, coding, reviewing, verifying, etc.) | [`plan`](modes.json), [`investigator`](modes.json), [`code`](modes.json), [`verify`](modes.json), [`security-review`](modes.json), [`orchestrator`](modes.json) |
-| **Local skills** | Reusable prompt-driven runbooks that tell an orchestrator which steps to execute and in what order | [`github-issue`](skills/github-issue.md:1) |
+| **Local skills** | Reusable prompt-driven runbooks that tell an orchestrator which steps to execute and in what order | [`github-issue`](skills/github-issue.md:1), [`release`](skills/release/SKILL.md:1) |
 
 A **skill** (like `github-issue`) is the *what* — a high-level workflow specification.  
 An **orchestrator mode** is the *how* — it knows how to break that workflow into delegated subtasks across the other modes.
@@ -175,9 +175,12 @@ The point of this table is not the specific models — those will change over ti
 ├── plans/                     ← (local scratch, untracked)
 ├── .gitignore
 ├── skills/
-│   ├── github-issue.md        ← github-issue skill runbook
-│   ├── grilling.md            ← grilling skill runbook
-│   └── writing-for-humans.md  ← writing-for-humans skill runbook
+│   ├── github-issue.md        ← github-issue skill runbook (flat form)
+│   ├── grilling.md            ← grilling skill runbook (flat form)
+│   ├── writing-for-humans.md  ← writing-for-humans skill runbook (flat form)
+│   └── release/               ← release skill (directory form)
+│       ├── SKILL.md           ← release skill runbook
+│       └── release.py         ← release automation CLI
 └── output/                    ← generated tool artifacts (gitignored)
     ├── zoo/                   ← .roomodes + skills/
     ├── kilo/                  ← .kilocodemodes + skills/
@@ -187,6 +190,17 @@ The point of this table is not the specific models — those will change over ti
 
 Generated `output/` files are not committed — regenerate with `make all`.
 
+### Dual skill forms
+
+Skills support two layout forms in `modes.json`:
+
+| Form | `file` value | When to use |
+|------|-------------|-------------|
+| **Flat** | `skills/<name>.md` | Simple skills with just a runbook (e.g. `github-issue`) |
+| **Directory** | `skills/<name>/SKILL.md` | Skills that include companion files (scripts, configs) alongside the runbook (e.g. `release/`) |
+
+Both forms emit identically to all tools. `verify.py` enforces that only one form exists per skill name and rejects duplicates or coexistence.
+
 ---
 
 ## Usage
@@ -194,7 +208,7 @@ Generated `output/` files are not committed — regenerate with `make all`.
 | Command | What it does |
 |---------|-------------|
 | `make` | Print help with all available targets |
-| `make verify` | Validate [`modes.json`](modes.json) and run round-trip fidelity check; lint scripts with ruff |
+| `make verify` | Validate [`modes.json`](modes.json) and run round-trip fidelity check; lint `scripts/` and `skills/` with ruff |
 | `make zoo` | Generate Zoo Code artifacts (`output/zoo/`) |
 | `make kilo` | Generate Kilo Code artifacts (`output/kilo/`) |
 | `make opencode` | Generate OpenCode artifacts (`output/opencode/`) |
