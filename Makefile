@@ -23,7 +23,7 @@ $(STAMP): ## Bootstrap venv (idempotent)
 
 verify: $(STAMP) ## Validate modes.json and round-trip check
 	$(VENV)/bin/python scripts/verify.py
-	$(VENV)/bin/ruff check scripts/
+	$(VENV)/bin/ruff check scripts/ skills/
 
 zoo: verify ## Generate Zoo Code artifacts
 	$(VENV)/bin/python scripts/generate.py zoo
