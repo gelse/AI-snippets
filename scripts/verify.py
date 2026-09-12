@@ -109,23 +109,56 @@ def validate_structure():
         seen.add(s)
     ok(f"All {len(slugs)} slugs unique")
 
-    # Skills
+    # Skills — accept skills/{name}.md (flat) or skills/{name}/SKILL.md (directory)
     skills = data.get("skills", [])
+    valid_forms = {}  # name -> set of forms seen ("flat", "dir")
     for skill in skills:
         if "name" not in skill or "file" not in skill:
             fail(f"Skill entry missing 'name' or 'file': {skill}")
         name = skill["name"]
         if not re.fullmatch(r"[a-z0-9-]+", name):
             fail(f"Skill name '{name}' must match ^[a-z0-9-]+$")
-        if skill["file"] != f"skills/{name}.md":
+
+        flat_path = f"skills/{name}.md"
+        dir_path = f"skills/{name}/SKILL.md"
+
+        if skill["file"] == flat_path:
+            form = "flat"
+        elif skill["file"] == dir_path:
+            form = "dir"
+        else:
             fail(
                 f"Skill 'file' mismatch for '{name}': "
-                f"expected 'skills/{name}.md', got '{skill['file']}'"
+                f"expected '{flat_path}' or '{dir_path}', "
+                f"got '{skill['file']}'"
             )
+
+        if name not in valid_forms:
+            valid_forms[name] = set()
+        valid_forms[name].add(form)
+
         skill_path = REPO_ROOT / skill["file"]
         if not skill_path.exists():
             fail(f"Skill file not found: {skill_path}")
-    ok(f"All {len(skills)} skill files exist")
+
+    # Duplicate skill name check
+    seen_names = []
+    for skill in skills:
+        name = skill["name"]
+        if name in seen_names:
+            fail(f"Duplicate skill name: '{name}'")
+        seen_names.append(name)
+
+    # Flat + directory coexistence check
+    for name, forms in valid_forms.items():
+        if "flat" in forms and "dir" in forms:
+            fail(
+                f"Skill '{name}' has both flat form (skills/{name}.md) "
+                f"and directory form (skills/{name}/SKILL.md) — "
+                f"use only one"
+            )
+
+    ok(f"All {len(skills)} skill files exist; no duplicates or coexistence conflicts")
 
     return data
 
