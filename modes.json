@@ -183,6 +183,10 @@
     {
       "name": "writing-for-humans",
       "file": "skills/writing-for-humans.md"
+    },
+    {
+      "name": "release",
+      "file": "skills/release/SKILL.md"
     }
   ]
 }
