@@ -69,6 +69,27 @@ def load_skill_content(skill_file):
         return f.read()
 
 
+def copy_skill_extra_files(skill, dest_dir):
+    """Copy companion files (e.g. *.py) for directory-form skills into dest_dir.
+
+    For skills declared as skills/<name>/SKILL.md, any other files in the
+    skills/<name>/ directory (scripts, configs) are copied beside the emitted
+    skill so the installed skill actually ships them.  Flat-form skills have no
+    extras and are unaffected (output stays byte-identical).
+    """
+    name = skill["name"]
+    src_dir = REPO_ROOT / "skills" / name
+    if skill["file"] != f"skills/{name}/SKILL.md":
+        return
+    if not src_dir.is_dir():
+        return
+    for extra in sorted(src_dir.iterdir()):
+        if extra.name == "SKILL.md" or not extra.is_file():
+            continue
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(extra, dest_dir / extra.name)
+
+
 def _find_frontmatter_end(content):
     """Find the closing '---' of YAML frontmatter.
 
@@ -171,6 +192,8 @@ def emit_zoo(data, out_dir):
         content = ensure_skill_frontmatter(content, skill["name"])
         with open(skills_dir / f"{skill['name']}.md", "w") as f:
             f.write(content)
+        # Companion files for directory-form skills go in skills/<name>/
+        copy_skill_extra_files(skill, skills_dir / skill["name"])
 
     print(f"  zoo: {zoo_dir / '.roomodes'} + {len(data['skills'])} skills")
 
@@ -198,6 +221,8 @@ def emit_kilo(data, out_dir):
         content = ensure_skill_frontmatter(content, skill["name"])
         with open(skills_dir / f"{skill['name']}.md", "w") as f:
             f.write(content)
+        # Companion files for directory-form skills go in skills/<name>/
+        copy_skill_extra_files(skill, skills_dir / skill["name"])
 
     print(f"  kilo: {kilo_dir / '.kilocodemodes'} + {len(data['skills'])} skills")
 
@@ -256,6 +281,8 @@ def emit_opencode(data, out_dir):
         fm_str = _yaml_dump(frontmatter)
         with open(skill_dir / f"{skill['name']}.md", "w") as f:
             f.write(f"---\n{fm_str}---\n{body}\n")
+        # Companion files for directory-form skills go in skill/<name>/
+        copy_skill_extra_files(skill, skill_dir / skill["name"])
 
     print(f"  opencode: {count} agents + {len(data['skills'])} skills in {oc_dir}")
 
@@ -311,6 +338,8 @@ def emit_claude(data, out_dir):
         fm_str = _yaml_dump(frontmatter)
         with open(skill_dir / "SKILL.md", "w") as f:
             f.write(f"---\n{fm_str}---\n{body}\n")
+        # Companion files for directory-form skills go beside SKILL.md
+        copy_skill_extra_files(skill, skill_dir)
 
     print(f"  claude: {count} agents + {len(data['skills'])} skills in {claude_dir}")
 

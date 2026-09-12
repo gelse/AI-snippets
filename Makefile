@@ -54,6 +54,9 @@ install-zoo-global-skills: zoo ## Install zoo skills globally
 		n=$$(basename "$$f" .md); \
 		mkdir -p $(HOME)/.roo/skills/"$$n"; \
 		cp "$$f" $(HOME)/.roo/skills/"$$n"/SKILL.md; \
+		if [ -d "output/zoo/skills/$$n" ]; then \
+			cp output/zoo/skills/$$n/* $(HOME)/.roo/skills/"$$n"/ 2>/dev/null || true; \
+		fi; \
 	done
 
 install-zoo-global-agents: zoo ## Install zoo agents globally
@@ -67,6 +70,9 @@ install-zoo-local-skills: zoo ## Install zoo skills locally
 		n=$$(basename "$$f" .md); \
 		mkdir -p .roo/skills/"$$n"; \
 		cp "$$f" .roo/skills/"$$n"/SKILL.md; \
+		if [ -d "output/zoo/skills/$$n" ]; then \
+			cp output/zoo/skills/$$n/* .roo/skills/"$$n"/ 2>/dev/null || true; \
+		fi; \
 	done
 
 install-zoo-local-agents: zoo ## Install zoo agents locally

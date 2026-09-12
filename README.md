@@ -235,6 +235,8 @@ Both forms emit identically to all tools. `verify.py` enforces that only one for
 | `output/claude/agents/*.md` | `.claude/agents/*.md` |
 | `output/claude/skills/<n>/SKILL.md` | `.claude/skills/<n>/SKILL.md` |
 
+Directory-form skills also ship any companion files (scripts, configs) from `skills/<name>/` beside the emitted runbook — e.g. `output/zoo/skills/release/release.py`, `output/kilo/skills/release/release.py`, `output/opencode/skill/release/release.py`, and `output/claude/skills/release/release.py`. The `install-zoo-*-skills` targets copy these alongside `SKILL.md`.
+
 ### Deploy to Zoo Code
 
 Zoo Code reads modes and skills from both per-project and global locations. Use per-project paths when you want to check the config into a repository; use global paths to make the same modes and skills available in all projects on your machine. A project-level mode with the same slug completely overrides its global counterpart; likewise, a project-level skill overrides a same-named global skill.
