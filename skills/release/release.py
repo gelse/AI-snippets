@@ -3,8 +3,9 @@
 Runs in the TARGET repo (CWD).  Stdlib-only (Python ≥ 3.11 for tomllib).
 
 Tag-target rule:
-    The release tag always points at the HEAD of testing after the release PR
-    is merged.  Tags are formatted as vX.Y.Z (one leading 'v' prefix).
+    The release tag always points at the HEAD of origin/main after the
+    testing→main promotion PR is merged.  Tags are formatted as vX.Y.Z
+    (one leading 'v' prefix).
 
 Version normalization:
     Any version input (X.Y.Z, vX.Y.Z, etc.) is normalized by stripping a
@@ -114,8 +115,10 @@ def tag_name(v):
 def cmd_preflight(args):
     """Validate repo state before release.
 
-    Checks: clean tree, testing branch, sync with origin, tag availability.
-    If --version is given, also validates pyproject.toml and tag uniqueness.
+    Checks: clean tree, testing branch, sync with origin, tag availability,
+    main/testing promotion topology (origin/main exists and is ancestor of
+    origin/testing).  If --version is given, also validates pyproject.toml
+    and tag uniqueness.
     """
     print("[preflight] Validating release prerequisites\n")
 
@@ -145,6 +148,30 @@ def cmd_preflight(args):
             f"origin/testing ({remote_head[:8]}) — git pull first"
         )
     ok(f"Local testing synced with origin/testing ({local_head[:8]})")
+
+    # Check origin/main exists
+    result = run(
+        ["git", "rev-parse", "-q", "--verify", "refs/remotes/origin/main"],
+        check=False,
+    )
+    if result.returncode != 0:
+        fail(
+            "Branch 'origin/main' does not exist — cannot promote "
+            "releases to main"
+        )
+    ok("origin/main exists")
+
+    # Check origin/main is an ancestor of origin/testing
+    result = run(
+        ["git", "merge-base", "--is-ancestor", "origin/main", "origin/testing"],
+        check=False,
+    )
+    if result.returncode != 0:
+        fail(
+            "origin/main is not an ancestor of origin/testing — promotion "
+            "PR would not be clean; sync main with testing first"
+        )
+    ok("origin/main is ancestor of origin/testing (promotion will be clean)")
 
     # Previous tag — filter to valid release tags only
     result = run(["git", "tag", "-l", "v*"])
@@ -368,7 +395,8 @@ def cmd_check_version(args):
 def cmd_finalize(args):
     """Tag the release and create a GitHub release.
 
-    Fetches origin, checks out testing, pulls --ff-only, creates tag,
+    Fetches origin, checks out main, pulls --ff-only, verifies
+    origin/testing is contained in origin/main, tags origin/main HEAD,
     pushes tag, and creates a GitHub release.  Resumable: if the tag
     already exists on remote but no GitHub release is found, the tag
     step is skipped and only the release is created.
@@ -386,8 +414,8 @@ def cmd_finalize(args):
     if result.stdout.strip():
         fail("Working tree is dirty — commit or stash changes first")
 
-    # Checkout testing
-    run(["git", "checkout", "testing"])
+    # Checkout main
+    run(["git", "checkout", "main"])
 
     # Pull ff-only
     run(["git", "pull", "--ff-only"])
@@ -398,11 +426,33 @@ def cmd_finalize(args):
         validate_commit(target)
         # Verify the commit exists
         result = run(["git", "cat-file", "-t", target])
+        # Verify commit is contained in origin/main
+        result = run(
+            ["git", "merge-base", "--is-ancestor", target, "origin/main"],
+            check=False,
+        )
+        if result.returncode != 0:
+            fail(
+                f"Commit '{target}' is not contained in origin/main — "
+                "the release tag must point at a commit on main"
+            )
         ok(f"Using provided commit: {target}")
     else:
-        result = run(["git", "rev-parse", "HEAD"])
+        result = run(["git", "rev-parse", "origin/main"])
         target = result.stdout.strip()
-        ok(f"Using HEAD of testing: {target[:8]}")
+        ok(f"Using HEAD of origin/main: {target[:8]}")
+
+    # Ancestry guard: origin/testing must be in origin/main
+    result = run(
+        ["git", "merge-base", "--is-ancestor", "origin/testing", "origin/main"],
+        check=False,
+    )
+    if result.returncode != 0:
+        fail(
+            "origin/main does not contain origin/testing HEAD — merge "
+            "the testing→main promotion PR first"
+        )
+    ok("origin/main contains origin/testing (ancestry OK)")
 
     # Sanity: pyproject version == v
     pyproject_path = Path("pyproject.toml")
@@ -497,19 +547,20 @@ def cmd_finalize(args):
 def cmd_post_verify(args):
     """Verify the release was published correctly.
 
-    Checks: tag points at expected commit (with annotated-tag peeling),
-    gh release exists, branch clean.
+    Checks: tag points at origin/main HEAD (with annotated-tag peeling),
+    origin/testing is contained in origin/main, gh release exists,
+    on main branch, local HEAD matches origin/main.
     """
     print("[post-verify] Verifying release\n")
 
     v = normalize_version(args.version)
     t = tag_name(v)
 
-    # Expected commit = HEAD of testing
+    # Expected commit = HEAD of origin/main
     run(["git", "fetch", "origin"])
-    result = run(["git", "rev-parse", "origin/testing"])
+    result = run(["git", "rev-parse", "origin/main"])
     expected = result.stdout.strip()
-    ok(f"Expected commit (origin/testing HEAD): {expected[:8]}")
+    ok(f"Expected commit (origin/main HEAD): {expected[:8]}")
 
     # Tag points at expected commit — peel annotated tags
     # Use refs/tags/<t>* pattern to include the ^{} peeled line
@@ -544,7 +595,19 @@ def cmd_post_verify(args):
         fail(
             f"Tag '{t}' points at {tag_sha[:8]}, expected {expected[:8]}"
         )
-    ok(f"Tag '{t}' points at {tag_sha[:8]} (matches origin/testing)")
+    ok(f"Tag '{t}' points at {tag_sha[:8]} (matches origin/main)")
+
+    # Ancestry guard: origin/testing must be in origin/main
+    result = run(
+        ["git", "merge-base", "--is-ancestor", "origin/testing", "origin/main"],
+        check=False,
+    )
+    if result.returncode != 0:
+        fail(
+            "origin/testing is not contained in origin/main — "
+            "promotion PR not merged?"
+        )
+    ok("origin/testing is contained in origin/main")
 
     # gh release exists
     result = subprocess.run(
@@ -560,9 +623,9 @@ def cmd_post_verify(args):
     # Branch and tree state
     result = run(["git", "branch", "--show-current"])
     branch = result.stdout.strip()
-    if branch != "testing":
-        fail(f"Expected branch 'testing', currently on '{branch}'")
-    ok("On 'testing' branch")
+    if branch != "main":
+        fail(f"Expected branch 'main', currently on '{branch}'")
+    ok("On 'main' branch")
 
     result = run(["git", "status", "--porcelain"])
     if result.stdout.strip():
@@ -574,9 +637,9 @@ def cmd_post_verify(args):
     if local_head != expected:
         fail(
             f"Local HEAD ({local_head[:8]}) differs from "
-            f"origin/testing ({expected[:8]})"
+            f"origin/main ({expected[:8]})"
         )
-    ok(f"Local == origin/testing ({local_head[:8]})")
+    ok(f"Local == origin/main ({local_head[:8]})")
 
     print(f"\n  Version: {v}")
     print(f"  Tag: {t}")
@@ -614,7 +677,11 @@ def main():
     fi = sub.add_parser("finalize", help="Tag release and create GitHub release")
     fi.add_argument("--version", required=True, help="Release version (X.Y.Z or vX.Y.Z)")
     fi.add_argument("--notes", required=True, help="Path to changelog notes file")
-    fi.add_argument("--commit", help="Specific commit SHA to tag (default: HEAD of testing)")
+    fi.add_argument(
+        "--commit",
+        help="Specific commit SHA to tag (default: HEAD of origin/main; "
+        "must be contained in main)",
+    )
 
     # post-verify
     pv = sub.add_parser("post-verify", help="Verify release was published correctly")

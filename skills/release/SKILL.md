@@ -1,6 +1,6 @@
 ---
 name: release
-description: Release the current testing branch end-to-end — version bump, changelog, PR, and GitHub release.
+description: Release the testing branch end-to-end — version bump, changelog, PRs to testing and main, and a GitHub release tagged on main.
 modeSlugs:
   - orchestrator
 argument-hint: "[version]"
@@ -8,7 +8,7 @@ argument-hint: "[version]"
 
 # Release
 
-Release the current testing branch. All git/gh commands run in the target repo root.
+Release the testing branch; releases are always tagged on main. All git/gh commands run in the target repo root.
 
 **Invocation:** `release.py` lives beside this SKILL.md. Run it with `.venv/bin/python skills/release/release.py` from the target repo root (tomllib requires Python ≥ 3.11).
 
@@ -32,7 +32,7 @@ Run `release.py changes` to draft commit/PR summaries. From the draft, propose a
 6. Push branch: `git push -u origin release/<version>`.
 7. Create PR: `gh pr create --base testing --head release/<version>` with notes from the changelog draft.
 
-## 4. Merge (User)
+## 4. Merge release PR (User)
 
 **⏸ PAUSE GATE 2:** Present two options:
 - "Merge successful, continue"
@@ -40,9 +40,20 @@ Run `release.py changes` to draft commit/PR summaries. From the draft, propose a
 
 **On trouble:** Diagnose with `git`/`gh` (CI logs via `gh pr checks`, PR state). Assist but do not tag.
 
+**On success:** Continue to promote.
+
+## 5. Promote (testing → main)
+
+1. Create promotion PR: `gh pr create --base main --head testing` with title "Promote testing to main for v\<version\>" and body referencing the release PR.
+2. **⏸ PAUSE GATE 3:** Present two options:
+   - "Merge successful, continue"
+   - "I have troubles, help me with: …"
+
+**On trouble:** Diagnose with `git`/`gh` but do not tag. The promotion PR must be merged before finalizing.
+
 **On success:** Continue to finalize.
 
-## 5. Finalize
+## 6. Finalize
 
 1. Run `release.py finalize --version X --notes FILE`.
 2. Run `release.py post-verify --version X`.
@@ -50,10 +61,11 @@ Run `release.py changes` to draft commit/PR summaries. From the draft, propose a
 
 ## Rules
 
-- Testing is the release source; never release dirty or unsynced trees.
+- Testing is the release source; main is the release target — releases are ALWAYS tagged on main, never on testing.
 - Never overwrite an existing tag or release.
+- Tagged commit = main HEAD after the testing→main promotion PR merge; main must contain testing HEAD.
+- Never tag before the promotion PR is merged.
 - Use `gh` for GitHub, `git` locally.
-- Tagged commit = testing HEAD after PR merge.
 - Versions normalized: tags always `vX.Y.Z`.
 - Stop on any inconsistency once anything is published.
-- **Do not merge the release PR yourself — the user merges.**
+- **Do not merge the release PR or the promotion PR yourself — the user merges both.**
