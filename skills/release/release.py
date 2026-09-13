@@ -409,6 +409,31 @@ def cmd_finalize(args):
     # Fetch origin
     run(["git", "fetch", "origin"])
 
+    # Ancestry guard: origin/testing must be in origin/main
+    result = run(
+        ["git", "merge-base", "--is-ancestor", "origin/testing", "origin/main"],
+        check=False,
+    )
+    if result.returncode != 0:
+        fail(
+            "origin/main does not contain origin/testing HEAD — merge "
+            "the testing→main promotion PR first"
+        )
+    ok("origin/main contains origin/testing (ancestry OK)")
+
+    # Ancestry guard: if --commit specified, validate before checkout
+    if args.commit:
+        validate_commit(args.commit)
+        result = run(
+            ["git", "merge-base", "--is-ancestor", args.commit, "origin/main"],
+            check=False,
+        )
+        if result.returncode != 0:
+            fail(
+                f"Commit '{args.commit}' is not contained in origin/main — "
+                "the release tag must point at a commit on main"
+            )
+
     # Dirty-tree guard
     result = run(["git", "status", "--porcelain"])
     if result.stdout.strip():
@@ -423,36 +448,13 @@ def cmd_finalize(args):
     # Determine target commit
     if args.commit:
         target = args.commit
-        validate_commit(target)
         # Verify the commit exists
-        result = run(["git", "cat-file", "-t", target])
-        # Verify commit is contained in origin/main
-        result = run(
-            ["git", "merge-base", "--is-ancestor", target, "origin/main"],
-            check=False,
-        )
-        if result.returncode != 0:
-            fail(
-                f"Commit '{target}' is not contained in origin/main — "
-                "the release tag must point at a commit on main"
-            )
+        run(["git", "cat-file", "-t", target])
         ok(f"Using provided commit: {target}")
     else:
         result = run(["git", "rev-parse", "origin/main"])
         target = result.stdout.strip()
         ok(f"Using HEAD of origin/main: {target[:8]}")
-
-    # Ancestry guard: origin/testing must be in origin/main
-    result = run(
-        ["git", "merge-base", "--is-ancestor", "origin/testing", "origin/main"],
-        check=False,
-    )
-    if result.returncode != 0:
-        fail(
-            "origin/main does not contain origin/testing HEAD — merge "
-            "the testing→main promotion PR first"
-        )
-    ok("origin/main contains origin/testing (ancestry OK)")
 
     # Sanity: pyproject version == v
     pyproject_path = Path("pyproject.toml")
