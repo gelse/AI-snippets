@@ -212,6 +212,34 @@ Each skill is a reusable prompt-driven runbook. These are the skills included in
 | [`writing-for-humans`](skills/writing-for-humans.md:1) | Guides writing or editing prose artifacts meant for human readers — docs, READMEs, reports, release notes, specs, emails. |
 | [`release`](skills/release/SKILL.md:1) | Releases the testing branch end-to-end — version bump, changelog, PRs to testing and main, and a GitHub release tagged on main. |
 
+### github-issue
+
+Use this skill when a GitHub issue needs to be resolved end-to-end. It retrieves the issue and its context via `gh`, validates that requirements are unambiguous (and stops if they are not), then creates a feature branch off `testing`. After implementation and verification, it commits, pushes, and opens a PR targeting the `testing` branch — referencing the issue number and summarizing the solution.
+
+### grilling
+
+Use this skill before building to stress-test a plan, decision, or idea. It maps the problem as a design tree where every decision branches into dependent sub-decisions, then asks exactly one question at a time — always the most upstream unresolved question — together with a recommended answer. The session ends when every branch of the tree has been visited and nothing is left silently assumed.
+
+### writing-for-humans
+
+Use this skill when writing or editing any prose a human will read: documentation, READMEs, reports, release notes, specs, or emails. It defines a reader profile, then grades every unit of text against four criteria — inverted pyramid (message leads), calibrated (define before use), one message per unit, and load-bearing (every unit earns its place). In review mode, it classifies every finding into a bucket (BURIED, MISCALIBRATED, SPLIT, DEADWEIGHT) and proposes a fix or deletion.
+
+### release
+
+Use this skill to ship a release from the `testing` branch. GitHub access goes through `gh`; git is used locally.
+
+**Workflow:**
+
+1. **Preflight** — validate repo state (clean tree, synced `testing`, tag availability).
+2. **Changes** — draft commit/PR summaries; propose a version.
+3. **Prepare** — create a release branch, bump the version in `pyproject.toml`, prepend the CHANGELOG section, push, and open a PR to `testing`. The skill reviews the diff and runs tests.
+4. **Promote** — after the release PR is merged, open a PR from `testing` to `main`.
+5. **Finalize** — after the promotion PR is merged, create a GitHub release tagged on `main` (`vX.Y.Z`).
+
+Two pause gates require the user to merge PRs — the skill never merges itself.
+
+**Deployment:** The helper script [`release.py`](skills/release/release.py:1) is invoked as `.venv/bin/python skills/release/release.py` from the target repo root. It requires **Python ≥ 3.11** in a virtual environment (`tomllib` is stdlib from 3.11; `release.py` imports it). The release skill has no third-party dependencies — a plain venv with Python ≥ 3.11 suffices.
+
 ---
 
 ## Usage
