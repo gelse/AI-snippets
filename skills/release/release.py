@@ -25,6 +25,7 @@ Subcommands:
 import argparse
 import json
 import re
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -34,6 +35,9 @@ import tomllib
 # ---------------------------------------------------------------------------
 # Helpers (mirroring scripts/verify.py style)
 # ---------------------------------------------------------------------------
+
+_VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
+_COMMIT_RE = re.compile(r"^[0-9a-f]{7,40}$")
 
 
 def fail(msg):
@@ -47,40 +51,54 @@ def ok(msg):
     print(f"  OK: {msg}")
 
 
-def run(cmd, capture=True):
-    """Run a shell command, print it, and return CompletedProcess.
+def run(cmd, capture=True, check=True):
+    """Run a command via subprocess (list-form, no shell).
 
-    Exits non-zero on failure.
+    When *check* is True (default) the process must exit 0; when False the
+    caller inspects the return code manually.
+
+    Prints a readable representation of the executed command.
     """
-    print(f"  $ {cmd}")
+    display = shlex.join(cmd) if isinstance(cmd, list) else cmd
+    print(f"  $ {display}")
     result = subprocess.run(
-        cmd, shell=True, capture_output=capture, text=True, check=False,
+        cmd, capture_output=capture, text=True, check=False,
     )
-    if result.returncode != 0:
+    if check and result.returncode != 0:
         stderr = result.stderr.strip() if capture else ""
-        fail(f"Command failed (exit {result.returncode}): {cmd}\n{stderr}")
+        fail(f"Command failed (exit {result.returncode}): {display}\n{stderr}")
     return result
 
 
 def normalize_version(v):
-    """Strip a single leading 'v' from a version string.
+    """Strip a single leading 'v' and enforce strict X.Y.Z format.
 
     >>> normalize_version("v1.2.3")
     '1.2.3'
     >>> normalize_version("1.2.3")
     '1.2.3'
     """
-    if v.startswith("v"):
-        return v[1:]
-    return v
+    stripped = v.removeprefix("v")
+    if not _VERSION_RE.match(stripped):
+        fail(
+            f"Invalid version '{v}': must match X.Y.Z "
+            f"(e.g. 1.2.3 or v1.2.3)"
+        )
+    return stripped
 
 
 def parse_version_tuple(v):
     """Convert 'X.Y.Z' to (X, Y, Z) integer tuple for comparison."""
     parts = v.split(".")
-    if len(parts) != 3 or not all(p.isdigit() for p in parts):
-        fail(f"Invalid version format '{v}': expected X.Y.Z")
     return tuple(int(p) for p in parts)
+
+
+def validate_commit(sha):
+    """Validate that *sha* looks like a hex commit hash."""
+    if not _COMMIT_RE.match(sha):
+        fail(
+            f"Invalid commit SHA '{sha}': must be7-40 hex characters"
+        )
 
 
 def tag_name(v):
@@ -102,24 +120,24 @@ def cmd_preflight(args):
     print("[preflight] Validating release prerequisites\n")
 
     # Dirty tree check
-    result = run("git status --porcelain")
+    result = run(["git", "status", "--porcelain"])
     if result.stdout.strip():
         fail("Working tree is dirty — commit or stash changes first")
 
     # Current branch
-    result = run("git branch --show-current")
+    result = run(["git", "branch", "--show-current"])
     branch = result.stdout.strip()
     if branch != "testing":
         fail(f"Must be on 'testing' branch, currently on '{branch}'")
     ok("On 'testing' branch")
 
     # Fetch all remotes and tags
-    run("git fetch --all --tags")
+    run(["git", "fetch", "--all", "--tags"])
 
     # Sync with origin/testing
-    result = run("git rev-parse HEAD")
+    result = run(["git", "rev-parse", "HEAD"])
     local_head = result.stdout.strip()
-    result = run("git rev-parse origin/testing")
+    result = run(["git", "rev-parse", "origin/testing"])
     remote_head = result.stdout.strip()
     if local_head != remote_head:
         fail(
@@ -128,9 +146,16 @@ def cmd_preflight(args):
         )
     ok(f"Local testing synced with origin/testing ({local_head[:8]})")
 
-    # Previous tag
-    result = run("git tag -l 'v*'")
-    tags = [t.strip() for t in result.stdout.strip().splitlines() if t.strip()]
+    # Previous tag — filter to valid release tags only
+    result = run(["git", "tag", "-l", "v*"])
+    raw_tags = [t.strip() for t in result.stdout.strip().splitlines() if t.strip()]
+    tags = []
+    for t in raw_tags:
+        ver = t[1:]  # strip leading 'v'
+        if _VERSION_RE.match(ver):
+            tags.append(t)
+        else:
+            print(f"  WARN: skipping non-release tag '{t}'")
     if tags:
         # Sort by version tuple descending
         tags_sorted = sorted(tags, key=lambda t: parse_version_tuple(t[1:]), reverse=True)
@@ -150,7 +175,7 @@ def cmd_preflight(args):
             fail(f"Tag '{t}' already exists locally")
 
         # Tag must not exist on remote
-        result = run(f"git ls-remote --tags origin {t}")
+        result = run(["git", "ls-remote", "--tags", "origin", t])
         if result.stdout.strip():
             fail(f"Tag '{t}' already exists on remote")
 
@@ -203,33 +228,47 @@ def cmd_changes(args):
     if base:
         base = normalize_version(base)
         base_tag = tag_name(base)
-        print(f"  Base tag: {base_tag}")
+
+        # Validate the base tag exists
+        result = run(
+            ["git", "rev-parse", "-q", "--verify", f"refs/tags/{base_tag}"],
+        )
+        if result.returncode != 0:
+            fail(f"Base tag '{base_tag}' does not exist")
+        ok(f"Base tag: {base_tag}")
+
+        # Compute tag date in a separate call
+        result = run(["git", "log", "-1", "--format=%aI", base_tag])
+        base_date = result.stdout.strip()
+        ok(f"Base tag date: {base_date}")
 
         # Commits since base tag
-        result = run(f"git log {base_tag}..HEAD --oneline --no-decorate")
+        result = run(["git", "log", f"{base_tag}..HEAD", "--oneline", "--no-decorate"])
         commits = [l.strip() for l in result.stdout.strip().splitlines() if l.strip()]
         print(f"  Found {len(commits)} commits since {base_tag}")
 
         # Merged PRs after base tag date
-        result = run(
-            f"gh pr list --state merged --base testing --limit 100 "
-            f"--json number,title,mergedAt --jq "
-            f"[.[] | select(.mergedAt >= (\"$(git log -1 --format=%aI {base_tag})\"))] "
-            f"| .[] | \"- #\\(.number) \\(.title)\""
-        )
+        result = run([
+            "gh", "pr", "list", "--state", "merged", "--base", "testing",
+            "--limit", "100", "--json", "number,title,mergedAt",
+            "--jq",
+            f'[.[] | select(.mergedAt >= "{base_date}" | todate)]'
+            + " | .[] | \"- #\\(.number) \\(.title)\"",
+        ])
         pr_lines = [l.strip() for l in result.stdout.strip().splitlines() if l.strip()]
     else:
         print("  First release — full history")
         # All commits from root
-        result = run("git log --oneline --no-decorate")
+        result = run(["git", "log", "--oneline", "--no-decorate"])
         commits = [l.strip() for l in result.stdout.strip().splitlines() if l.strip()]
         print(f"  Found {len(commits)} total commits")
 
         # All merged PRs
-        result = run(
-            "gh pr list --state merged --base testing --limit 100 "
-            "--json number,title --jq '.[] | \"- #\\(.number) \\(.title)\"'"
-        )
+        result = run([
+            "gh", "pr", "list", "--state", "merged", "--base", "testing",
+            "--limit", "100", "--json", "number,title",
+            "--jq", '.[] | "- #\\(.number) \\(.title)"',
+        ])
         pr_lines = [l.strip() for l in result.stdout.strip().splitlines() if l.strip()]
 
     # Build markdown draft
@@ -281,19 +320,25 @@ def cmd_check_version(args):
     v = normalize_version(args.version)
     t = tag_name(v)
 
-    # Format check
-    if not re.fullmatch(r"\d+\.\d+\.\d+", v):
-        fail(f"Version '{v}' does not match expected format X.Y.Z")
-
     v_tuple = parse_version_tuple(v)
     ok(f"Version format valid: {v}")
 
-    # Ordering check against last tag
-    result = run("git tag -l 'v*'")
-    tags = [t.strip() for t in result.stdout.strip().splitlines() if t.strip()]
-    if tags:
-        tags_sorted = sorted(tags, key=lambda t: parse_version_tuple(t[1:]), reverse=True)
-        last_tag = tags_sorted[0]
+    # Ordering check against last tag — skip non-release tags with warning
+    result = run(["git", "tag", "-l", "v*"])
+    raw_tags = [t.strip() for t in result.stdout.strip().splitlines() if t.strip()]
+    release_tags = []
+    for tg in raw_tags:
+        ver = tg[1:]
+        if _VERSION_RE.match(ver):
+            release_tags.append(tg)
+        else:
+            print(f"  WARN: skipping non-release tag '{tg}'")
+
+    if release_tags:
+        release_tags_sorted = sorted(
+            release_tags, key=lambda tg: parse_version_tuple(tg[1:]), reverse=True,
+        )
+        last_tag = release_tags_sorted[0]
         last_version = last_tag[1:]
         last_tuple = parse_version_tuple(last_version)
 
@@ -307,7 +352,7 @@ def cmd_check_version(args):
         ok("No existing tags — version ordering not applicable")
 
     # Tag existence check
-    result = run(f"git ls-remote --tags origin {t}")
+    result = run(["git", "ls-remote", "--tags", "origin", t])
     if result.stdout.strip():
         fail(f"Tag '{t}' already exists on remote")
     ok(f"Tag '{t}' does not yet exist")
@@ -324,7 +369,9 @@ def cmd_finalize(args):
     """Tag the release and create a GitHub release.
 
     Fetches origin, checks out testing, pulls --ff-only, creates tag,
-    pushes tag, and creates a GitHub release.
+    pushes tag, and creates a GitHub release.  Resumable: if the tag
+    already exists on remote but no GitHub release is found, the tag
+    step is skipped and only the release is created.
     """
     print("[finalize] Creating release\n")
 
@@ -332,22 +379,28 @@ def cmd_finalize(args):
     t = tag_name(v)
 
     # Fetch origin
-    run("git fetch origin")
+    run(["git", "fetch", "origin"])
+
+    # Dirty-tree guard
+    result = run(["git", "status", "--porcelain"])
+    if result.stdout.strip():
+        fail("Working tree is dirty — commit or stash changes first")
 
     # Checkout testing
-    run("git checkout testing")
+    run(["git", "checkout", "testing"])
 
     # Pull ff-only
-    run("git pull --ff-only")
+    run(["git", "pull", "--ff-only"])
 
     # Determine target commit
     if args.commit:
         target = args.commit
+        validate_commit(target)
         # Verify the commit exists
-        result = run(f"git cat-file -t {target}", capture=True)
+        result = run(["git", "cat-file", "-t", target])
         ok(f"Using provided commit: {target}")
     else:
-        result = run("git rev-parse HEAD")
+        result = run(["git", "rev-parse", "HEAD"])
         target = result.stdout.strip()
         ok(f"Using HEAD of testing: {target[:8]}")
 
@@ -364,31 +417,47 @@ def cmd_finalize(args):
             )
         ok(f"pyproject.toml version consistent: {pyproject_version}")
 
-    # Tag must not exist locally
-    result = run("git tag -l 'v*'")
-    existing_tags = [t_.strip() for t_ in result.stdout.strip().splitlines() if t_.strip()]
-    if t in existing_tags:
-        fail(f"Tag '{t}' already exists locally")
-    ok(f"Tag '{t}' not yet used locally")
+    # Check if tag already exists on remote (resumable finalize)
+    result = run(["git", "tag", "-l", t])
+    local_tag_exists = bool(result.stdout.strip())
 
-    # Tag must not exist on remote
-    result = run(f"git ls-remote --tags origin {t}")
-    if result.stdout.strip():
-        fail(f"Tag '{t}' already exists on remote")
-    ok(f"Tag '{t}' not yet on remote")
+    result = run(["git", "ls-remote", "--tags", "origin", t])
+    remote_tag_exists = bool(result.stdout.strip())
+
+    tag_already_pushed = local_tag_exists or remote_tag_exists
+
+    if tag_already_pushed:
+        # Check if GitHub release already exists
+        gh_result = subprocess.run(
+            ["gh", "release", "view", t],
+            capture_output=True, text=True, check=False,
+        )
+        if gh_result.returncode == 0:
+            fail(
+                f"Tag '{t}' and GitHub release both already exist — "
+                f"nothing to do"
+            )
+        # Tag exists but no release — resumable path
+        if remote_tag_exists:
+            ok(f"Tag '{t}' exists on remote but no GitHub release — "
+               "skipping tag creation, proceeding to release")
+        else:
+            # Local tag exists but wasn't pushed yet — push it
+            run(["git", "push", "origin", t])
+            ok(f"Pushed tag {t} to origin (skipping local creation)")
+    else:
+        # Create tag
+        run(["git", "tag", "-a", t, target, "-m", f"Release {t}"])
+        ok(f"Created tag {t} at {target[:8]}")
+
+        # Push tag
+        run(["git", "push", "origin", t])
+        ok(f"Pushed tag {t} to origin")
 
     # Read notes
     notes_path = Path(args.notes)
     if not notes_path.exists():
         fail(f"Notes file not found: {notes_path}")
-
-    # Create tag
-    run(f"git tag -a {t} {target} -m 'Release {t}'")
-    ok(f"Created tag {t} at {target[:8]}")
-
-    # Push tag
-    run(f"git push origin {t}")
-    ok(f"Pushed tag {t} to origin")
 
     # Create GitHub release
     result = subprocess.run(
@@ -401,7 +470,16 @@ def cmd_finalize(args):
         capture_output=True, text=True, check=False,
     )
     if result.returncode != 0:
-        fail(f"gh release create failed: {result.stderr.strip()}")
+        stderr = result.stderr.strip()
+        fail(
+            f"gh release create failed: {stderr}\n\n"
+            f"The tag '{t}' is already pushed.  To recover:\n"
+            f"  - Re-run finalize (it will skip tag creation and retry the "
+            f"release).\n"
+            f"  - Or run manually:\n"
+            f"    gh release create {t} --target {target} "
+            f"--notes-file {notes_path}"
+        )
     release_url = result.stdout.strip()
     ok(f"GitHub release created: {release_url}")
 
@@ -419,7 +497,8 @@ def cmd_finalize(args):
 def cmd_post_verify(args):
     """Verify the release was published correctly.
 
-    Checks: tag points at expected commit, gh release exists, branch clean.
+    Checks: tag points at expected commit (with annotated-tag peeling),
+    gh release exists, branch clean.
     """
     print("[post-verify] Verifying release\n")
 
@@ -427,18 +506,40 @@ def cmd_post_verify(args):
     t = tag_name(v)
 
     # Expected commit = HEAD of testing
-    run("git fetch origin")
-    result = run("git rev-parse origin/testing")
+    run(["git", "fetch", "origin"])
+    result = run(["git", "rev-parse", "origin/testing"])
     expected = result.stdout.strip()
     ok(f"Expected commit (origin/testing HEAD): {expected[:8]}")
 
-    # Tag points at expected commit
-    result = run(f"git ls-remote origin {t}")
+    # Tag points at expected commit — peel annotated tags
+    # Use refs/tags/<t>* pattern to include the ^{} peeled line
+    result = run(["git", "ls-remote", "origin", f"refs/tags/{t}*"])
     output = result.stdout.strip()
     if not output:
         fail(f"Tag '{t}' not found on remote")
-    # Output format: <sha>\trefs/tags/<tag>
-    tag_sha = output.split()[0]
+
+    # Resolve the peeled commit SHA:
+    #   1. Prefer refs/tags/vX.Y.Z^{} (dereferenced, for annotated tags)
+    #   2. Fall back to refs/tags/vX.Y.Z (lightweight or raw)
+    peeled_line = None
+    plain_line = None
+    for line in output.splitlines():
+        parts = line.split()
+        if len(parts) >= 2:
+            ref = parts[1]
+            if ref == f"refs/tags/{t}^{{}}":
+                peeled_line = line
+            elif ref == f"refs/tags/{t}":
+                plain_line = line
+
+    chosen_line = peeled_line or plain_line
+    if not chosen_line:
+        fail(f"Tag '{t}' not found in ls-remote output")
+
+    tag_sha = chosen_line.split()[0]
+    tag_type = "peeled" if peeled_line else "direct"
+    ok(f"Tag '{t}' resolved ({tag_type}): {tag_sha[:8]}")
+
     if tag_sha != expected:
         fail(
             f"Tag '{t}' points at {tag_sha[:8]}, expected {expected[:8]}"
@@ -457,18 +558,18 @@ def cmd_post_verify(args):
     ok(f"GitHub release exists: {release_url}")
 
     # Branch and tree state
-    result = run("git branch --show-current")
+    result = run(["git", "branch", "--show-current"])
     branch = result.stdout.strip()
     if branch != "testing":
         fail(f"Expected branch 'testing', currently on '{branch}'")
     ok("On 'testing' branch")
 
-    result = run("git status --porcelain")
+    result = run(["git", "status", "--porcelain"])
     if result.stdout.strip():
         fail("Working tree is dirty")
     ok("Working tree is clean")
 
-    result = run("git rev-parse HEAD")
+    result = run(["git", "rev-parse", "HEAD"])
     local_head = result.stdout.strip()
     if local_head != expected:
         fail(

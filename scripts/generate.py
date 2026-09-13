@@ -14,6 +14,7 @@ from pathlib import Path
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+_SAFE_FILENAME_RE = re.compile(r"^[a-z0-9._-]+$")
 
 
 # ---------------------------------------------------------------------------
@@ -76,6 +77,8 @@ def copy_skill_extra_files(skill, dest_dir):
     skills/<name>/ directory (scripts, configs) are copied beside the emitted
     skill so the installed skill actually ships them.  Flat-form skills have no
     extras and are unaffected (output stays byte-identical).
+
+    Skips dotfiles and filenames not matching ``^[a-z0-9._-]+$``.
     """
     name = skill["name"]
     src_dir = REPO_ROOT / "skills" / name
@@ -85,6 +88,9 @@ def copy_skill_extra_files(skill, dest_dir):
         return
     for extra in sorted(src_dir.iterdir()):
         if extra.name == "SKILL.md" or not extra.is_file():
+            continue
+        # Skip dotfiles and unsafe filenames
+        if extra.name.startswith(".") or not _SAFE_FILENAME_RE.match(extra.name):
             continue
         dest_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(extra, dest_dir / extra.name)
@@ -374,6 +380,16 @@ def main():
 
     data = load_modes()
     out_dir = REPO_ROOT / args.out
+
+    # Defense-in-depth: validate all skill names before processing
+    for skill in data["skills"]:
+        if not re.fullmatch(r"[a-z0-9-]+", skill["name"]):
+            print(
+                f"ERROR: Invalid skill name '{skill['name']}' — "
+                "must match ^[a-z0-9-]+$",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
     print(f"Generating {args.tool} artifacts...")
     EMITTERS[args.tool](data, out_dir)
