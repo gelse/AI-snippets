@@ -201,6 +201,17 @@ Skills support two layout forms in `modes.json`:
 
 Both forms emit identically to all tools. `verify.py` enforces that only one form exists per skill name and rejects duplicates or coexistence.
 
+## Skills
+
+Each skill is a reusable prompt-driven runbook. These are the skills included in this workspace:
+
+| Skill | What it does |
+|-------|-------------|
+| [`github-issue`](skills/github-issue.md:1) | Resolves a GitHub issue end-to-end and opens a pull request. |
+| [`grilling`](skills/grilling.md:1) | Stress-tests a plan, decision, or idea through structured questioning before building. |
+| [`writing-for-humans`](skills/writing-for-humans.md:1) | Guides writing or editing prose artifacts meant for human readers — docs, READMEs, reports, release notes, specs, emails. |
+| [`release`](skills/release/SKILL.md:1) | Releases the testing branch end-to-end — version bump, changelog, PRs to testing and main, and a GitHub release tagged on main. |
+
 ---
 
 ## Usage
