@@ -9,3 +9,7 @@ Initial development release of the AI-snippets toolkit.
 - Skills: `github-issue`, `grilling`, `writing-for-humans`, `release` (dual-form: markdown and directory with companion scripts).
 - `release.py` CLI with `preflight`, `changes`, `check-version`, `finalize`, and `post-verify` subcommands, plus SKILL.md with pause gates.
 - `verify.py` with dual-form skill validation and collision checks.
+
+### Fixed
+- `release.py` now tags the release on `main` (after promotion) instead of `testing`.
+- Moved `finalize` ancestry guards before checkout so aborted runs leave the tree on the original branch.
