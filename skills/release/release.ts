@@ -14,7 +14,7 @@
  *     always vX.Y.Z.
  *
  * Usage:
- *     node skills/release/release.mjs <subcommand> [options]
+ *     npx tsx skills/release/release.ts <subcommand> [options]
  *
  * Subcommands:
  *     preflight [--version X]   Validate repo state and optional version.
@@ -34,27 +34,30 @@ import { join } from 'node:path';
 // Helpers (mirroring scripts/verify.py style)
 // ---------------------------------------------------------------------------
 
-const _VERSION_RE = /^\d+\.\d+\.\d+$/;
-const _COMMIT_RE = /^[0-9a-f]{7,40}$/;
+const _VERSION_RE: RegExp = /^\d+\.\d+\.\d+$/;
+const _COMMIT_RE: RegExp = /^[0-9a-f]{7,40}$/;
 
-function fail(msg) {
+function fail(msg: string): void {
   console.error(`FAIL: ${msg}`);
   process.exit(1);
 }
 
-function ok(msg) {
+function ok(msg: string): void {
   console.log(`  OK: ${msg}`);
 }
 
 /** Minimal shlex.join replacement for display purposes. */
-function shlexJoin(cmd) {
+function shlexJoin(cmd: string[]): string {
   return cmd.map(arg => {
     if (/^[a-zA-Z0-9._\/-]+$/.test(arg)) return arg;
     return "'" + arg.replace(/'/g, "'\\''") + "'";
   }).join(' ');
 }
 
-function run(cmd, opts = {}) {
+function run(
+  cmd: string[],
+  opts: { capture?: boolean; check?: boolean } = {},
+): { status: number; stdout: string; stderr: string } {
   const { capture = true, check = true } = opts;
   const display = shlexJoin(cmd);
   console.log(`  $ ${display}`);
@@ -69,7 +72,7 @@ function run(cmd, opts = {}) {
   return result;
 }
 
-function normalizeVersion(v) {
+function normalizeVersion(v: string): string {
   const stripped = v.startsWith('v') ? v.slice(1) : v;
   if (!_VERSION_RE.test(stripped)) {
     fail(
@@ -80,11 +83,11 @@ function normalizeVersion(v) {
   return stripped;
 }
 
-function parseVersionTuple(v) {
-  return v.split('.').map(Number);
+function parseVersionTuple(v: string): [number, number, number] {
+  return v.split('.').map(Number) as [number, number, number];
 }
 
-function validateCommit(sha) {
+function validateCommit(sha: string): void {
   if (!_COMMIT_RE.test(sha)) {
     fail(
       `Invalid commit SHA '${sha}': must be 7-40 hex characters`
@@ -92,7 +95,7 @@ function validateCommit(sha) {
   }
 }
 
-function tagName(v) {
+function tagName(v: string): string {
   return `v${v}`;
 }
 
@@ -100,7 +103,11 @@ function tagName(v) {
 // Subcommand: preflight
 // ---------------------------------------------------------------------------
 
-function cmdPreflight(args) {
+interface PreflightArgs {
+  version?: string;
+}
+
+function cmdPreflight(args: PreflightArgs): void {
   console.log('[preflight] Validating release prerequisites\n');
 
   // Dirty tree check
@@ -161,8 +168,8 @@ function cmdPreflight(args) {
 
   // Previous tag — filter to valid release tags only
   result = run(['git', 'tag', '-l', 'v*']);
-  const rawTags = result.stdout.trim().split('\n').map(t => t.trim()).filter(Boolean);
-  const tags = [];
+  const rawTags = result.stdout.trim().split('\n').map((t: string) => t.trim()).filter(Boolean);
+  const tags: string[] = [];
   for (const t of rawTags) {
     const ver = t.slice(1); // strip leading 'v'
     if (_VERSION_RE.test(ver)) {
@@ -171,10 +178,10 @@ function cmdPreflight(args) {
       console.log(`  WARN: skipping non-release tag '${t}'`);
     }
   }
-  let lastTag = null;
+  let lastTag: string | null = null;
   if (tags.length > 0) {
     const tagsSorted = tags.sort(
-      (a, b) => {
+      (a: string, b: string) => {
         const ta = parseVersionTuple(a.slice(1));
         const tb = parseVersionTuple(b.slice(1));
         return tb[0] - ta[0] || tb[1] - ta[1] || tb[2] - ta[2];
@@ -241,14 +248,19 @@ function cmdPreflight(args) {
 // Subcommand: changes
 // ---------------------------------------------------------------------------
 
-function cmdChanges(args) {
+interface ChangesArgs {
+  base?: string;
+  out?: string;
+}
+
+function cmdChanges(args: ChangesArgs): void {
   console.log('[changes] Drafting changelog notes\n');
 
   let base = args.base;
-  let baseTag = null;
-  let baseDate = null;
-  let commits = [];
-  let prLines = [];
+  let baseTag: string | null = null;
+  let baseDate: string | null = null;
+  let commits: string[] = [];
+  let prLines: string[] = [];
 
   if (base) {
     base = normalizeVersion(base);
@@ -270,7 +282,7 @@ function cmdChanges(args) {
 
     // Commits since base tag
     result = run(['git', 'log', `${baseTag}..HEAD`, '--oneline', '--no-decorate']);
-    commits = result.stdout.trim().split('\n').map(l => l.trim()).filter(Boolean);
+    commits = result.stdout.trim().split('\n').map((l: string) => l.trim()).filter(Boolean);
     console.log(`  Found ${commits.length} commits since ${baseTag}`);
 
     // Merged PRs after base tag date
@@ -281,12 +293,12 @@ function cmdChanges(args) {
       `[.[] | select(.mergedAt >= "${baseDate}" | todate)]` +
       ` | .[] | "- #\\(.number) \\(.title)"`,
     ]);
-    prLines = result.stdout.trim().split('\n').map(l => l.trim()).filter(Boolean);
+    prLines = result.stdout.trim().split('\n').map((l: string) => l.trim()).filter(Boolean);
   } else {
     console.log('  First release — full history');
     // All commits from root
     let result = run(['git', 'log', '--oneline', '--no-decorate']);
-    commits = result.stdout.trim().split('\n').map(l => l.trim()).filter(Boolean);
+    commits = result.stdout.trim().split('\n').map((l: string) => l.trim()).filter(Boolean);
     console.log(`  Found ${commits.length} total commits`);
 
     // All merged PRs
@@ -295,11 +307,11 @@ function cmdChanges(args) {
       '--limit', '100', '--json', 'number,title',
       '--jq', '.[] | "- #\\(.number) \\(.title)"',
     ]);
-    prLines = result.stdout.trim().split('\n').map(l => l.trim()).filter(Boolean);
+    prLines = result.stdout.trim().split('\n').map((l: string) => l.trim()).filter(Boolean);
   }
 
   // Build markdown draft
-  const lines = [];
+  const lines: string[] = [];
   if (base) {
     lines.push(`## Commits (${baseTag}..HEAD)\n`);
   } else {
@@ -340,7 +352,11 @@ function cmdChanges(args) {
 // Subcommand: check-version
 // ---------------------------------------------------------------------------
 
-function cmdCheckVersion(args) {
+interface CheckVersionArgs {
+  version: string;
+}
+
+function cmdCheckVersion(args: CheckVersionArgs): void {
   console.log('[check-version] Validating version\n');
 
   const v = normalizeVersion(args.version);
@@ -351,8 +367,8 @@ function cmdCheckVersion(args) {
 
   // Ordering check against last tag — skip non-release tags with warning
   let result = run(['git', 'tag', '-l', 'v*']);
-  const rawTags = result.stdout.trim().split('\n').map(t => t.trim()).filter(Boolean);
-  const releaseTags = [];
+  const rawTags = result.stdout.trim().split('\n').map((t: string) => t.trim()).filter(Boolean);
+  const releaseTags: string[] = [];
   for (const tg of rawTags) {
     const ver = tg.slice(1);
     if (_VERSION_RE.test(ver)) {
@@ -364,7 +380,7 @@ function cmdCheckVersion(args) {
 
   if (releaseTags.length > 0) {
     const releaseTagsSorted = releaseTags.sort(
-      (a, b) => {
+      (a: string, b: string) => {
         const ta = parseVersionTuple(a.slice(1));
         const tb = parseVersionTuple(b.slice(1));
         return tb[0] - ta[0] || tb[1] - ta[1] || tb[2] - ta[2];
@@ -401,7 +417,13 @@ function cmdCheckVersion(args) {
 // Subcommand: finalize
 // ---------------------------------------------------------------------------
 
-function cmdFinalize(args) {
+interface FinalizeArgs {
+  version: string;
+  notes: string;
+  commit?: string;
+}
+
+function cmdFinalize(args: FinalizeArgs): void {
   console.log('[finalize] Creating release\n');
 
   const v = normalizeVersion(args.version);
@@ -451,7 +473,7 @@ function cmdFinalize(args) {
   run(['git', 'pull', '--ff-only']);
 
   // Determine target commit
-  let target;
+  let target: string;
   if (args.commit) {
     target = args.commit;
     // Verify the commit exists
@@ -556,7 +578,11 @@ function cmdFinalize(args) {
 // Subcommand: post-verify
 // ---------------------------------------------------------------------------
 
-function cmdPostVerify(args) {
+interface PostVerifyArgs {
+  version: string;
+}
+
+function cmdPostVerify(args: PostVerifyArgs): void {
   console.log('[post-verify] Verifying release\n');
 
   const v = normalizeVersion(args.version);
@@ -579,8 +605,8 @@ function cmdPostVerify(args) {
   // Resolve the peeled commit SHA:
   //   1. Prefer refs/tags/vX.Y.Z^{} (dereferenced, for annotated tags)
   //   2. Fall back to refs/tags/vX.Y.Z (lightweight or raw)
-  let peeledLine = null;
-  let plainLine = null;
+  let peeledLine: string | null = null;
+  let plainLine: string | null = null;
   for (const line of output.split('\n')) {
     const parts = line.split(/\s+/);
     if (parts.length >= 2) {
@@ -672,7 +698,7 @@ function cmdPostVerify(args) {
 // TOML reader — scoped to [project] table only
 // ---------------------------------------------------------------------------
 
-function readPyprojectVersion(path) {
+function readPyprojectVersion(path: string): string {
   const content = readFileSync(path, 'utf-8');
   const lines = content.split('\n');
 
@@ -699,9 +725,14 @@ function readPyprojectVersion(path) {
 // CLI
 // ---------------------------------------------------------------------------
 
-function parseArgs(argv) {
-  const args = {};
-  const positional = [];
+interface ParsedArgs {
+  positional: string[];
+  args: Record<string, string | undefined>;
+}
+
+function parseArgs(argv: string[]): ParsedArgs {
+  const args: Record<string, string | undefined> = {};
+  const positional: string[] = [];
   const raw = argv.slice(2);
 
   for (let i = 0; i < raw.length; i++) {
@@ -722,8 +753,8 @@ function parseArgs(argv) {
   return { positional, args };
 }
 
-function printUsage() {
-  console.error(`usage: node skills/release/release.mjs <subcommand> [options]
+function printUsage(): void {
+  console.error(`usage: npx tsx skills/release/release.ts <subcommand> [options]
 
 subcommands:
   preflight [--version X]        Validate repo state before release
@@ -733,7 +764,7 @@ subcommands:
   post-verify --version X        Verify release was published correctly`);
 }
 
-function main() {
+function main(): void {
   const { positional, args } = parseArgs(process.argv);
 
   if (positional.length !== 1) {
@@ -745,31 +776,31 @@ function main() {
 
   switch (command) {
     case 'preflight':
-      cmdPreflight(args);
+      cmdPreflight(args as PreflightArgs);
       break;
     case 'changes':
-      cmdChanges(args);
+      cmdChanges(args as ChangesArgs);
       break;
     case 'check-version':
       if (!args.version) {
         console.error("error: the following arguments are required: --version");
         process.exit(2);
       }
-      cmdCheckVersion(args);
+      cmdCheckVersion(args as unknown as CheckVersionArgs);
       break;
     case 'finalize':
       if (!args.version || !args.notes) {
         console.error("error: the following arguments are required: --version, --notes");
         process.exit(2);
       }
-      cmdFinalize(args);
+      cmdFinalize(args as unknown as FinalizeArgs);
       break;
     case 'post-verify':
       if (!args.version) {
         console.error("error: the following arguments are required: --version");
         process.exit(2);
       }
-      cmdPostVerify(args);
+      cmdPostVerify(args as unknown as PostVerifyArgs);
       break;
     default:
       printUsage();
