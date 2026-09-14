@@ -5,6 +5,7 @@
 ### Added
 - Node.js counterparts (`*.mjs`) for all release scripts: `scripts/generate.mjs`, `scripts/verify.mjs`, `skills/release/release.mjs`.
 - `scripts/package.json` with `yaml` (eemeli) dependency — auto-installed by the `*-js` Makefile targets via `npm install`.
+- `install-manifest.json` emitter in [`generate.py`](scripts/generate.py) and a `manifest` Makefile target (included in `all`) — writes `output/install-manifest.json` declaring each tool's artifact source paths and local/global destinations for the installer CLI.
 - Makefile `-js` targets: `verify-js`, `zoo-js`, `kilo-js`, `opencode-js`, `claude-js`, `all-js` — run the same validation and generation using Node.js ≥ 18 (requires `npm install` in `scripts/`, handled automatically).
 - `check-node` Makefile guard that prints a clear failure message when Node.js is not installed.
 

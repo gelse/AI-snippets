@@ -168,7 +168,7 @@ The point of this table is not the specific models — those will change over ti
 ├── README.md                  ← this file
 ├── LICENSE
 ├── modes.json                 ← single source of truth for all custom mode definitions
-├── Makefile                   ← build targets: help, verify, zoo/kilo/opencode/claude, all, clean, install-zoo-*, *-js targets
+├── Makefile                   ← build targets: help, verify, zoo/kilo/opencode/claude, manifest, all, clean, install-zoo-*, *-js targets
 ├── scripts/
 │   ├── generate.py            ← emits tool-specific artifacts into output/ (Python)
 │   ├── generate.mjs           ← emits tool-specific artifacts into output/ (Node.js)
@@ -189,7 +189,8 @@ The point of this table is not the specific models — those will change over ti
     ├── zoo/                   ← .roomodes + skills/
     ├── kilo/                  ← .kilocodemodes + skills/
     ├── opencode/              ← agents/*.md + skill/*.md
-    └── claude/                ← agents/*.md + skills/<n>/SKILL.md
+    ├── claude/                ← agents/*.md + skills/<n>/SKILL.md
+    └── install-manifest.json  ← per-tool artifact src/local/global path manifest
 ```
 
 Generated `output/` files are not committed — regenerate with `make all`.
@@ -258,7 +259,8 @@ A Node.js alternative [`release.mjs`](skills/release/release.mjs:1) ships alongs
 | `make kilo` | Generate Kilo Code artifacts (`output/kilo/`) |
 | `make opencode` | Generate OpenCode artifacts (`output/opencode/`) |
 | `make claude` | Generate Claude Code artifacts (`output/claude/`) |
-| `make all` | Generate all four tool artifact trees |
+| `make manifest` | Generate the artifact path manifest (`output/install-manifest.json`) |
+| `make all` | Generate all four tool artifact trees plus the install manifest |
 | `make clean` | Remove `output/` |
 | `make verify-js` | Validate [`modes.json`](modes.json) and round-trip check (Node.js, no venv required) |
 | `make zoo-js` | Generate Zoo Code artifacts (Node.js) |
