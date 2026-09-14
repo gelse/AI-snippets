@@ -1,10 +1,13 @@
 .DEFAULT_GOAL := help
 
 PYTHON ?= python3
+NODE   ?= node
 VENV    = .venv
 STAMP   = $(VENV)/.stamp
+NPM_STAMP = scripts/.npm-stamp
 
 .PHONY: help verify zoo kilo opencode claude all clean \
+        check-node verify-js zoo-js kilo-js opencode-js claude-js all-js \
         install-zoo-global install-zoo-local \
         install-zoo-global-skills install-zoo-global-agents \
         install-zoo-local-skills install-zoo-local-agents
@@ -41,6 +44,33 @@ all: zoo kilo opencode claude ## Generate all tool artifacts
 
 clean: ## Remove generated output
 	rm -rf output
+
+# ── Node.js counterparts ────────────────────────────────────────────
+
+$(NPM_STAMP): scripts/package.json
+	cd scripts && npm install
+	@touch $(NPM_STAMP)
+
+check-node: ## Guard: verify node is available
+	@command -v $(NODE) >/dev/null 2>&1 || \
+		(echo "FAIL: node is not installed or not on PATH — install Node.js to use the *-js targets" && exit 1)
+
+verify-js: check-node $(NPM_STAMP) ## Validate modes.json and round-trip check (Node.js)
+	cd scripts && $(NODE) verify.mjs
+
+zoo-js: verify-js ## Generate Zoo Code artifacts (Node.js)
+	cd scripts && $(NODE) generate.mjs zoo
+
+kilo-js: verify-js ## Generate Kilo Code artifacts (Node.js)
+	cd scripts && $(NODE) generate.mjs kilo
+
+opencode-js: verify-js ## Generate OpenCode artifacts (Node.js)
+	cd scripts && $(NODE) generate.mjs opencode
+
+claude-js: verify-js ## Generate Claude Code artifacts (Node.js)
+	cd scripts && $(NODE) generate.mjs claude
+
+all-js: zoo-js kilo-js opencode-js claude-js ## Generate all tool artifacts (Node.js)
 
 # ── Zoo install targets ─────────────────────────────────────────────
 

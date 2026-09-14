@@ -5,3 +5,6 @@ __pycache__/
 *.pyc
 ideas/
 plans/
+node_modules/
+scripts/.npm-stamp
+scripts/package-lock.json

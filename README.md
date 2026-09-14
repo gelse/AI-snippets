@@ -168,10 +168,13 @@ The point of this table is not the specific models — those will change over ti
 ├── README.md                  ← this file
 ├── LICENSE
 ├── modes.json                 ← single source of truth for all custom mode definitions
-├── Makefile                   ← build targets: help, verify, zoo/kilo/opencode/claude, all, clean, install-zoo-*
+├── Makefile                   ← build targets: help, verify, zoo/kilo/opencode/claude, all, clean, install-zoo-*, *-js targets
 ├── scripts/
-│   ├── generate.py            ← emits tool-specific artifacts into output/
-│   └── verify.py              ← validates modes.json + round-trip check
+│   ├── generate.py            ← emits tool-specific artifacts into output/ (Python)
+│   ├── generate.mjs           ← emits tool-specific artifacts into output/ (Node.js)
+│   ├── verify.py              ← validates modes.json + round-trip check (Python)
+│   ├── verify.mjs             ← validates modes.json + round-trip check (Node.js)
+│   └── package.json           ← Node.js dependency: yaml (auto-installed by Makefile)
 ├── plans/                     ← (local scratch, untracked)
 ├── .gitignore
 ├── skills/
@@ -180,7 +183,8 @@ The point of this table is not the specific models — those will change over ti
 │   ├── writing-for-humans.md  ← writing-for-humans skill runbook (flat form)
 │   └── release/               ← release skill (directory form)
 │       ├── SKILL.md           ← release skill runbook
-│       └── release.py         ← release automation CLI
+│       ├── release.py         ← release automation CLI (Python)
+│       └── release.mjs        ← release automation CLI (Node.js)
 └── output/                    ← generated tool artifacts (gitignored)
     ├── zoo/                   ← .roomodes + skills/
     ├── kilo/                  ← .kilocodemodes + skills/
@@ -240,6 +244,8 @@ Two pause gates require the user to merge PRs — the skill never merges itself.
 
 **Deployment:** The helper script [`release.py`](skills/release/release.py:1) is invoked as `.venv/bin/python skills/release/release.py` from the target repo root. It requires **Python ≥ 3.11** in a virtual environment (`tomllib` is stdlib from 3.11; `release.py` imports it). The release skill has no third-party dependencies — a plain venv with Python ≥ 3.11 suffices.
 
+A Node.js alternative [`release.mjs`](skills/release/release.mjs:1) ships alongside `release.py` and is invoked as `node skills/release/release.mjs <subcommand>` with identical CLI semantics. It requires **Node.js ≥ 18** and has no external dependencies — both files are shipped as companion files in every tool's output directory.
+
 ---
 
 ## Usage
@@ -254,6 +260,12 @@ Two pause gates require the user to merge PRs — the skill never merges itself.
 | `make claude` | Generate Claude Code artifacts (`output/claude/`) |
 | `make all` | Generate all four tool artifact trees |
 | `make clean` | Remove `output/` |
+| `make verify-js` | Validate [`modes.json`](modes.json) and round-trip check (Node.js, no venv required) |
+| `make zoo-js` | Generate Zoo Code artifacts (Node.js) |
+| `make kilo-js` | Generate Kilo Code artifacts (Node.js) |
+| `make opencode-js` | Generate OpenCode artifacts (Node.js) |
+| `make claude-js` | Generate Claude Code artifacts (Node.js) |
+| `make all-js` | Generate all four tool artifact trees (Node.js) |
 | `make install-zoo-local` | Install zoo skills and agents locally (project root) |
 | `make install-zoo-local-skills` | Install zoo skills locally |
 | `make install-zoo-local-agents` | Install zoo agents locally (`.roomodes`) |
@@ -274,7 +286,7 @@ Two pause gates require the user to merge PRs — the skill never merges itself.
 | `output/claude/agents/*.md` | `.claude/agents/*.md` |
 | `output/claude/skills/<n>/SKILL.md` | `.claude/skills/<n>/SKILL.md` |
 
-Directory-form skills also ship any companion files (scripts, configs) from `skills/<name>/` beside the emitted runbook — e.g. `output/zoo/skills/release/release.py`, `output/kilo/skills/release/release.py`, `output/opencode/skill/release/release.py`, and `output/claude/skills/release/release.py`. The `install-zoo-*-skills` targets copy these alongside `SKILL.md`.
+Directory-form skills also ship any companion files (scripts, configs) from `skills/<name>/` beside the emitted runbook — e.g. `output/zoo/skills/release/release.py`, `output/kilo/skills/release/release.py`, `output/opencode/skill/release/release.py`, and `output/claude/skills/release/release.py`. Companion files include both `release.py` and `release.mjs` (the Node.js counterpart). The `install-zoo-*-skills` targets copy these alongside `SKILL.md`.
 
 ### Deploy to Zoo Code
 

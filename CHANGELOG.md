@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Node.js counterparts (`*.mjs`) for all release scripts: `scripts/generate.mjs`, `scripts/verify.mjs`, `skills/release/release.mjs`.
+- `scripts/package.json` with `yaml` (eemeli) dependency — auto-installed by the `*-js` Makefile targets via `npm install`.
+- Makefile `-js` targets: `verify-js`, `zoo-js`, `kilo-js`, `opencode-js`, `claude-js`, `all-js` — run the same validation and generation using Node.js ≥ 18 (requires `npm install` in `scripts/`, handled automatically).
+- `check-node` Makefile guard that prints a clear failure message when Node.js is not installed.
+
 ## [0.1.0] - 2026-09-13
 
 Initial development release of the AI-snippets toolkit.
