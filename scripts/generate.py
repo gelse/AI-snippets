@@ -351,6 +351,100 @@ def emit_claude(data, out_dir):
 
 
 # ---------------------------------------------------------------------------
+# Manifest emitter
+# ---------------------------------------------------------------------------
+
+def _read_version():
+    """Read package version from scripts/package.json or root package.json.
+
+    Returns version string or None if unavailable.
+    """
+    for candidate in (REPO_ROOT / "scripts" / "package.json",
+                      REPO_ROOT / "package.json"):
+        try:
+            with open(candidate) as f:
+                pkg = json.load(f)
+            v = pkg.get("version")
+            if v:
+                return v
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass
+    return None
+
+
+def emit_manifest(data, out_dir):
+    """Emit install-manifest.json describing tool artifact paths."""
+    manifest_dir = out_dir
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+
+    manifest = {
+        "package": "@gelse/ai-snippets",
+        "tools": {
+            "zoo": {
+                "modes": {
+                    "src": "zoo/.roomodes",
+                    "local": ".roomodes",
+                    "global": "~/.roo/custom_modes.yaml",
+                    "merge": True,
+                },
+                "skillsDir": {
+                    "src": "zoo/skills",
+                    "local": ".roo/skills",
+                    "global": "~/.roo/skills",
+                },
+            },
+            "kilo": {
+                "modes": {
+                    "src": "kilo/.kilocodemodes",
+                    "local": ".kilocodemodes",
+                    "global": None,
+                },
+                "skillsDir": {
+                    "src": "kilo/skills",
+                    "local": ".kilo/skills",
+                    "global": "~/.kilo/skills",
+                },
+            },
+            "opencode": {
+                "modesDir": {
+                    "src": "opencode/agents",
+                    "local": ".opencode/agents",
+                    "global": "~/.config/opencode/agents",
+                },
+                "skillsDir": {
+                    "src": "opencode/skill",
+                    "local": ".opencode/skills",
+                    "global": "~/.config/opencode/skills",
+                },
+            },
+            "claude": {
+                "modesDir": {
+                    "src": "claude/agents",
+                    "local": ".claude/agents",
+                    "global": "~/.claude/agents",
+                },
+                "skillsDir": {
+                    "src": "claude/skills",
+                    "local": ".claude/skills",
+                    "global": "~/.claude/skills",
+                },
+            },
+        },
+    }
+
+    version = _read_version()
+    if version:
+        manifest["version"] = version
+
+    manifest_path = manifest_dir / "install-manifest.json"
+    with open(manifest_path, "w") as f:
+        json.dump(manifest, f, indent=2)
+        f.write("\n")
+
+    print(f"  manifest: {manifest_path}")
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
@@ -359,6 +453,7 @@ EMITTERS = {
     "kilo": emit_kilo,
     "opencode": emit_opencode,
     "claude": emit_claude,
+    "manifest": emit_manifest,
 }
 
 

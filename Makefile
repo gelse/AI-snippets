@@ -6,7 +6,7 @@ VENV    = .venv
 STAMP   = $(VENV)/.stamp
 NPM_STAMP = scripts/.npm-stamp
 
-.PHONY: help verify zoo kilo opencode claude all clean \
+.PHONY: help verify zoo kilo opencode claude manifest all clean \
         check-node verify-js zoo-js kilo-js opencode-js claude-js all-js \
         install-zoo-global install-zoo-local \
         install-zoo-global-skills install-zoo-global-agents \
@@ -40,7 +40,10 @@ opencode: verify ## Generate OpenCode artifacts
 claude: verify ## Generate Claude Code artifacts
 	$(VENV)/bin/python scripts/generate.py claude
 
-all: zoo kilo opencode claude ## Generate all tool artifacts
+all: zoo kilo opencode claude manifest ## Generate all tool artifacts
+
+manifest: verify ## Generate install-manifest.json
+	$(VENV)/bin/python scripts/generate.py manifest
 
 clean: ## Remove generated output
 	rm -rf output
