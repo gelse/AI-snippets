@@ -8,6 +8,13 @@
 - `install-manifest.json` emitter in [`generate.py`](scripts/generate.py) and a `manifest` Makefile target (included in `all`) — writes `output/install-manifest.json` declaring each tool's artifact source paths and local/global destinations for the installer CLI.
 - Makefile `-js` targets: `verify-js`, `zoo-js`, `kilo-js`, `opencode-js`, `claude-js`, `all-js` — run the same validation and generation using Node.js ≥ 18 (requires `npm install` in `scripts/`, handled automatically).
 - `check-node` Makefile guard that prints a clear failure message when Node.js is not installed.
+- npm package scaffold (`@gelse/ai-snippets` 0.1.0): tsup build emitting `dist/cli.js` and `dist/release.js`, prebuild step stages `skills-embedded/` from `output/`, `files` field ships only `dist/` + `skills-embedded/`.
+- Installer CLI (`ai-snippets install <tool>`): reads bundled `install-manifest.json` and embedded skills tree, installs modes and skills for zoo, kilo, opencode, and claude.
+- Interactive wizard: launches when no tool is specified, walks through tool selection, scope, and confirmation.
+- Collision prompts: overwrite / skip / abort when destination exists; `--yes` implies overwrite; `--dry-run` shows plan without writing.
+- YAML merge for zoo global modes: `~/.roo/custom_modes.yaml` entries with matching slugs are replaced, user entries are preserved.
+- Non-TTY stdin contract: EOF or empty answer on piped stdin aborts non-zero instead of defaulting to overwrite.
+- Smoke test script (`scripts/smoke-test.sh`): covers dry-run, real install, collision prompts, abort, piped stdin, `--yes` overwrite, and EOF non-zero exit.
 
 ## [0.1.0] - 2026-09-13
 

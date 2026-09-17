@@ -20,6 +20,42 @@ Together they form a system where a single human instruction (e.g. "resolve issu
 
 ---
 
+## Install
+
+The fastest way to get these snippets into your AI coding tool is the published npm package.
+
+```bash
+npx @gelse/ai-snippets install <tool> [--global|--local] [--skills-only|--agents-only] [--dry-run] [--yes]
+```
+
+Supported tools: `zoo`, `kilo`, `opencode`, `claude`.
+
+Running without arguments launches an interactive wizard — pick a tool, choose global or local scope, confirm.
+
+| Flag | Effect |
+|------|--------|
+| `--global` (default) | Install to the tool's global config directory |
+| `--local` | Install to the local (project-level) config directory |
+| `--skills-only` | Install only skills, skip agent modes |
+| `--agents-only` | Install only agent modes, skip skills |
+| `--dry-run` | Show what would be installed without writing files |
+| `--yes` / `-y` | Overwrite existing files without prompting |
+| `--help` / `-h` | Show help |
+
+**Collision handling:** When a destination file already exists, the installer prompts you to overwrite, skip, or abort. `--yes` implies overwrite. For zoo global mode, existing modes in `~/.roo/custom_modes.yaml` are preserved — generated modes replace entries with matching slugs, and your other modes stay untouched.
+
+**Non-TTY contract:** On piped or redirected stdin, EOF or an empty answer aborts with exit code 1 rather than silently defaulting to overwrite. Use `--yes` to automate installs in scripts.
+
+Alternatively, clone the repo and build from source:
+
+```bash
+git clone https://github.com/gelse/ai-snippets.git && cd ai-snippets
+npm install && npm run build
+node dist/cli.js install <tool> [options]
+```
+
+---
+
 ## 2. The Orchestrator's Work Loop
 
 The orchestrator mode ([`orchestrator`](modes.json)) never writes code itself. It acts as a strategic coordinator, delegating every concrete action to a specialised subtask and retaining only orchestration-level context. Its workflow follows a fixed loop:
@@ -251,6 +287,8 @@ A Node.js alternative [`release.mjs`](skills/release/release.mjs:1) ships alongs
 
 ## Usage
 
+> **Users:** the `npx @gelse/ai-snippets install` command above is the recommended way to install snippets into your tool. The Makefile targets below are for **contributors** working inside this repo — they generate and install artifacts from source.
+
 | Command | What it does |
 |---------|-------------|
 | `make` | Print help with all available targets |
@@ -423,6 +461,20 @@ mkdir -p ~/.claude/agents ~/.claude/skills
 cp -r output/claude/agents/* ~/.claude/agents/
 cp -r output/claude/skills/* ~/.claude/skills/
 ```
+
+---
+
+## Developer Notes
+
+The npm package (`@gelse/ai-snippets`) is built with [tsup](https://tsup.egoist.dev/) and bundled into `dist/`.
+
+| Command | What it does |
+|---------|-------------|
+| `npm run build` | Runs the prebuild step (stages `skills-embedded/` from `output/`) then bundles `dist/cli.js` and `dist/release.js` via tsup |
+| `bash scripts/smoke-test.sh` | Runs the installer against temporary `$HOME` dirs — dry-run, real install, collision prompts, abort, piped stdin, `--yes` overwrite, EOF non-zero exit |
+| `npm pack --dry-run` | Shows what the published tarball contains (`dist/` + `skills-embedded/` only) |
+
+The prebuild step (`scripts/stage-embedded.mjs`) copies `output/` into `skills-embedded/`, which tsup bundles into the published package. You need `make all` (or `make all-js`) to generate `output/` before `npm run build` will succeed.
 
 ---
 
