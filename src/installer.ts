@@ -5,11 +5,10 @@
  * artifacts for the chosen tool into the target directories.
  */
 
-import { readFileSync, existsSync, mkdirSync, cpSync, writeFileSync, readdirSync } from 'node:fs';
-import { join, dirname, resolve, relative } from 'node:path';
+import { readFileSync, existsSync, mkdirSync, cpSync } from 'node:fs';
+import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import * as readline from 'node:readline';
-import { promptOverwrite } from './prompt.js';
+import { createReadlineContext, promptOverwrite, ReadlineContext } from './prompt.js';
 import { mergeModesYaml } from './merge.js';
 
 // ---------------------------------------------------------------------------
@@ -129,7 +128,6 @@ function collectArtifacts(
 ): ArtifactSpec[] {
   const artifacts: ArtifactSpec[] = [];
   const scopeKey = args.scope;
-  const embeddedRoot = join(root, 'skills-embedded');
 
   // Modes (single file with optional merge)
   if (entry.modes && (args.filter === 'all' || args.filter === 'agents-only')) {
@@ -184,6 +182,7 @@ function collectArtifacts(
 // ---------------------------------------------------------------------------
 
 function planSummary(plan: InstallPlan, args: CliArgs): string {
+  const root = packageRoot();
   const lines: string[] = [];
   lines.push(`Tool: ${args.tool ?? '(interactive)'}`);
   lines.push(`Scope: ${args.scope}`);
@@ -195,7 +194,12 @@ function planSummary(plan: InstallPlan, args: CliArgs): string {
   lines.push('Actions:');
 
   for (const art of plan.artifacts) {
-    const srcPath = join(plan.artifacts.length > 0 ? packageRoot() : '', 'skills-embedded', art.src);
+    // Fail early if the source artifact doesn't exist
+    const srcPath = join(root, 'skills-embedded', art.src);
+    if (!existsSync(srcPath)) {
+      throw new Error(`Source artifact not found: ${srcPath}`);
+    }
+
     const exists = existsSync(art.dest);
     if (art.isDir) {
       if (exists) {
@@ -226,6 +230,7 @@ function planSummary(plan: InstallPlan, args: CliArgs): string {
 async function installArtifacts(
   plan: InstallPlan,
   args: CliArgs,
+  ctx: ReadlineContext,
 ): Promise<InstallResult> {
   const result: InstallResult = {
     installed: [],
@@ -253,7 +258,7 @@ async function installArtifacts(
 
     if (destExists && !args.yes) {
       const action = art.merge ? 'merge' : 'overwrite';
-      const choice = await promptOverwrite(art.dest, action);
+      const choice = await promptOverwrite(art.dest, action, ctx);
       if (choice === 'skip') {
         result.skipped.push(art.dest);
         continue;
@@ -335,39 +340,47 @@ export async function runInstall(args: CliArgs): Promise<void> {
   const root = packageRoot();
   const manifest = loadManifest(root);
 
-  // Interactive wizard if no tool specified
-  let toolName = args.tool;
-  if (!toolName) {
-    toolName = await interactiveWizard(manifest, args);
+  // Create a shared readline context for the entire install run
+  const ctx = createReadlineContext();
+
+  try {
+    // Interactive wizard if no tool specified
+    let toolName = args.tool;
     if (!toolName) {
-      console.log('Aborted.');
-      process.exit(1);
+      const wizardResult = await interactiveWizard(manifest, args, ctx);
+      if (!wizardResult) {
+        console.log('Aborted.');
+        process.exit(1);
+      }
+      toolName = wizardResult;
+      args.tool = toolName;
+    } else {
+      // Validate tool
+      if (!manifest.tools[toolName]) {
+        const available = Object.keys(manifest.tools).join(', ');
+        console.error(`Error: Unknown tool "${toolName}". Available: ${available}`);
+        process.exit(1);
+      }
     }
-    args.tool = toolName;
-  } else {
-    // Validate tool
-    if (!manifest.tools[toolName]) {
-      const available = Object.keys(manifest.tools).join(', ');
-      console.error(`Error: Unknown tool "${toolName}". Available: ${available}`);
-      process.exit(1);
+
+    // Build plan (includes source-existence validation)
+    const plan = buildPlan(args, root);
+
+    if (plan.artifacts.length === 0) {
+      console.log('No artifacts to install for the given scope/filter combination.');
+      process.exit(0);
     }
+
+    // Print plan (also validates source artifacts exist)
+    console.log(planSummary(plan, args));
+    console.log('');
+
+    // Execute
+    const result = await installArtifacts(plan, args, ctx);
+    printSummary(result, args.dryRun);
+  } finally {
+    ctx.close();
   }
-
-  // Build plan
-  const plan = buildPlan(args, root);
-
-  if (plan.artifacts.length === 0) {
-    console.log('No artifacts to install for the given scope/filter combination.');
-    process.exit(0);
-  }
-
-  // Print plan
-  console.log(planSummary(plan, args));
-  console.log('');
-
-  // Execute
-  const result = await installArtifacts(plan, args);
-  printSummary(result, args.dryRun);
 }
 
 // ---------------------------------------------------------------------------
@@ -377,12 +390,8 @@ export async function runInstall(args: CliArgs): Promise<void> {
 async function interactiveWizard(
   manifest: Manifest,
   args: CliArgs,
+  ctx: ReadlineContext,
 ): Promise<string | null> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stderr,
-  });
-
   const tools = Object.keys(manifest.tools);
 
   // Step 1: Choose tool
@@ -390,10 +399,9 @@ async function interactiveWizard(
   tools.forEach((t, i) => console.error(`  ${i + 1}. ${t}`));
   console.error('');
 
-  const toolIdx = await ask(rl, `Select tool [1-${tools.length}]: `);
+  const toolIdx = await ctx.ask(`Select tool [1-${tools.length}]: `);
   const idx = parseInt(toolIdx, 10) - 1;
   if (isNaN(idx) || idx < 0 || idx >= tools.length) {
-    rl.close();
     return null;
   }
   const tool = tools[idx];
@@ -402,27 +410,18 @@ async function interactiveWizard(
   console.error('');
   console.error('  1. Global (tool-wide config)');
   console.error('  2. Local (project-level config)');
-  const scopeIdx = await ask(rl, 'Select scope [1-2]: ');
+  const scopeIdx = await ctx.ask('Select scope [1-2]: ');
   const scope = scopeIdx === '2' ? 'local' : 'global';
   args.scope = scope as 'global' | 'local';
 
   // Step 3: Confirm
   console.error('');
   console.error(`Installing ${tool} (${args.scope})...`);
-  const confirm = await ask(rl, 'Proceed? [Y/n]: ');
-  rl.close();
+  const confirm = await ctx.ask('Proceed? [Y/n]: ');
 
   if (confirm.toLowerCase() === 'n' || confirm.toLowerCase() === 'no') {
     return null;
   }
 
   return tool;
-}
-
-function ask(rl: readline.Interface, question: string): Promise<string> {
-  return new Promise((resolve) => {
-    rl.question(question, (answer: string) => {
-      resolve(answer.trim());
-    });
-  });
 }
