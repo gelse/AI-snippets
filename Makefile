@@ -30,12 +30,12 @@ verify: $(STAMP) ## Validate modes.json, round-trip check, and TS build (node-op
 	$(VENV)/bin/python scripts/verify.py
 	$(VENV)/bin/ruff check scripts/ skills/
 	@if command -v $(NODE) >/dev/null 2>&1 && command -v $(NPM) >/dev/null 2>&1; then \
-		$(MAKE) $(NPM_STAMP); \
-		$(NPM) run typecheck; \
-		$(NPM) run build; \
+		$(MAKE) $(NPM_STAMP) && \
+		$(NPM) run typecheck && \
+		$(NPM) run build && \
 		TMPHOME=$$(mktemp -d) && \
-		HOME=$$TMPHOME $(NODE) dist/cli.js install zoo --global --dry-run; \
-		rm -rf $$TMPHOME; \
+		HOME=$$TMPHOME $(NODE) dist/cli.cjs install zoo --global --dry-run; \
+		status=$$?; rm -rf "$$TMPHOME"; exit $$status; \
 	else \
 		echo "SKIP: node not available"; \
 	fi
@@ -66,9 +66,9 @@ $(NPM_STAMP): package.json
 	$(NPM) install
 	@touch $(NPM_STAMP)
 
-check-node: ## Guard: verify node is available
-	@command -v $(NODE) >/dev/null 2>&1 || \
-		(echo "FAIL: node is not installed or not on PATH — install Node.js to use package-npx targets" && exit 1)
+check-node: ## Guard: verify node and npm are available
+	@command -v $(NODE) >/dev/null 2>&1 && command -v $(NPM) >/dev/null 2>&1 || \
+		(echo "FAIL: node and npm are required — install Node.js to use package-npx targets" && exit 1)
 
 package-npx: check-node $(NPM_STAMP) $(STAMP) ## Build and pack the npm package
 	$(VENV)/bin/python scripts/generate.py zoo
@@ -85,16 +85,16 @@ package-npx: check-node $(NPM_STAMP) $(STAMP) ## Build and pack the npm package
 	$(NPM) pack --pack-destination dist/
 
 package-npx-zoo: package-npx ## Smoke-test: install zoo via built package
-	$(NODE) dist/cli.js install zoo --global --yes
+	$(NODE) dist/cli.cjs install zoo --global --yes
 
 package-npx-kilo: package-npx ## Smoke-test: install kilo via built package
-	$(NODE) dist/cli.js install kilo --global --yes
+	$(NODE) dist/cli.cjs install kilo --global --yes
 
 package-npx-opencode: package-npx ## Smoke-test: install opencode via built package
-	$(NODE) dist/cli.js install opencode --global --yes
+	$(NODE) dist/cli.cjs install opencode --global --yes
 
 package-npx-claude: package-npx ## Smoke-test: install claude via built package
-	$(NODE) dist/cli.js install claude --global --yes
+	$(NODE) dist/cli.cjs install claude --global --yes
 
 # ── Zoo install targets ─────────────────────────────────────────────
 

@@ -7,7 +7,6 @@
 
 import { readFileSync, existsSync, mkdirSync, cpSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { createReadlineContext, promptOverwrite, ReadlineContext } from './prompt.js';
 import { mergeModesYaml } from './merge.js';
 
@@ -76,9 +75,9 @@ interface InstallResult {
 
 /** Resolve the root of the installed package (where skills-embedded/ lives). */
 function packageRoot(): string {
-  // When running from dist/cli.js, the package root is one level up.
+  // When running from dist/cli.cjs, the package root is one level up.
   // Works both in-repo (dist/) and when installed (node_modules/@gelse/ai-snippets/dist/).
-  return resolve(dirname(fileURLToPath(import.meta.url)), '..');
+  return resolve(dirname(__filename), '..');
 }
 
 function loadManifest(root: string): Manifest {

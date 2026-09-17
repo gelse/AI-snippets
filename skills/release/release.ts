@@ -26,7 +26,7 @@
  * Keep in sync with skills/release/release.py.
  */
 
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -37,7 +37,7 @@ import { join } from 'node:path';
 const _VERSION_RE: RegExp = /^\d+\.\d+\.\d+$/;
 const _COMMIT_RE: RegExp = /^[0-9a-f]{7,40}$/;
 
-function fail(msg: string): void {
+function fail(msg: string): never {
   console.error(`FAIL: ${msg}`);
   process.exit(1);
 }
@@ -57,7 +57,7 @@ function shlexJoin(cmd: string[]): string {
 function run(
   cmd: string[],
   opts: { capture?: boolean; check?: boolean } = {},
-): { status: number; stdout: string; stderr: string } {
+): SpawnSyncReturns<string> {
   const { capture = true, check = true } = opts;
   const display = shlexJoin(cmd);
   console.log(`  $ ${display}`);
