@@ -292,7 +292,7 @@ A Node.js alternative [`release.mjs`](skills/release/release.mjs:1) ships alongs
 | Command | What it does |
 |---------|-------------|
 | `make` | Print help with all available targets |
-| `make verify` | Validate [`modes.json`](modes.json) and run round-trip fidelity check; lint `scripts/` and `skills/` with ruff |
+| `make verify` | Validate [`modes.json`](modes.json) and run round-trip fidelity check; lint `scripts/` and `skills/` with ruff; when both `node` and `npm` are on `PATH`, also run `tsc --noEmit`, `npm run build`, and a zoo dry-run install, otherwise print `SKIP: node not available` |
 | `make zoo` | Generate Zoo Code artifacts (`output/zoo/`) |
 | `make kilo` | Generate Kilo Code artifacts (`output/kilo/`) |
 | `make opencode` | Generate OpenCode artifacts (`output/opencode/`) |
