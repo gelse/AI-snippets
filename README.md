@@ -300,12 +300,11 @@ A Node.js alternative [`release.mjs`](skills/release/release.mjs:1) ships alongs
 | `make manifest` | Generate the artifact path manifest (`output/install-manifest.json`) |
 | `make all` | Generate all four tool artifact trees plus the install manifest |
 | `make clean` | Remove `output/` |
-| `make verify-js` | Validate [`modes.json`](modes.json) and round-trip check (Node.js, no venv required) |
-| `make zoo-js` | Generate Zoo Code artifacts (Node.js) |
-| `make kilo-js` | Generate Kilo Code artifacts (Node.js) |
-| `make opencode-js` | Generate OpenCode artifacts (Node.js) |
-| `make claude-js` | Generate Claude Code artifacts (Node.js) |
-| `make all-js` | Generate all four tool artifact trees (Node.js) |
+| `make package-npx` | Build and pack the npm package (generates artifacts, builds TS, copies release.js, produces tarball in `dist/`) |
+| `make package-npx-zoo` | Smoke-test: install zoo via the built package (requires `package-npx`) |
+| `make package-npx-kilo` | Smoke-test: install kilo via the built package (requires `package-npx`) |
+| `make package-npx-opencode` | Smoke-test: install opencode via the built package (requires `package-npx`) |
+| `make package-npx-claude` | Smoke-test: install claude via the built package (requires `package-npx`) |
 | `make install-zoo-local` | Install zoo skills and agents locally (project root) |
 | `make install-zoo-local-skills` | Install zoo skills locally |
 | `make install-zoo-local-agents` | Install zoo agents locally (`.roomodes`) |
@@ -474,7 +473,9 @@ The npm package (`@gelse/ai-snippets`) is built with [tsup](https://tsup.egoist.
 | `bash scripts/smoke-test.sh` | Runs the installer against temporary `$HOME` dirs — dry-run, real install, collision prompts, abort, piped stdin, `--yes` overwrite, EOF non-zero exit |
 | `npm pack --dry-run` | Shows what the published tarball contains (`dist/` + `skills-embedded/` only) |
 
-The prebuild step (`scripts/stage-embedded.mjs`) copies `output/` into `skills-embedded/`, which tsup bundles into the published package. You need `make all` (or `make all-js`) to generate `output/` before `npm run build` will succeed.
+The prebuild step ([`scripts/stage-embedded.mjs`](scripts/stage-embedded.mjs)) copies `output/` into `skills-embedded/`, which tsup bundles into the published package. You need `make all` to generate `output/` before `npm run build` will succeed.
+
+`make verify` now includes a node-optional block: when both `node` and `npm` are on `PATH`, it runs `tsc --noEmit`, `npm run build`, and a dry-run install of zoo; otherwise it prints `SKIP: node not available` and continues with the Python checks.
 
 ---
 

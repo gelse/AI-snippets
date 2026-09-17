@@ -8,5 +8,4 @@ plans/
 node_modules/
 dist/
 skills-embedded/
-scripts/.npm-stamp
-scripts/package-lock.json
+.npm-stamp

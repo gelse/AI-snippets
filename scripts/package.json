@@ -1,9 +1,0 @@
-{
-  "name": "ai-snippets-scripts",
-  "private": true,
-  "type": "module",
-  "description": "Node.js scripts for AI-snippets workspace (generate, verify)",
-  "dependencies": {
-    "yaml": "^2.7.0"
-  }
-}
