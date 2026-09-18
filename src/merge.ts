@@ -84,33 +84,27 @@ export function mergeModesYaml(srcPath: string, destPath: string): MergeResult {
     doc.contents = map as any;
   }
 
-  // Build slug→index map for existing entries
-  const existingSlugs = new Map<string, number>();
-  for (let i = 0; i < seq.items.length; i++) {
-    const slug = getSlugFromItem(seq.items[i]);
-    if (slug) {
-      existingSlugs.set(slug, i);
-    }
-  }
-
   const generatedSlugs = new Set(
     genItems.map((item) => getSlugFromItem(item)).filter(Boolean) as string[],
   );
 
   // Remove existing entries whose slugs will be replaced by generated ones
-  // (iterate backwards to keep indices stable during splice)
-  for (const slug of generatedSlugs) {
-    if (existingSlugs.has(slug)) {
-      const idx = existingSlugs.get(slug)!;
-      seq.items.splice(idx, 1);
+  // (single pass — no stale indices; also removes pre-existing duplicates)
+  seq.items = seq.items.filter((item) => {
+    const slug = getSlugFromItem(item);
+    if (slug !== null && generatedSlugs.has(slug)) {
       result.replaced.push(slug);
-      existingSlugs.delete(slug);
+      return false;
     }
-  }
+    return true;
+  });
 
-  // Track user entries that were kept (not in generated modes)
-  for (const slug of existingSlugs.keys()) {
-    result.kept.push(slug);
+  // Track user entries that were kept (not in generated modes), in file order
+  for (const item of seq.items) {
+    const slug = getSlugFromItem(item);
+    if (slug !== null) {
+      result.kept.push(slug);
+    }
   }
 
   // Append generated entries (as YAML nodes, preserving structure)
