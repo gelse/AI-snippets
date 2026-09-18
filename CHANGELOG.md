@@ -14,7 +14,7 @@
 - `scripts/package.json` and `scripts/package-lock.json` — npm dependencies are now managed at the repo root.
 +
 ### Added (package scaffold)
-- npm package scaffold (`@gelse/ai-snippets` 0.1.0): tsup build emitting `dist/cli.js` and `dist/release.js`, prebuild step stages `skills-embedded/` from `output/`, `files` field ships only `dist/` + `skills-embedded/`.
+- npm package scaffold (`@gelse/ai-snippets` 0.1.0): tsup build emitting `dist/cli.cjs` (CommonJS, entry for the `ai-snippets` bin) and `dist/release.js` (ESM), with `yaml` bundled into the CLI so it runs from a bare tarball unpack; prebuild step stages `skills-embedded/` from `output/`, `files` field ships only `dist/` + `skills-embedded/`.
 - Installer CLI (`ai-snippets install <tool>`): reads bundled `install-manifest.json` and embedded skills tree, installs modes and skills for zoo, kilo, opencode, and claude.
 - Interactive wizard: launches when no tool is specified, walks through tool selection, scope, and confirmation.
 - Collision prompts: overwrite / skip / abort when destination exists; `--yes` implies overwrite; `--dry-run` shows plan without writing.

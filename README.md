@@ -51,7 +51,7 @@ Alternatively, clone the repo and build from source:
 ```bash
 git clone https://github.com/gelse/ai-snippets.git && cd ai-snippets
 npm install && npm run build
-node dist/cli.js install <tool> [options]
+node dist/cli.cjs install <tool> [options]
 ```
 
 ---
@@ -469,7 +469,7 @@ The npm package (`@gelse/ai-snippets`) is built with [tsup](https://tsup.egoist.
 
 | Command | What it does |
 |---------|-------------|
-| `npm run build` | Runs the prebuild step (stages `skills-embedded/` from `output/`) then bundles `dist/cli.js` and `dist/release.js` via tsup |
+| `npm run build` | Runs the prebuild step (stages `skills-embedded/` from `output/`) then bundles `dist/cli.cjs` (CommonJS, for the `ai-snippets` bin) and `dist/release.js` (ESM) via tsup |
 | `bash scripts/smoke-test.sh` | Runs the installer against temporary `$HOME` dirs — dry-run, real install, collision prompts, abort, piped stdin, `--yes` overwrite, EOF non-zero exit |
 | `npm pack --dry-run` | Shows what the published tarball contains (`dist/` + `skills-embedded/` only) |
 
