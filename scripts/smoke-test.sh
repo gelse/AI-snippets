@@ -16,7 +16,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-CLI="$ROOT_DIR/dist/cli.js"
+CLI="$ROOT_DIR/dist/cli.cjs"
 
 if [ ! -f "$CLI" ]; then
   echo "FAIL: $CLI not found — run 'npm run build' first"
