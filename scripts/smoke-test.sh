@@ -9,6 +9,7 @@
 # - Abort exits non-zero and writes no files after abort
 # - Piped multi-prompt runs work correctly
 # - --yes overwrites existing files without prompting
+# - Double install into same HOME yields no duplicate slugs (merge idempotency)
 #
 # Usage: bash scripts/smoke-test.sh
 #
@@ -25,11 +26,12 @@ fi
 
 # Create temp HOME
 TMP_HOME="$(mktemp -d)"
-trap 'rm -rf "$TMP_HOME" "$TMP_HOME2" "$TMP_HOME3" "$TMP_HOME4" "$TMP_HOME5"' EXIT
+trap 'rm -rf "$TMP_HOME" "$TMP_HOME2" "$TMP_HOME3" "$TMP_HOME4" "$TMP_HOME5" "$TMP_HOME6"' EXIT
 TMP_HOME2=""
 TMP_HOME3=""
 TMP_HOME4=""
 TMP_HOME5=""
+TMP_HOME6=""
 
 echo "=== Smoke test: temp HOME=$TMP_HOME ==="
 echo ""
@@ -199,6 +201,70 @@ if [ "$CKSUM_AFTER" != "$CKSUM_EXPECTED" ]; then
 fi
 
 echo "Step 6: PASS (EOF on non-TTY exits non-zero, no writes)"
+echo ""
+
+# ── 7. Merge idempotency: double install, no duplicate slugs ──
+echo "--- Step 7: merge idempotency, double install ---"
+TMP_HOME6="$(mktemp -d)"
+mkdir -p "$TMP_HOME6/.roo"
+
+# Seed a foreign mode that must survive the double install
+cat > "$TMP_HOME6/.roo/custom_modes.yaml" <<'YAML'
+customModes:
+  - slug: my-foreign-mode
+    name: my-foreign-mode
+    description: Foreign user mode for smoke test
+    roleDefinition: You are a foreign test mode.
+YAML
+
+# First install (zoo writes 11 modes)
+HOME="$TMP_HOME6" node "$CLI" install zoo --global --yes
+
+# Second install (must not duplicate slugs)
+OUTPUT2=$(HOME="$TMP_HOME6" node "$CLI" install zoo --global --yes 2>&1)
+
+MODES_FILE="$TMP_HOME6/.roo/custom_modes.yaml"
+SLUGS=$(grep -E '^[[:space:]]*(- )?slug:' "$MODES_FILE" \
+  | sed -E 's/^[[:space:]]*(- )?slug:[[:space:]]*//' | tr -d '"')
+
+# Count must be exactly 12 (11 zoo + 1 foreign)
+SLUG_COUNT=$(echo "$SLUGS" | wc -l)
+if [ "$SLUG_COUNT" -ne 12 ]; then
+  echo "FAIL: Expected 12 slugs after double install"
+  exit 1
+fi
+
+# No duplicate slugs
+DUPS=$(echo "$SLUGS" | sort | uniq -d)
+if [ -n "$DUPS" ]; then
+  echo "FAIL: Duplicate slugs detected after double install"
+  exit 1
+fi
+
+# Foreign mode preserved
+if ! echo "$SLUGS" | grep -qx 'my-foreign-mode'; then
+  echo "FAIL: Foreign mode 'my-foreign-mode' missing from modes file"
+  exit 1
+fi
+
+# Installer reports kept user slugs including foreign mode
+if ! echo "$OUTPUT2" | grep -q 'Kept user slugs: my-foreign-mode'; then
+  echo "FAIL: Kept-user-slugs line missing foreign mode"
+  exit 1
+fi
+
+# Replaced slugs line must NOT contain the foreign mode
+REPLACED_LINE=$(echo "$OUTPUT2" | grep 'Replaced slugs:' || true)
+if [ -z "$REPLACED_LINE" ]; then
+  echo "FAIL: Replaced slugs line missing from output"
+  exit 1
+fi
+if echo "$REPLACED_LINE" | grep -q 'my-foreign-mode'; then
+  echo "FAIL: Foreign mode incorrectly listed as replaced"
+  exit 1
+fi
+
+echo "Step 7: PASS (double install yields 12 unique slugs, foreign mode kept)"
 echo ""
 
 echo "=== All smoke tests passed ==="
