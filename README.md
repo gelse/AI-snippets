@@ -219,7 +219,8 @@ The point of this table is not the specific models — those will change over ti
 │   ├── generate.py            ← emits tool-specific artifacts into output/
 │   ├── verify.py              ← validates modes.json + round-trip check
 │   ├── stage-embedded.mjs     ← prebuild: copies output/ into skills-embedded/
-│   └── smoke-test.sh          ← installer smoke tests
+│   ├── smoke-test.sh          ← installer smoke tests
+│   └── smoke-test-double-install.sh ← repeat-install / duplicate-slug regression test
 ├── plans/                     ← (local scratch, untracked)
 ├── .github/
 │   └── workflows/
@@ -483,6 +484,7 @@ The npm package (`@gelse/ai-snippets`) is built with [tsup](https://tsup.egoist.
 |---------|-------------|
 | `npm run build` | Runs the prebuild step (stages `skills-embedded/` from `output/`) then bundles `dist/cli.cjs` (CommonJS, for the `ai-snippets` bin) and `dist/release.js` (ESM) via tsup |
 | `bash scripts/smoke-test.sh` | Runs the installer against temporary `$HOME` dirs — dry-run, real install, collision prompts, abort, piped stdin, `--yes` overwrite, EOF non-zero exit |
+| `bash scripts/smoke-test-double-install.sh` | Double-installs into a seeded `$HOME` and asserts no duplicate slugs, correct `replaced`/`kept`, foreign-mode order, repeat-install stability, and the empty-`customModes` edge case |
 | `npm pack --dry-run` | Shows what the published tarball contains (`dist/` + `skills-embedded/` only) |
 
 The prebuild step ([`scripts/stage-embedded.mjs`](scripts/stage-embedded.mjs)) copies `output/` into `skills-embedded/`, which tsup bundles into the published package. You need `make all` to generate `output/` before `npm run build` will succeed.

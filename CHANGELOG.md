@@ -2,7 +2,11 @@
 
 ## [Unreleased]
 
+### Fixed
+- Duplicate entries when re-installing zoo global modes: [`mergeModesYaml()`](src/merge.ts) replaced the stale-index `existingSlugs` splice with a single-pass `filter()` by slug, so repeated installs no longer duplicate generated slugs and pre-existing duplicates are cleaned up.
+
 ### Added
+- `scripts/smoke-test-double-install.sh` — double-install regression test asserting 12 slugs (11 generated + 1 foreign), no duplicates, correct `replaced`/`kept`, preserved foreign order, repeat-install stability, and the empty-`customModes` edge case.
 - `install-manifest.json` emitter in [`generate.py`](scripts/generate.py) and a `manifest` Makefile target (included in `all`) — writes `output/install-manifest.json` declaring each tool's artifact source paths and local/global destinations for the installer CLI.
 - `check-node` Makefile guard that prints a clear failure message when Node.js is not installed.
 - Makefile `package-npx` target: generates all tool artifacts, builds the TypeScript package, copies `dist/release.js` into `skills-embedded/`, and produces a tarball in `dist/`.
