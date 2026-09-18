@@ -7,6 +7,7 @@
 
 ### Added
 - `scripts/smoke-test-double-install.sh` — double-install regression test asserting 12 slugs (11 generated + 1 foreign), no duplicates, correct `replaced`/`kept`, preserved foreign order, repeat-install stability, and the empty-`customModes` edge case.
+- Step 7 in `scripts/smoke-test.sh` — inline merge-idempotency gate: double install into a seeded `$HOME` must yield 12 unique slugs with the foreign mode kept and never listed as replaced.
 - `install-manifest.json` emitter in [`generate.py`](scripts/generate.py) and a `manifest` Makefile target (included in `all`) — writes `output/install-manifest.json` declaring each tool's artifact source paths and local/global destinations for the installer CLI.
 - `check-node` Makefile guard that prints a clear failure message when Node.js is not installed.
 - Makefile `package-npx` target: generates all tool artifacts, builds the TypeScript package, copies `dist/release.js` into `skills-embedded/`, and produces a tarball in `dist/`.
