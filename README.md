@@ -213,12 +213,17 @@ The point of this table is not the specific models — those will change over ti
 │   ├── installer.ts           ← core installation logic
 │   ├── merge.ts               ← YAML merge for zoo global modes
 │   └── prompt.ts              ← readline prompts (collision handling)
+├── docs/
+│   └── npm-trusted-publishing.md ← npm OIDC trusted publishing setup guide
 ├── scripts/
 │   ├── generate.py            ← emits tool-specific artifacts into output/
 │   ├── verify.py              ← validates modes.json + round-trip check
 │   ├── stage-embedded.mjs     ← prebuild: copies output/ into skills-embedded/
 │   └── smoke-test.sh          ← installer smoke tests
 ├── plans/                     ← (local scratch, untracked)
+├── .github/
+│   └── workflows/
+│       └── npm-publish.yml    ← CI: publish to npm on tag push
 ├── .gitignore
 ├── skills/
 │   ├── github-issue.md        ← github-issue skill runbook (flat form)

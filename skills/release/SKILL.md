@@ -10,7 +10,7 @@ argument-hint: "[version]"
 
 Release the testing branch; releases are always tagged on main. All git/gh commands run in the target repo root.
 
-**Invocation:** `release.py` lives beside this SKILL.md. Run it with `.venv/bin/python skills/release/release.py` from the target repo root (tomllib requires Python ≥ 3.11). A Node.js alternative `release.ts` ships alongside with identical CLI semantics — run it with `node skills/release/release.ts <subcommand>` (Node.js ≥ 18, zero dependencies). If neither script is available (missing venv/Python < 3.11, no Node.js, or not shipped), run the manual fallback in section 8.
+**Invocation:** `release.py` lives beside this SKILL.md. Run it with `.venv/bin/python skills/release/release.py` from the target repo root (tomllib requires Python ≥ 3.11). A Node.js alternative `release.ts` ships alongside with identical CLI semantics — run it with `node dist/release.js <subcommand>` (Node.js ≥ 18, zero dependencies; built via `npm run build`). If neither script is available (missing venv/Python < 3.11, no Node.js, or not shipped), run the manual fallback in section 8.
 
 ## 1. Preflight
 
