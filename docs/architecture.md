@@ -26,10 +26,10 @@ modes.json
     ▼
 scripts/generate.py <tool|manifest>
     │
-    ├── output/zoo/          .roomodes + skills/<name>/SKILL.md
-    ├── output/kilo/         .kilocodemodes + skills/<name>/SKILL.md
-    ├── output/opencode/     agents/*.md + skill/<name>/SKILL.md
-    ├── output/claude/       agents/*.md + skills/<n>/SKILL.md
+    ├── output/zoo/          .roomodes + skills/<name>.md
+    ├── output/kilo/         .kilocodemodes + skills/<name>.md
+    ├── output/opencode/     agents/*.md + skill/<name>.md
+    ├── output/claude/       agents/*.md + skills/<name>/SKILL.md
     └── output/install-manifest.json
 ```
 
@@ -48,28 +48,28 @@ Generated `output/` files are not committed — regenerate with `make all`.
 | Artifact | Emitted | Tool expects |
 |----------|---------|-------------|
 | Modes | `output/zoo/.roomodes` | Project root as `.roomodes` or merged into `~/.roo/custom_modes.yaml` |
-| Skills | `output/zoo/skills/<name>/SKILL.md` | `.roo/skills/<name>/SKILL.md` (local) or `~/.roo/skills/<name>/SKILL.md` (global) |
+| Skills | `output/zoo/skills/<name>.md` | `.roo/skills/<name>.md` (local) or `~/.roo/skills/<name>.md` (global) |
 
 ### Kilo Code
 
 | Artifact | Emitted | Tool expects |
 |----------|---------|-------------|
 | Modes | `output/kilo/.kilocodemodes` | Project root as `.kilocodemodes` or `~/.config/kilo/agent/*.md` (global) |
-| Skills | `output/kilo/skills/<name>/SKILL.md` | `.kilo/skills/<name>/SKILL.md` (local) or `~/.kilo/skills/<name>/SKILL.md` (global) |
+| Skills | `output/kilo/skills/<name>.md` | `.kilo/skills/<name>.md` (local) or `~/.kilo/skills/<name>.md` (global) |
 
 ### OpenCode
 
 | Artifact | Emitted | Tool expects |
 |----------|---------|-------------|
 | Agents | `output/opencode/agents/*.md` | `.opencode/agents/*.md` (local) or `~/.config/opencode/agents/*.md` (global) |
-| Skills | `output/opencode/skill/<name>/SKILL.md` | `.opencode/skills/<name>/SKILL.md` (local) or `~/.config/opencode/skills/<name>/SKILL.md` (global) |
+| Skills | `output/opencode/skill/<name>.md` | `.opencode/skills/<name>.md` (local) or `~/.config/opencode/skills/<name>.md` (global) |
 
 ### Claude Code
 
 | Artifact | Emitted | Tool expects |
 |----------|---------|-------------|
 | Agents | `output/claude/agents/*.md` | `.claude/agents/*.md` (local) or `~/.claude/agents/*.md` (global) |
-| Skills | `output/claude/skills/<n>/SKILL.md` | `.claude/skills/<n>/SKILL.md` (local) or `~/.claude/skills/<n>/SKILL.md` (global) |
+| Skills | `output/claude/skills/<name>/SKILL.md` | `.claude/skills/<name>/SKILL.md` (local) or `~/.claude/skills/<name>/SKILL.md` (global) |
 
 Directory-form skills ship companion files (scripts, configs) alongside the runbook in all tools.
 

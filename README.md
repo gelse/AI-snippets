@@ -28,7 +28,9 @@ Running without arguments launches an **interactive wizard** — pick a tool, ch
 
 ```bash
 git clone https://github.com/gelse/ai-snippets.git && cd ai-snippets
-npm install && npm run build
+npm install
+make all        # generate output/ artifacts — npm run build fails without them
+npm run build
 node dist/cli.cjs install <tool> [options]
 ```
 
@@ -47,8 +49,8 @@ node dist/cli.cjs install <tool> [options]
 | `code` | Write, modify, and refactor code |
 | `verify` | Test, verify, and diagnose software |
 | `ask` | Answer technical questions and explain concepts |
-| `architect` | Deprecated — use `plan` instead |
-| `debug` | Deprecated — use `verify` instead |
+| `architect` | Deprecated — aborts and directs you to `plan` |
+| `debug` | Deprecated — aborts and directs you to `plan` |
 
 ### 4 Skills
 
@@ -56,7 +58,7 @@ node dist/cli.cjs install <tool> [options]
 |-------|---------|
 | [`github-issue`](skills/github-issue.md) | End-to-end GitHub issue → PR via `gh`, orchestrator-driven |
 | [`grilling`](skills/grilling.md) | Plan stress-testing Q&A before building |
-| [`writing-for-humans`](skills/writing-for-humans.md) | Prose standard + review buckets for human-readable docs |
+| [`writing-for-humans`](skills/writing-for-humans.md) | Prose standard and review criteria for human-readable writing |
 | [`release`](skills/release/SKILL.md) | Testing-branch release workflow with helper scripts |
 
 ## Per-Tool Install Paths
@@ -65,9 +67,9 @@ The installer writes to these locations depending on tool and scope:
 
 | Tool | Agents (global) | Agents (local) | Skills (global) | Skills (local) |
 |------|----------------|----------------|-----------------|----------------|
-| **zoo** | `~/.roo/custom_modes.yaml` (merged) | `.roomodes` | `~/.roo/skills/<name>/SKILL.md` | `.roo/skills/<name>/SKILL.md` |
-| **kilo** | `~/.config/kilo/agent/` (individual `.md` files) | `.kilocodemodes` | `~/.kilo/skills/<name>/SKILL.md` | `.kilo/skills/<name>/SKILL.md` |
-| **opencode** | `~/.config/opencode/agents/*.md` | `.opencode/agents/*.md` | `~/.config/opencode/skills/<name>/SKILL.md` | `.opencode/skills/<name>/SKILL.md` |
+| **zoo** | `~/.roo/custom_modes.yaml` (merged) | `.roomodes` | `~/.roo/skills/<name>.md` | `.roo/skills/<name>.md` |
+| **kilo** | `~/.config/kilo/agent/` (individual `.md` files) | `.kilocodemodes` | `~/.kilo/skills/<name>.md` | `.kilo/skills/<name>.md` |
+| **opencode** | `~/.config/opencode/agents/*.md` | `.opencode/agents/*.md` | `~/.config/opencode/skills/<name>.md` | `.opencode/skills/<name>.md` |
 | **claude** | `~/.claude/agents/*.md` | `.claude/agents/*.md` | `~/.claude/skills/<name>/SKILL.md` | `.claude/skills/<name>/SKILL.md` |
 
 Directory-form skills (like `release`) also ship companion files (scripts, configs) alongside the runbook.
@@ -80,7 +82,7 @@ When installing zoo globally, `~/.roo/custom_modes.yaml` is **merged**, not over
 
 ## How It Works
 
-`modes.json` is the single source of truth for all mode definitions. A Python generator ([`scripts/generate.py`](scripts/generate.py)) emits per-tool formats plus an [`install-manifest.json`](scripts/generate.py) that drives the installer. The installer reads the manifest, computes a plan with `[create]/[update]/[merge]/[overwrite]` labels, and executes it with collision handling.
+`modes.json` is the single source of truth for all mode definitions. A Python generator ([`scripts/generate.py`](scripts/generate.py)) emits per-tool formats, plus an `install-manifest.json` that maps every artifact to its destination paths and drives the installer. The installer reads the manifest, computes a plan with `[create]/[update]/[merge]/[overwrite]` labels, and executes it with collision handling.
 
 → Full details: [docs/architecture.md](docs/architecture.md)
 
