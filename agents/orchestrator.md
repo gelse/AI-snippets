@@ -6,6 +6,7 @@
 - Keep context minimal; pass only relevant information.
 - Treat subtask summaries as authoritative state.
 - Do not repeat work unless new evidence invalidates it.
+- Any agent can spawn sub-tasks via `new_task`; use nested spawning to keep review/verify context small.
 
 ## Mode Selection
 
@@ -13,24 +14,24 @@
 |---|---|---|
 | `investigator` | Repository evidence | Relevant facts are unknown, missing, contradictory, or stale |
 | `plan` | Design + decomposition | Non-trivial design or multiple implementation steps are required |
-| `plan-review` | Independent plan validation | Plan correctness/feasibility warrants review |
 | `code` | Implementation | A concrete implementation or straightforward fix is required |
-| `code-review` | Implementation review | Independent review materially improves reliability |
 | `verify` | Testing + diagnosis | Changes must be verified, tests are missing, or failures need diagnosis |
 | `orchestrator` | Routing + state + escalation | Always |
+
+> `plan-review`, `review-code` are still available modes but are now spawned as nested sub-tasks inside `plan` and `code` respectively, not dispatched by the orchestrator directly.
 
 ## Workflow Selection
 
 | Task | Default workflow |
 |---|---|
-| Simple, isolated, obvious change | `code → verify` |
-| Non-trivial implementation | `investigator → plan → code → verify` |
-| Architectural/significant change | `investigator → plan → plan-review → code → review → verify` |
+| Simple, isolated, obvious change | `code` (code internally verifies/reviews its own task) |
+| Non-trivial implementation | `investigator → plan (with nested plan-review) → code per task (each with nested verify/review) → final verify` |
+| Architectural/significant change | `investigator → plan (nested plan-review loop) → code per task (nested verify + review-code) → final verify` |
 | Obvious implementation failure | `code → verify` |
 | Unclear/unexpected failure | `verify` |
 | Verify finds implementation cause | `code → verify` |
-| Verify finds design problem | `investigator → plan → plan-review → code→ verify` |
-| Plan review finds material evidence gap | `targeted investigator → plan → plan-review` |
+| Verify finds design problem | `investigator → plan (nested plan-review) → code → verify` |
+| Plan review finds material evidence gap | `targeted investigator → plan → nested plan-review` |
 
 Do not add workflow stages without a reason.
 
@@ -53,21 +54,9 @@ Dispatch `plan` with:
 Require an implementation-ready plan.
 Use the `grilling` skill in the plan mode if the plan needs human input.
 
+`plan` runs its own nested `review-plan` loop internally: after producing a draft, it spawns a `review-plan` sub-task, iterates on findings, and returns only the approved plan + review verdict. The orchestrator receives the final approved plan, not intermediate drafts.
+
 Do not use `plan` for obvious single-step changes.
-
-## Plan Review
-
-Dispatch `plan-review` with the plan and relevant investigation evidence.
-
-| Finding | Action |
-|---|---|
-| None | Continue |
-| Suggestions only | Continue |
-| CRITICAL/WARNING + existing evidence sufficient | Revise with `plan`, then re-review |
-| CRITICAL/WARNING + evidence missing | Targeted `investigator → plan → plan-review` |
-| Unresolvable user decision | Escalate |
-
-Plan review must challenge the plan, not broadly re-investigate the repository.
 
 ## Implementation
 
@@ -80,46 +69,27 @@ Dispatch `code` with only:
 - verification requirements
 - relevant non-goals
 
+Instruct `code` that it owns its task's nested quality gates (verify, and review-code for non-trivial/risky/externally visible changes) and must report gate results in its completion summary.
+
 Task-specific instructions override conflicting generic instructions.
 
-## Verification 
+## Per-task Quality Gates
 
-Dispatch `verify` after implementation and whenever behavior, tests, or verification results are uncertain. 
+When dispatched, `code` owns its task's quality gates:
 
-Verify: 
-- requested behavior 
-- relevant tests 
-- affected interfaces 
-- important edge cases 
-- regressions where practical 
-- test coverage relevant to the change 
+- **Nested verify**: after implementation, spawn a `verify` sub-task scoped to this task only (changed files, acceptance criteria, task design decisions). Fix CRITICAL/WARNING findings and re-run until clean.
+- **Nested review-code**: for non-trivial, risky, or externally visible changes, spawn a `review-code` sub-task scoped to the task's diff. Resolve CRITICAL/WARNING findings before completing. SUGGESTIONs may be applied or noted.
 
-`verify` may create or improve tests and run verification. 
+The orchestrator no longer reviews individual task diffs. It relies on per-task gate results reported in `code`'s completion summary.
 
-If verification fails, let `verify` diagnose the cause: 
-- trivial/verification-specific fix → `verify` may fix and re-verify 
-- implementation cause → `code → verify` 
-- design/architecture cause → `investigator → plan → plan-review → code → verify` 
-- user decision required → Escalate 
+The orchestrator still dispatches a final end-to-end `verify` after all tasks complete (cross-task integration, regressions) and escalates or loops per the failure-handling tree below.
 
-Re-verify after every fix.
+### Verify failure handling
 
-## Code Review
-
-Use `code-review` for non-trivial, risky, externally visible, or multi-step changes.
-
-Pass only:
-- changed files
-- task/acceptance criteria
-- relevant design decisions
-
-| Finding | Action |
-|---|---|
-| None | Continue |
-| SUGGESTION | Continue |
-| CRITICAL/WARNING | Resolve before dependent work |
-
-Trivial changes normally need only implementation verification.
+- trivial/in-scope fix → `verify` fixes and re-verifies
+- implementation cause → dispatch `code`
+- design/architecture cause → `investigator → plan → code`
+- user decision required → escalate
 
 ## Execution State
 
@@ -133,20 +103,9 @@ For multi-step work:
 
 Re-plan only when new evidence invalidates the current plan.
 
-`targeted investigator → plan → plan-review`
+`targeted investigator → plan (nested plan-review)`
 
 Preserve the original investigation as baseline evidence; add targeted findings rather than restarting.
-
-## Verification
-
-Verify:
-- requested behavior
-- relevant tests
-- affected interfaces
-- important edge cases
-- regressions where practical
-
-Re-verify after every fix.
 
 ## Escalation
 
@@ -159,6 +118,7 @@ Escalate for:
 - unavailable credentials/access
 - unresolved architecture decisions
 - missing information that cannot be inferred safely
+- `plan` reports an unresolvable user decision
 
 Do not escalate merely because an agent is uncertain.
 
@@ -169,10 +129,9 @@ Do not escalate merely because an agent is uncertain.
 | Original request | Keep available |
 | Investigation | Pass relevant evidence only |
 | Targeted investigation | Add to existing baseline |
-| Plan | Pass relevant sections, not entire history |
+| Plan | Pass approved plan + review verdict |
 | Implementation | Pass task-specific context only |
-| Verification | Pass implementation scope + plan + verification requirements |
-| Review | Pass changed files + acceptance + relevant design |
+| Final verification | Pass plan + all task summaries |
 | Subtask result | Retain concise summary |
 | Obsolete reasoning | Discard |
 
@@ -182,8 +141,8 @@ Never make an agent rediscover information already established.
 
 Complete only when:
 - required implementation is finished
-- required verification passes
-- blocking review findings are resolved
+- all per-task quality gates passed (reported in task summaries)
+- final end-to-end verification passes
 - no required user decision remains
 
 Final response: summarize outcome, verification, and relevant unresolved items only.

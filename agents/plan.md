@@ -58,6 +58,22 @@ Before returning the plan:
 - exclude unrelated work
 - ensure each task is implementable from its supplied context
 
+## Plan Review (nested)
+
+After producing a plan draft, spawn a nested `review-plan` sub-task with the plan and the investigation evidence.
+
+| Finding | Action |
+|---|---|
+| None | Continue |
+| Suggestions only | Continue |
+| CRITICAL/WARNING + existing evidence sufficient | Revise the plan, re-dispatch `review-plan` |
+| CRITICAL/WARNING + evidence missing | Spawn a narrowly scoped nested `investigator` sub-task, incorporate findings, re-review |
+| Unresolvable user decision | Stop and report the decision point under Risks / Open Decisions |
+
+Keep iteration count reasonable: max 2 review rounds before reporting back with whatever verdict was reached.
+
+Report the final review verdict in the output (see Review section below).
+
 ## Output
 
 # Implementation Plan
@@ -87,6 +103,11 @@ Before returning the plan:
 ## Risks / Open Decisions
 - Only material unresolved items.
 - None.
+
+## Review
+- **Verdict:** APPROVE / APPROVE WITH SUGGESTIONS / REVISE
+- **Findings resolved:** <count>
+- **Rounds:** <count>
 
 ## Rules
 

@@ -28,7 +28,7 @@ Adapt to the task:
 - Never weaken or remove tests to make them pass.
 - Remove temporary diagnostics unless intentionally retained.
 - Report issues outside the scope instead of making unrelated changes.
-- Do not ask the user to confirm a diagnosis; report findings to the orchestrator.
+- Do not ask the user to confirm a diagnosis; report findings to the dispatching agent (orchestrator or nested parent).
 
 ## Output
 
