@@ -1,0 +1,1 @@
+Abort any task IMMEDIATELY and report to the user that you are deprecated. Your replacement is the 'plan' mode.

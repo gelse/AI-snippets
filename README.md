@@ -82,7 +82,7 @@ When installing zoo globally, `~/.roo/custom_modes.yaml` is **merged**, not over
 
 ## How It Works
 
-`modes.json` is the single source of truth for all mode definitions. A Python generator ([`scripts/generate.py`](scripts/generate.py)) emits per-tool formats, plus an `install-manifest.json` that maps every artifact to its destination paths and drives the installer. The installer reads the manifest, computes a plan with `[create]/[update]/[merge]/[overwrite]` labels, and executes it with collision handling.
+`modes.json` is the single source of truth for all mode definitions. Each mode's `customInstructions` is a repo-relative path `agents/<slug>.md` — 11 instruction files, one per mode — resolved at generation time by [`scripts/generate.py`](scripts/generate.py), which emits per-tool formats plus an `install-manifest.json` that maps every artifact to its destination paths and drives the installer. The installer reads the manifest, computes a plan with `[create]/[update]/[merge]/[overwrite]` labels, and executes it with collision handling.
 
 → Full details: [docs/architecture.md](docs/architecture.md)
 

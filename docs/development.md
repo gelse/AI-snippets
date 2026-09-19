@@ -54,8 +54,8 @@ make help              # Show all available targets
 
 [`scripts/verify.py`](../scripts/verify.py) validates `modes.json` and performs a round-trip fidelity check:
 
-1. **Structural validation** — valid JSON, required top-level keys (`customModes`, `skills`), required mode keys (`slug`, `name`, `description`, `roleDefinition`, `whenToUse`, `customInstructions`, `groups`, `source`), unique slugs matching `^[a-z0-9-]+$`, skill file existence, and no duplicate skill names across flat/directory forms.
-2. **Round-trip check** — generates zoo output, parses it back, and verifies mode data round-trips losslessly.
+1. **Structural validation** — valid JSON, required top-level keys (`customModes`, `skills`), required mode keys (`slug`, `name`, `description`, `roleDefinition`, `whenToUse`, `customInstructions`, `groups`, `source`), unique slugs matching `^[a-z0-9-]+$`, `customInstructions` must be `agents/<slug>.md` referencing an existing non-empty file, skill file existence, and no duplicate skill names across flat/directory forms.
+2. **Round-trip check** — resolves `agents/<slug>.md` references, generates zoo output, parses it back, and verifies mode data round-trips losslessly against the resolved file contents.
 
 ## Smoke Tests
 

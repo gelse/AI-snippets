@@ -70,6 +70,20 @@ def load_skill_content(skill_file):
         return f.read()
 
 
+def load_agent_content(agent_file):
+    """Load agent .md content from a repo-relative path (e.g. agents/code.md)."""
+    return (REPO_ROOT / agent_file).read_text()
+
+
+def resolve_custom_instructions(modes):
+    """Replace agents/*.md paths in modes with their file contents."""
+    for mode in modes:
+        ci = mode["customInstructions"]
+        if isinstance(ci, str) and ci.startswith("agents/"):
+            mode["customInstructions"] = load_agent_content(ci)
+    return modes
+
+
 def copy_skill_extra_files(skill, dest_dir):
     """Copy companion files (e.g. *.py) for directory-form skills into dest_dir.
 
@@ -474,6 +488,7 @@ def main():
     args = parser.parse_args()
 
     data = load_modes()
+    data["customModes"] = resolve_custom_instructions(data["customModes"])
     out_dir = REPO_ROOT / args.out
 
     # Defense-in-depth: validate all skill names before processing

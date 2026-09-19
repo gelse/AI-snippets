@@ -6,8 +6,10 @@ This document covers the generation pipeline, install manifest, and installer me
 
 [`modes.json`](../modes.json) is the single source of truth for all mode definitions. It contains:
 
-- `customModes` — array of mode objects, each with `slug`, `name`, `description`, `roleDefinition`, `whenToUse`, `customInstructions`, `groups`, `source`
+- `customModes` — array of mode objects, each with `slug`, `name`, `description`, `roleDefinition`, `whenToUse`, `customInstructions` (a repo-relative path `agents/<slug>.md` resolved at generation time), `groups`, `source`
 - `skills` — array of skill objects, each with `name` and `file` (path to the runbook)
+
+Agent instruction files live in `agents/<slug>.md` — one file per mode, no frontmatter, source-only content inlined verbatim at generation time.
 
 Skills support two layout forms:
 
@@ -21,7 +23,7 @@ Both forms emit identically to all tools. `scripts/verify.py` enforces that only
 ## Generation Pipeline
 
 ```
-modes.json
+modes.json + agents/<slug>.md
     │
     ▼
 scripts/generate.py <tool|manifest>

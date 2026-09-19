@@ -84,6 +84,20 @@ def validate_structure():
         if missing:
             fail(f"Mode '{slug}' missing keys: {missing}")
 
+        # Validate customInstructions is a valid agent file reference
+        ci = mode.get("customInstructions", "")
+        expected_ci = f"agents/{slug}.md"
+        if ci != expected_ci:
+            fail(
+                f"Mode '{slug}' customInstructions must be "
+                f"'{expected_ci}', got '{ci}'"
+            )
+        ci_path = REPO_ROOT / ci
+        if not ci_path.exists():
+            fail(f"Mode '{slug}' agent file not found: {ci_path}")
+        if not ci_path.read_text().strip():
+            fail(f"Mode '{slug}' agent file is empty: {ci_path}")
+
         # Groups shape: list of strings or [str, dict]
         groups = mode.get("groups", [])
         if not isinstance(groups, list):
@@ -175,9 +189,12 @@ def round_trip(data):
     with tempfile.TemporaryDirectory() as tmpdir:
         # Import and run zoo emitter
         sys.path.insert(0, str(REPO_ROOT / "scripts"))
-        from generate import emit_zoo
+        from generate import emit_zoo, resolve_custom_instructions
 
-        emit_zoo(data, Path(tmpdir))
+        # Resolve agent file references so emitted content matches file contents
+        resolved = json.loads(json.dumps(data))  # deep copy
+        resolved["customModes"] = resolve_custom_instructions(resolved["customModes"])
+        emit_zoo(resolved, Path(tmpdir))
 
         roomodes_path = Path(tmpdir) / "zoo" / ".roomodes"
         if not roomodes_path.exists():
@@ -190,7 +207,7 @@ def round_trip(data):
         fail("Emitted .roomodes missing 'customModes' key")
 
     emitted_modes = emitted["customModes"]
-    json_modes = data["customModes"]
+    json_modes = resolved["customModes"]
 
     if len(emitted_modes) != len(json_modes):
         fail(
