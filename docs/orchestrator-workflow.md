@@ -123,6 +123,14 @@ stateDiagram-v2
         RC_Done --> [*]
     }
 
+    ORCH --> INV : dispatch
+    ORCH --> PLAN : dispatch with report
+    ORCH --> CODE : dispatch task
+    ORCH --> VERIFY : final gate
+    PLAN --> REVIEW_PLAN : spawn nested review
+    CODE --> VERIFY : spawn nested verify
+    CODE --> REVIEW_CODE : spawn nested review
+
     INV --> ORCH : report
     PLAN --> ORCH : plan + verdict
     CODE --> ORCH : results
