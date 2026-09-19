@@ -12,7 +12,8 @@ make help              # Show all available targets
 
 | Target | What it does |
 |--------|-------------|
-| `make verify` | Validate `modes.json` (structural + round-trip fidelity); lint `scripts/` and `skills/` with ruff; when both `node` and `npm` are on PATH, also run `tsc --noEmit`, `npm run build`, and a zoo dry-run install; otherwise print `SKIP: node not available` |
+| `make check-py` | Validate `modes.json` (structural + round-trip fidelity) and lint `scripts/` and `skills/` with ruff — Python-only, no node required |
+| `make verify` | Run `check-py`, then when both `node` and `npm` are on PATH: `tsc --noEmit`, `npm run build`, and a zoo dry-run install; otherwise print `SKIP: node not available` |
 
 ### Artifact Generation
 

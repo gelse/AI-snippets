@@ -7,7 +7,7 @@ VENV    = .venv
 STAMP   = $(VENV)/.stamp
 NPM_STAMP = .npm-stamp
 
-.PHONY: help verify zoo kilo opencode claude manifest all clean \
+.PHONY: help check-py verify zoo kilo opencode claude manifest all clean \
         check-node package-npx \
         package-npx-zoo package-npx-kilo package-npx-opencode package-npx-claude \
         install-zoo-global install-zoo-local \
@@ -26,9 +26,11 @@ $(STAMP): ## Bootstrap venv (idempotent)
 	$(VENV)/bin/pip install --quiet pyyaml ruff
 	touch $(STAMP)
 
-verify: $(STAMP) ## Validate modes.json, round-trip check, and TS build (node-optional)
+check-py: $(STAMP) ## Validate modes.json, lint scripts/skills (Python only)
 	$(VENV)/bin/python scripts/verify.py
 	$(VENV)/bin/ruff check scripts/ skills/
+
+verify: check-py ## Validate modes.json, round-trip check, and TS build (node-optional)
 	@if command -v $(NODE) >/dev/null 2>&1 && command -v $(NPM) >/dev/null 2>&1; then \
 		$(MAKE) $(NPM_STAMP) && \
 		$(NPM) run typecheck && \
@@ -40,21 +42,21 @@ verify: $(STAMP) ## Validate modes.json, round-trip check, and TS build (node-op
 		echo "SKIP: node not available"; \
 	fi
 
-zoo: verify ## Generate Zoo Code artifacts
+zoo: check-py ## Generate Zoo Code artifacts
 	$(VENV)/bin/python scripts/generate.py zoo
 
-kilo: verify ## Generate Kilo Code artifacts
+kilo: check-py ## Generate Kilo Code artifacts
 	$(VENV)/bin/python scripts/generate.py kilo
 
-opencode: verify ## Generate OpenCode artifacts
+opencode: check-py ## Generate OpenCode artifacts
 	$(VENV)/bin/python scripts/generate.py opencode
 
-claude: verify ## Generate Claude Code artifacts
+claude: check-py ## Generate Claude Code artifacts
 	$(VENV)/bin/python scripts/generate.py claude
 
 all: zoo kilo opencode claude manifest ## Generate all tool artifacts
 
-manifest: verify ## Generate install-manifest.json
+manifest: check-py ## Generate install-manifest.json
 	$(VENV)/bin/python scripts/generate.py manifest
 
 clean: ## Remove generated output

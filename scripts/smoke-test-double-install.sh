@@ -2,7 +2,7 @@
 #
 # Smoke test: double install into a seeded HOME verifies no duplicate slugs.
 #
-# Acceptance criteria (from plans/fix-merge-duplication.md):
+# Acceptance criteria:
 # - Double install into a seeded HOME yields 12 slugs (11 generated + 1 foreign), no duplicates.
 # - `replaced` lists the 11 generated slugs.
 # - `kept` lists only foreign slugs.
