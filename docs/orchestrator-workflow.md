@@ -58,6 +58,79 @@ flowchart TD
 | **Final verify** | orchestrator | `verify` | End-to-end cross-task verification after all tasks complete |
 | **Synthesize** | orchestrator | *(internal)* | Collect all subtask summaries into a final human-readable report |
 
+### Mode State Diagram
+
+The diagram below shows the workflow as states grouped per mode; `plan` and `code` own their nested review gates, while the orchestrator dispatches and routes between modes.
+
+```mermaid
+stateDiagram-v2
+    state "orchestrator" as ORCH {
+        [*] --> Investigate
+        Investigate --> Dispatch_Plan
+        Dispatch_Plan --> Track_Todos
+        Track_Todos --> Dispatch_Code
+        Dispatch_Code --> More_Tasks
+        More_Tasks --> Dispatch_Code : more
+        More_Tasks --> Final_Verify : done
+        Final_Verify --> Synthesize : pass
+        Final_Verify --> Failure : fail
+        Failure --> Dispatch_Code : impl fix
+        Failure --> Dispatch_Plan : design cause
+        Failure --> Final_Verify : re-verify
+        Synthesize --> [*]
+    }
+
+    state "investigator" as INV {
+        Evidence --> Evidence_Done
+        Evidence_Done --> [*]
+    }
+
+    state "plan" as PLAN {
+        Draft --> Review_Loop
+        Review_Loop --> Revise : findings
+        Revise --> Review_Loop
+        Review_Loop --> Plan_Approved : approved
+        Plan_Approved --> [*]
+    }
+
+    state "review-plan" as REVIEW_PLAN {
+        Review_Plan_Start --> RP_Check
+        RP_Check --> RP_Done
+        RP_Done --> [*]
+    }
+
+    state "code" as CODE {
+        Implement --> Nested_Verify
+        Nested_Verify --> Nested_Verify : fail
+        Nested_Verify --> Check_Risky : pass
+        Check_Risky --> Nested_Review : risky
+        Check_Risky --> Report_Results : trivial
+        Nested_Review --> Nested_Verify : fix
+        Nested_Review --> Report_Results : clean
+        Report_Results --> [*]
+    }
+
+    state "verify" as VERIFY {
+        Final_Check --> Final_Pass : pass
+        Final_Check --> Final_Fail : fail
+        Final_Pass --> [*]
+        Final_Fail --> [*]
+    }
+
+    state "review-code" as REVIEW_CODE {
+        RC_Start --> RC_Check
+        RC_Check --> RC_Done
+        RC_Done --> [*]
+    }
+
+    INV --> ORCH : report
+    PLAN --> ORCH : plan + verdict
+    CODE --> ORCH : results
+    VERIFY --> ORCH : verdict
+    REVIEW_PLAN --> PLAN : findings
+    REVIEW_CODE --> CODE : findings
+```
+
 ### Failure Handling
 
 Per-task failures are handled inside the `code` sub-task via nested quality gates. The orchestrator handles final-verify failures:
