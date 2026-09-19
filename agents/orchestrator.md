@@ -18,20 +18,20 @@
 | `verify` | Testing + diagnosis | Changes must be verified, tests are missing, or failures need diagnosis |
 | `orchestrator` | Routing + state + escalation | Always |
 
-> `plan-review`, `review-code` are still available modes but are now spawned as nested sub-tasks inside `plan` and `code` respectively, not dispatched by the orchestrator directly.
+> `review-plan`, `review-code` are still available modes but are now spawned as nested sub-tasks inside `plan` and `code` respectively, not dispatched by the orchestrator directly.
 
 ## Workflow Selection
 
 | Task | Default workflow |
 |---|---|
 | Simple, isolated, obvious change | `code` (code internally verifies/reviews its own task) |
-| Non-trivial implementation | `investigator → plan (with nested plan-review) → code per task (each with nested verify/review) → final verify` |
-| Architectural/significant change | `investigator → plan (nested plan-review loop) → code per task (nested verify + review-code) → final verify` |
+| Non-trivial implementation | `investigator → plan (with nested review-plan) → code per task (each with nested verify/review) → final verify` |
+| Architectural/significant change | `investigator → plan (nested review-plan loop) → code per task (nested verify + review-code) → final verify` |
 | Obvious implementation failure | `code → verify` |
 | Unclear/unexpected failure | `verify` |
 | Verify finds implementation cause | `code → verify` |
-| Verify finds design problem | `investigator → plan (nested plan-review) → code → verify` |
-| Plan review finds material evidence gap | `targeted investigator → plan → nested plan-review` |
+| Verify finds design problem | `investigator → plan (nested review-plan) → code → verify` |
+| Plan review finds material evidence gap | `targeted investigator → plan → nested review-plan` |
 
 Do not add workflow stages without a reason.
 
@@ -103,7 +103,7 @@ For multi-step work:
 
 Re-plan only when new evidence invalidates the current plan.
 
-`targeted investigator → plan (nested plan-review)`
+`targeted investigator → plan (nested review-plan)`
 
 Preserve the original investigation as baseline evidence; add targeted findings rather than restarting.
 
