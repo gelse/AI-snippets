@@ -1,5 +1,35 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- Duplicate entries when re-installing zoo global modes: [`mergeModesYaml()`](src/merge.ts) replaced the stale-index `existingSlugs` splice with a single-pass `filter()` by slug, so repeated installs no longer duplicate generated slugs and pre-existing duplicates are cleaned up.
+
+### Added
+- `scripts/smoke-test-double-install.sh` — double-install regression test asserting 12 slugs (11 generated + 1 foreign), no duplicates, correct `replaced`/`kept`, preserved foreign order, repeat-install stability, and the empty-`customModes` edge case.
+- Step 7 in `scripts/smoke-test.sh` — inline merge-idempotency gate: double install into a seeded `$HOME` must yield 12 unique slugs with the foreign mode kept and never listed as replaced.
+- `install-manifest.json` emitter in [`generate.py`](scripts/generate.py) and a `manifest` Makefile target (included in `all`) — writes `output/install-manifest.json` declaring each tool's artifact source paths and local/global destinations for the installer CLI.
+- `check-node` Makefile guard that prints a clear failure message when Node.js is not installed.
+- Makefile `package-npx` target: generates all tool artifacts, builds the TypeScript package, copies `dist/release.js` into `skills-embedded/`, and produces a tarball in `dist/`.
+- Makefile `package-npx-zoo`, `package-npx-kilo`, `package-npx-opencode`, `package-npx-claude` smoke-test targets that run a real install via the built package.
+- `make verify` now includes a node-optional block: when both `node` and `npm` are available, it runs `tsc --noEmit`, `npm run build`, and a dry-run install; otherwise prints `SKIP: node not available`.
+
+### Removed
+- Legacy Makefile JS-only targets: `verify-js`, `zoo-js`, `kilo-js`, `opencode-js`, `claude-js`, `all-js`.
+- `scripts/package.json` and `scripts/package-lock.json` — npm dependencies are now managed at the repo root.
+- Legacy dual-stack JS scripts: `scripts/generate.mjs` and `scripts/verify.mjs` — Python equivalents (`generate.py`, `verify.py`) are the sole generators.
+
+### Changed
+- README updated to Node-only documentation: removed dual-stack (JS/Python) prose, added `npx @gelse/ai-snippets install` usage section, updated workspace tree listing to reflect `src/`, root `package.json`, and `tsup.config.ts`.
+### Added (package scaffold)
+- npm package scaffold (`@gelse/ai-snippets` 0.1.0): tsup build emitting `dist/cli.cjs` (CommonJS, entry for the `ai-snippets` bin) and `dist/release.js` (ESM), with `yaml` bundled into the CLI so it runs from a bare tarball unpack; prebuild step stages `skills-embedded/` from `output/`, `files` field ships only `dist/` + `skills-embedded/`.
+- Installer CLI (`ai-snippets install <tool>`): reads bundled `install-manifest.json` and embedded skills tree, installs modes and skills for zoo, kilo, opencode, and claude.
+- Interactive wizard: launches when no tool is specified, walks through tool selection, scope, and confirmation.
+- Collision prompts: overwrite / skip / abort when destination exists; `--yes` implies overwrite; `--dry-run` shows plan without writing.
+- YAML merge for zoo global modes: `~/.roo/custom_modes.yaml` entries with matching slugs are replaced, user entries are preserved.
+- Non-TTY stdin contract: EOF or empty answer on piped stdin aborts non-zero instead of defaulting to overwrite.
+- Smoke test script (`scripts/smoke-test.sh`): covers dry-run, real install, collision prompts, abort, piped stdin, `--yes` overwrite, and EOF non-zero exit.
+
 ## [0.1.0] - 2026-09-13
 
 Initial development release of the AI-snippets toolkit.
