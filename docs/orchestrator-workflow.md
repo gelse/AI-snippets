@@ -99,11 +99,12 @@ sequenceDiagram
         activate VER
         alt fail
             VER-->>CODE: failure diagnosis
-            deactivate VER
+            
             CODE->>CODE: fix and re-verify
         else pass
-            deactivate VER
+            
         end
+        deactivate VER
         opt non-trivial/risky/external
             CODE->>RC: spawn nested review-code
             activate RC
@@ -121,12 +122,11 @@ sequenceDiagram
     activate VER
     alt fail
         VER-->>ORCH: failure diagnosis
-        deactivate VER
         note over ORCH: failure tree → code fix / investigator+plan / escalate
     else pass
         VER-->>ORCH: pass
-        deactivate VER
     end
+    deactivate VER
 
     ORCH->>ORCH: synthesize report
 ```
