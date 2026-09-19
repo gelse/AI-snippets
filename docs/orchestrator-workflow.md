@@ -58,85 +58,77 @@ flowchart TD
 | **Final verify** | orchestrator | `verify` | End-to-end cross-task verification after all tasks complete |
 | **Synthesize** | orchestrator | *(internal)* | Collect all subtask summaries into a final human-readable report |
 
-### Mode State Diagram
+### Mode Sequence Diagram
 
-The diagram below shows the workflow as states grouped per mode; `plan` and `code` own their nested review gates, while the orchestrator dispatches and routes between modes.
+The sequence diagram below shows the workflow as interactions between modes; each mode is a participant/lifeline. `plan` and `code` own their nested review gates, while the orchestrator dispatches and routes between modes.
 
 ```mermaid
-stateDiagram-v2
-    state "orchestrator" as ORCH {
-        [*] --> Investigate
-        Investigate --> Dispatch_Plan
-        Dispatch_Plan --> Track_Todos
-        Track_Todos --> Dispatch_Code
-        Dispatch_Code --> More_Tasks
-        More_Tasks --> Dispatch_Code : more
-        More_Tasks --> Final_Verify : done
-        Final_Verify --> Synthesize : pass
-        Final_Verify --> Failure : fail
-        Failure --> Dispatch_Code : impl fix
-        Failure --> Dispatch_Plan : design cause
-        Failure --> Final_Verify : re-verify
-        Synthesize --> [*]
-    }
+sequenceDiagram
+    participant ORCH as orchestrator
+    participant INV as investigator
+    participant PLAN as plan
+    participant RP as review-plan
+    participant CODE as code
+    participant VER as verify
+    participant RC as review-code
 
-    state "investigator" as INV {
-        Evidence --> Evidence_Done
-        Evidence_Done --> [*]
-    }
+    ORCH->>INV: dispatch investigation (with request)
+    activate INV
+    INV-->>ORCH: evidence report
+    deactivate INV
 
-    state "plan" as PLAN {
-        Draft --> Review_Loop
-        Review_Loop --> Revise : findings
-        Revise --> Review_Loop
-        Review_Loop --> Plan_Approved : approved
-        Plan_Approved --> [*]
-    }
+    ORCH->>PLAN: dispatch planning (with report)
+    activate PLAN
+    loop until approved (max 2 rounds)
+        PLAN->>RP: spawn nested review-plan
+        activate RP
+        RP-->>PLAN: findings or APPROVE
+        deactivate RP
+        PLAN->>PLAN: revise plan (on findings)
+    end
+    PLAN-->>ORCH: approved plan + verdict
+    deactivate PLAN
 
-    state "review-plan" as REVIEW_PLAN {
-        Review_Plan_Start --> RP_Check
-        RP_Check --> RP_Done
-        RP_Done --> [*]
-    }
+    ORCH->>ORCH: track tasks in todo list
 
-    state "code" as CODE {
-        Implement --> Nested_Verify
-        Nested_Verify --> Nested_Verify : fail
-        Nested_Verify --> Check_Risky : pass
-        Check_Risky --> Nested_Review : risky
-        Check_Risky --> Report_Results : trivial
-        Nested_Review --> Nested_Verify : fix
-        Nested_Review --> Report_Results : clean
-        Report_Results --> [*]
-    }
+    loop each task
+        ORCH->>CODE: dispatch task (scope, context, done)
+        activate CODE
+        CODE->>CODE: implement
+        CODE->>VER: spawn nested verify (scoped to task)
+        activate VER
+        alt fail
+            VER-->>CODE: failure diagnosis
+            deactivate VER
+            CODE->>CODE: fix and re-verify
+        else pass
+            deactivate VER
+        end
+        opt non-trivial/risky/external
+            CODE->>RC: spawn nested review-code
+            activate RC
+            RC-->>CODE: findings or clean
+            deactivate RC
+            alt CRITICAL/WARNING
+                CODE->>CODE: fix, re-verify, re-review
+            end
+        end
+        CODE-->>ORCH: gate results
+        deactivate CODE
+    end
 
-    state "verify" as VERIFY {
-        Final_Check --> Final_Pass : pass
-        Final_Check --> Final_Fail : fail
-        Final_Pass --> [*]
-        Final_Fail --> [*]
-    }
+    ORCH->>VER: final end-to-end verify
+    activate VER
+    alt fail
+        VER-->>ORCH: failure diagnosis
+        deactivate VER
+        note over ORCH: failure tree → code fix / investigator+plan / escalate
+    else pass
+        VER-->>ORCH: pass
+        deactivate VER
+    end
 
-    state "review-code" as REVIEW_CODE {
-        RC_Start --> RC_Check
-        RC_Check --> RC_Done
-        RC_Done --> [*]
-    }
-
-    ORCH --> INV : dispatch
-    ORCH --> PLAN : dispatch with report
-    ORCH --> CODE : dispatch task
-    ORCH --> VERIFY : final gate
-    PLAN --> REVIEW_PLAN : spawn nested review
-    CODE --> VERIFY : spawn nested verify
-    CODE --> REVIEW_CODE : spawn nested review
-
-    INV --> ORCH : report
-    PLAN --> ORCH : plan + verdict
-    CODE --> ORCH : results
-    VERIFY --> ORCH : verdict
-    REVIEW_PLAN --> PLAN : findings
-    REVIEW_CODE --> CODE : findings
+    ORCH->>ORCH: synthesize report
 ```
 
 ### Failure Handling
