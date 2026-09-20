@@ -22,18 +22,46 @@
 
 ## Workflow Selection
 
-| Task | Default workflow |
+### Task-Type Workflows
+
+| Task Type | Sequence |
 |---|---|
-| Simple, isolated, obvious change | `code` (code internally verifies/reviews its own task) |
-| Non-trivial implementation | `investigator → plan (with nested review-plan) → code per task (each with nested verify/review) → final verify` |
-| Architectural/significant change | `investigator → plan (nested review-plan loop) → code per task (nested verify + review-code) → final verify` |
-| Obvious implementation failure | `code → verify` |
+| **Full feature** | `investigator → plan (nested review-plan) → milestone files under plans/ → code per milestone (nested verify + review-code) → final verify` |
+| **Small feature** | `code (nested verify; unit tests required; nested review-code when risky or externally visible)` |
+| **Architecture / planning** | `investigator → plan (nested review-plan) → milestone files under plans/` — no implementation dispatch |
+| **Bugfix** | `code (failing reproduction test first → fix → nested verify) → final verify` |
+| **Implementation from milestone** | `code per task directly from plans/<milestone>.md → final verify` — skip investigator/plan; milestone not yet reviewed → nested review-plan on the milestone file first; milestone flawed mid-implementation → targeted investigator → revise that milestone file only → re-implement |
+
+### Failure Recovery
+
+| Situation | Action |
+|---|---|
+| Obvious failure | `code → verify` |
 | Unclear/unexpected failure | `verify` |
 | Verify finds implementation cause | `code → verify` |
-| Verify finds design problem | `investigator → plan (nested review-plan) → code → verify` |
-| Plan review finds material evidence gap | `targeted investigator → plan → nested review-plan` |
+| Verify finds design issue | `targeted investigator → revise affected milestone file → code → verify` |
+| Plan review finds material evidence gap | `targeted investigator → revise affected milestone file → code → verify` |
 
 Do not add workflow stages without a reason.
+
+## Milestones (plans/)
+
+Milestone files live in `plans/` (local, gitignored). Each file is one implementation-ready unit produced by `plan` or revised by the orchestrator.
+
+**Format** (per file):
+
+- **Goal** — concise outcome.
+- **Design** — decisions and rationale.
+- **Review verdict** — APPROVE / REVISE (set by nested review-plan).
+- Per task:
+  - **Files** — affected files.
+  - **Changes** — exact changes.
+  - **Dependencies** — ordering constraints.
+  - **Acceptance** — observable criteria.
+  - **Verification** — how verify runs (required, distinct from Acceptance).
+  - **Non-goals** (optional) — explicit exclusions.
+
+File naming: `plans/<kebab-case-name>.md`.
 
 ## Investigation
 
@@ -52,7 +80,9 @@ Dispatch `plan` with:
 - relevant constraints/decisions
 
 Require an implementation-ready plan.
-Use the `grilling` skill in the plan mode if the plan needs human input.
+Use the `grilling` skill in the plan mode if the plan needs human input; always use it in architecture workflows.
+For documentation deliverables (files under `docs/`, `README.md`), instruct `plan` and `code` to use the `writing-for-humans` skill. Documentation states what IS, not what was done.
+Plan output = one milestone file per implementation task under `plans/`.
 
 `plan` runs its own nested `review-plan` loop internally: after producing a draft, it spawns a `review-plan` sub-task, iterates on findings, and returns only the approved plan + review verdict. The orchestrator receives the final approved plan, not intermediate drafts.
 
@@ -68,8 +98,13 @@ Dispatch `code` with only:
 - definition of done
 - verification requirements
 - relevant non-goals
+- **milestone file path** (when dispatching from a milestone)
+- **unit-test expectation** — every code dispatch explicitly states: create or extend unit tests for changed behavior when the codebase has a test setup.
 
 Instruct `code` that it owns its task's nested quality gates (verify, and review-code for non-trivial/risky/externally visible changes) and must report gate results in its completion summary.
+
+When dispatched from a milestone file, `code` uses the milestone's `Verification` and `Non-goals` fields as its dispatch contract — no plan round-trip.
+`code` self-dispatches gates from the milestone's `Verification` and `Non-goals` fields.
 
 Task-specific instructions override conflicting generic instructions.
 
@@ -78,7 +113,7 @@ Task-specific instructions override conflicting generic instructions.
 When dispatched, `code` owns its task's quality gates:
 
 - **Nested verify**: after implementation, spawn a `verify` sub-task scoped to this task only (changed files, acceptance criteria, task design decisions). Fix CRITICAL/WARNING findings and re-run until clean.
-- **Nested review-code**: for non-trivial, risky, or externally visible changes, spawn a `review-code` sub-task scoped to the task's diff. Resolve CRITICAL/WARNING findings before completing. SUGGESTIONs may be applied or noted.
+- **Nested review-code**: for non-trivial, risky, or externally visible changes, spawn a `review-code` sub-task scoped to the task's diff. Pass the task's test expectations to review-code. Review checks unit tests exist where required and meaningfully test the changed behavior. Resolve CRITICAL/WARNING findings before completing. SUGGESTIONs may be applied or noted.
 
 The orchestrator no longer reviews individual task diffs. It relies on per-task gate results reported in `code`'s completion summary.
 
@@ -88,7 +123,7 @@ The orchestrator still dispatches a final end-to-end `verify` after all tasks co
 
 - trivial/in-scope fix → `verify` fixes and re-verifies
 - implementation cause → dispatch `code`
-- design/architecture cause → `investigator → plan → code`
+- design/architecture cause → `targeted investigator → revise affected milestone file → code → verify`
 - user decision required → escalate
 
 ## Execution State
