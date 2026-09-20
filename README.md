@@ -40,7 +40,7 @@ node dist/cli.cjs install <tool> [options]
 
 | Mode | Purpose |
 |------|---------|
-| `orchestrator` | Coordinate tasks across specialized modes with minimal unnecessary work |
+| `orchestrator` | Select task-type-specific workflows (full feature, small feature, architecture, bugfix, milestone implementation) and coordinate specialized modes |
 | `investigator` | Gather repository evidence for planning |
 | `plan` | Design implementation-ready plans from repository evidence |
 | `review-code` | Review code changes locally |
@@ -91,7 +91,7 @@ When installing zoo globally, `~/.roo/custom_modes.yaml` is **merged**, not over
 | Document | What it covers |
 |----------|---------------|
 | [docs/architecture.md](docs/architecture.md) | Generation pipeline, manifest, installer merge/collision mechanics, per-tool emitted formats |
-| [docs/orchestrator-workflow.md](docs/orchestrator-workflow.md) | Orchestrator work loop, github-issue pipeline, model-selection philosophy |
+| [docs/orchestrator-workflow.md](docs/orchestrator-workflow.md) | Orchestrator task-type workflows, milestones, github-issue pipeline, model-selection philosophy |
 | [docs/development.md](docs/development.md) | Makefile targets, verify.py checks, smoke tests, build, packaging |
 | [docs/npm-trusted-publishing.md](docs/npm-trusted-publishing.md) | npm OIDC trusted publishing setup |
 

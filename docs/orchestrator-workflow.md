@@ -6,6 +6,20 @@ This document covers the orchestrator work loop, the `github-issue` autonomous p
 
 The orchestrator mode never writes code itself. It acts as a strategic coordinator, delegating every concrete action to a specialized subtask and retaining only orchestration-level context. Any agent can now spawn nested sub-tasks via `new_task`, keeping review/verify context small by scoping it to individual tasks.
 
+### Task-Type Workflows
+
+The orchestrator selects a workflow based on the task type. Each row describes the full mode sequence for that branch.
+
+| Task Type | Sequence |
+|---|---|
+| **Full feature** | `investigator → plan (nested review-plan) → milestone files under plans/ → code per milestone (nested verify + review-code) → final verify` |
+| **Small feature** | `code (nested verify; unit tests required; nested review-code when risky or externally visible)` |
+| **Architecture / planning** | `investigator → plan (nested review-plan) → milestone files under plans/` — no implementation dispatch |
+| **Bugfix** | `code (failing reproduction test first → fix → nested verify) → final verify` |
+| **Implementation from milestone** | `code per task directly from plans/<milestone>.md → final verify` — skip investigator/plan; milestone not yet reviewed → nested review-plan on the milestone file first; milestone flawed mid-implementation → targeted investigator → revise that milestone file only → re-implement |
+
+The flowchart below shows the **full-feature** branch — the most complete workflow.
+
 ```mermaid
 flowchart TD
     A["1. Investigate\nDispatch investigator subtask"] --> B["2. Plan\nDispatch plan subtask with report"]
@@ -18,8 +32,9 @@ flowchart TD
         C1 -->|Approved| C3["Return approved plan + verdict"]
     end
 
-    C3 --> E["3. Track\nMirror tasks into todo list"]
-    E --> F["4. Dispatch code per task"]
+    C3 --> C4["3. Write milestone files\nunder plans/"]
+    C4 --> E["4. Track\nMirror tasks into todo list"]
+    E --> F["5. Dispatch code per milestone"]
 
     subgraph code_gate["Code task (nested gates)"]
         F --> F1["Implement task"]
@@ -34,113 +49,45 @@ flowchart TD
         F4 -->|No| F7
     end
 
-    F7 --> G{"More tasks?"}
+    F7 --> G{"More milestones?"}
     G -->|Yes| F
-    G -->|No| K["5. Final verify\nDispatch verify subtask"]
+    G -->|No| K["6. Final verify\nDispatch verify subtask"]
     K -->|Fail| L["Failure handling tree"]
     L -->|Implementation cause| F
     L -->|Design cause| A
     L -->|Verify and fix| K
-    K -->|Pass| M["6. Synthesize\nCollect summaries → report"]
+    K -->|Pass| M["7. Synthesize\nCollect summaries → report"]
 ```
 
-### Step-by-step
-
-| Step | Dispatched by | Mode(s) delegated to | Purpose |
-|------|--------------|---------------------|---------|
-| **Investigate** | orchestrator | `investigator` | Produce an investigation report with repository evidence, file references, and resolved open questions |
-| **Plan** | orchestrator | `plan` | Use the investigation report to design solution, decompose into ordered implementation tasks |
-| **Plan Review** | *plan (nested)* | `review-plan` | Plan spawns its own review loop; orchestrator receives only the approved plan + verdict |
-| **Track** | orchestrator | *(internal)* | Mirror plan tasks into the todo list; respect dependency order |
-| **Dispatch code** | orchestrator | `code` | Spawn a subtask per implementation task with scope, context, definition of done |
-| **Per-task verify** | *code (nested)* | `verify` | Code spawns scoped verify for its task; fixes and re-runs until clean |
-| **Per-task review** | *code (nested)* | `review-code` | For non-trivial/risky changes, code spawns scoped review; resolves findings before completing |
-| **Final verify** | orchestrator | `verify` | End-to-end cross-task verification after all tasks complete |
-| **Synthesize** | orchestrator | *(internal)* | Collect all subtask summaries into a final human-readable report |
-
-### Mode Sequence Diagram
-
-The sequence diagram below shows the workflow as interactions between modes; each mode is a participant/lifeline. `plan` and `code` own their nested review gates, while the orchestrator dispatches and routes between modes.
-
-```mermaid
-sequenceDiagram
-    participant ORCH as orchestrator
-    participant INV as investigator
-    participant PLAN as plan
-    participant RP as review-plan
-    participant CODE as code
-    participant VER as verify
-    participant RC as review-code
-
-    ORCH->>INV: dispatch investigation (with request)
-    activate INV
-    INV-->>ORCH: evidence report
-    deactivate INV
-
-    ORCH->>PLAN: dispatch planning (with report)
-    activate PLAN
-    loop until approved (max 2 rounds)
-        PLAN->>RP: spawn nested review-plan
-        activate RP
-        RP-->>PLAN: findings or APPROVE
-        deactivate RP
-        PLAN->>PLAN: revise plan (on findings)
-    end
-    PLAN-->>ORCH: approved plan + verdict
-    deactivate PLAN
-
-    ORCH->>ORCH: track tasks in todo list
-
-    loop each task
-        ORCH->>CODE: dispatch task (scope, context, done)
-        activate CODE
-        CODE->>CODE: implement
-        CODE->>VER: spawn nested verify (scoped to task)
-        activate VER
-        alt fail
-            VER-->>CODE: failure diagnosis
-            
-            CODE->>CODE: fix and re-verify
-        else pass
-            
-        end
-        deactivate VER
-        opt non-trivial/risky/external
-            CODE->>RC: spawn nested review-code
-            activate RC
-            RC-->>CODE: findings or clean
-            deactivate RC
-            alt CRITICAL/WARNING
-                CODE->>CODE: fix, re-verify, re-review
-            end
-        end
-        CODE-->>ORCH: gate results
-        deactivate CODE
-    end
-
-    ORCH->>VER: final end-to-end verify
-    activate VER
-    alt fail
-        VER-->>ORCH: failure diagnosis
-        note over ORCH: failure tree → code fix / investigator+plan / escalate
-    else pass
-        VER-->>ORCH: pass
-    end
-    deactivate VER
-
-    ORCH->>ORCH: synthesize report
-```
-
-### Failure Handling
+### Failure Recovery
 
 Per-task failures are handled inside the `code` sub-task via nested quality gates. The orchestrator handles final-verify failures:
 
 1. Obvious, in-scope failure → let `code` fix it.
 2. Unclear or out-of-scope → dispatch `verify`.
 3. `verify` finds implementation fix → dispatch `code`.
-4. `verify` finds design issue or new evidence → dispatch `investigator` scoped to failure, then dispatch `plan` (with nested plan-review).
+4. `verify` finds design issue or new evidence → targeted investigator → revise affected milestone file → dispatch `code`.
 5. Requires human decision → escalate to user.
 6. Re-verify after every fix.
+
+## Milestones
+
+Milestone files live in `plans/` (local, gitignored). Each file is one implementation-ready unit produced by `plan` or revised by the orchestrator.
+
+**File naming:** `plans/<kebab-case-name>.md`
+
+**Structure per file:**
+
+- **Goal** — concise outcome.
+- **Design** — decisions and rationale.
+- **Review verdict** — APPROVE / REVISE (set by nested review-plan).
+- Per task:
+  - **Files** — affected files.
+  - **Changes** — exact changes.
+  - **Dependencies** — ordering constraints.
+  - **Acceptance** — observable criteria.
+  - **Verification** — how verify runs (required, distinct from Acceptance).
+  - **Non-goals** (optional) — explicit exclusions.
 
 ## End-to-End Autonomous Issue Resolution with `github-issue`
 
@@ -152,7 +99,7 @@ The [`github-issue`](../skills/github-issue.md) skill combines the orchestrator'
 |-------|-------------|----------------|
 | **1. Retrieve & Validate** | Fetch issue, comments, labels, linked PRs via `gh`. Stop if ambiguous. | orchestrator (reads only) |
 | **2. Feature Branch** | Create a branch referencing the issue. No code yet. | orchestrator (git via `execute_command`) |
-| **3. Execute** | Run the standard orchestrator workflow: investigate → plan (with nested review-plan) → implement per task (each with nested verify/review-code) → final verify. | orchestrator → `investigator` → `plan` (nested `review-plan`) → `code` (nested `verify` + `review-code`) → `verify` |
+| **3. Execute** | Run the workflow matching the issue type: full feature for multi-part issues, bugfix (reproduction test first) for defect reports, milestone implementation when a matching milestone file exists in plans/. | orchestrator → selected workflow |
 | **4. Commit, Push, PR** | Review final diff, commit, push, open PR referencing the issue. | orchestrator (git/gh via `execute_command`) |
 | **5. Report** | Summarize branch, implementation, tests, PR link, limitations. | orchestrator (synthesis) |
 
