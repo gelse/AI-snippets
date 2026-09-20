@@ -12,57 +12,26 @@
 
 | Mode | Responsibility | Use when |
 |---|---|---|
+| `captain` | Classification + supervision | Default entry point |
 | `investigator` | Repository evidence | Relevant facts are unknown, missing, contradictory, or stale |
 | `plan` | Design + decomposition | Non-trivial design or multiple implementation steps are required |
 | `code` | Implementation | A concrete implementation or straightforward fix is required |
 | `verify` | Testing + diagnosis | Changes must be verified, tests are missing, or failures need diagnosis |
-| `orchestrator` | Routing + state + escalation | Always |
+| `orchestrator` | Shared execution playbook + dispatch | Dispatched by captain with a skill, or used directly when the type is already known |
 
 > `review-plan`, `review-code` are available modes spawned as nested sub-tasks inside `plan` and `code` respectively, not dispatched by the orchestrator directly.
 
-## Workflow Selection
+## Skills
 
-### Task-Type Workflows
+The dispatch names exactly one skill. Load it (`skill` tool) and execute its workflow, type-specific rules, and failure-recovery rules through the shared dispatch contracts below. Never execute a workflow without a skill; never load more than one.
 
-| Task Type | Sequence |
-|---|---|
-| **Full feature** | `investigator → plan (nested review-plan) → milestone files under plans/ → code per milestone (nested verify + review-code) → final verify` |
-| **Small feature** | `code (nested verify; unit tests required; nested review-code when risky or externally visible)` |
-| **Architecture / planning** | `investigator → plan (nested review-plan) → milestone files under plans/` — no implementation dispatch |
-| **Bugfix** | `code (failing reproduction test first → fix → nested verify) → final verify` |
-| **Implementation from milestone** | `code per task directly from plans/<milestone>.md → final verify` — skip investigator/plan; milestone not yet reviewed → dispatch `plan` with the existing milestone file (plan runs its nested review-plan loop); milestone flawed mid-implementation → targeted investigator → plan (nested review-plan) → re-dispatch `code` |
-
-### Failure Recovery
-
-| Situation | Action |
-|---|---|
-| Obvious failure | `code → verify` |
-| Unclear/unexpected failure | `verify` |
-| Verify finds implementation cause | `code → verify` |
-| Verify finds design issue | `targeted investigator → plan (nested review-plan) → re-dispatch code → verify` |
-| Plan review finds material evidence gap | `targeted investigator → plan (nested review-plan) → re-review` |
-
-Do not add workflow stages without a reason.
-
-## Milestones (plans/)
-
-Milestone files live in `plans/` (local, gitignored). Each file is one implementation-ready unit produced or revised by `plan`.
-
-**Format** (per file):
-
-- **Goal** — concise outcome.
-- **Design** — decisions and rationale.
-- **Review verdict** — APPROVE / APPROVE WITH SUGGESTIONS / NEEDS CHANGES (set by nested review-plan).
-- **Risks / Open Decisions** (optional) — open questions or decision points requiring user input.
-- Per task:
-  - **Files** — affected files.
-  - **Changes** — exact changes.
-  - **Dependencies** — ordering constraints.
-  - **Acceptance** — observable criteria.
-  - **Verification** — how verify runs (required, distinct from Acceptance).
-  - **Non-goals** (optional) — explicit exclusions.
-
-File naming: `plans/<kebab-case-name>.md`.
+| Skill | One-line workflow |
+|-------|-------------------|
+| `full-feature` | `investigator → plan (nested review-plan) → milestones → code per milestone (nested verify + review-code) → final verify` |
+| `small-feature` | `code (nested verify; unit tests required; nested review-code when risky or externally visible)` |
+| `architecture` | `investigator → plan (nested review-plan) → milestones — no implementation` |
+| `bugfix` | `code (failing reproduction test first → fix → nested verify) → final verify` |
+| `implementation-from-milestone` | `code per task from plans/<milestone>.md → final verify` |
 
 ## Investigation
 
@@ -176,6 +145,7 @@ Never make an agent rediscover information already established.
 ## Completion
 
 Complete only when:
+- the dispatched skill's workflow is fully executed, including its failure-recovery rules
 - required implementation is finished
 - all per-task quality gates passed (reported in task summaries)
 - final end-to-end verification passes

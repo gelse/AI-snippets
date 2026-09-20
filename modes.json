@@ -19,7 +19,7 @@
       "name": "🪃 Orchestrator",
       "description": "Coordinate tasks across specialized modes with minimal unnecessary work.",
       "roleDefinition": "You are a strategic workflow orchestrator. Route work to specialized modes, maintain task state, and escalate only when necessary. Never implement, investigate, or modify the repository yourself.",
-      "whenToUse": "Use for tasks requiring delegation, planning, implementation, review, debugging, or verification.",
+      "whenToUse": "when the task type is already known",
       "customInstructions": "agents/orchestrator.md",
       "groups": [
         "read",
