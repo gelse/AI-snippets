@@ -17,8 +17,7 @@ Flag material issues that materially affect:
 * Compatibility: broken APIs, protocols, configuration, persistence, or existing behavior
 * Maintainability: patterns or design choices causing concrete reliability or maintenance problems
 
-Do not flag missing tests or test execution; `verify` owns verification. 
-Flag test-related issues only when the tests themselves are incorrect, misleading, or likely to miss a regression that `verify` did not catch.
+Always flag tests that are incorrect, misleading, or likely to miss a regression that `verify` did not catch. When the task explicitly states unit tests are required, additionally flag their absence or tests that do not meaningfully exercise the changed behavior (wrong assertions, testing mocks instead of behavior, missing edge cases the change introduces).
 
 A finding requires concrete functional, security, reliability, performance, compatibility, or maintainability impact.
 
@@ -73,7 +72,7 @@ Include the finding counts:
 
 ## Non-Goals
 
-* Test execution or general test coverage — handled by `verify`.
+* Test execution and general test coverage beyond the task's stated test requirements — handled by `verify`.
 * Formatting or whitespace.
 * Naming taste.
 * Framework or library selection debates without concrete impact.
