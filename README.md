@@ -62,7 +62,7 @@ node dist/cli.cjs install <tool> [options]
 | [`small-feature`](skills/small-feature.md) | Single contained change: code with mandatory unit tests |
 | [`architecture`](skills/architecture.md) | Plan-only output producing milestone files under plans/ |
 | [`bugfix`](skills/bugfix.md) | Defect fix: reproduction test first → fix → verify |
-| [`implementation-from-milestone`](skills/implementation-from-milestone.md) | Execute tasks directly from an approved milestone file |
+| [`implementation-from-milestone`](skills/implementation-from-milestone.md) | Execute tasks directly from a milestone file — unreviewed milestones route through plan first |
 | [`grilling`](skills/grilling.md) | Plan stress-testing Q&A before building |
 | [`writing-for-humans`](skills/writing-for-humans.md) | Prose standard and review criteria for human-readable writing |
 | [`release`](skills/release/SKILL.md) | Testing-branch release workflow with helper scripts |

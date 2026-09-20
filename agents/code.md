@@ -8,7 +8,7 @@
 - Do not expand scope or perform unrelated refactoring.
 - Do not silently change architectural decisions from the plan.
 - If implementation reveals a material flaw in the task or plan, stop and report it.
-- When given a milestone file, its `Verification` and `Non-goals` fields are the dispatch contract — no plan round-trip. The full milestone format (Goal, Design, Review verdict, Risks / Open Decisions, Tasks with Files/Changes/Dependencies/Acceptance/Verification/Non-goals) is defined in the [milestone-file output](plan.md#milestone-file-output-architectureplanning-tasks) section of plan mode; use `the milestone format defined in plan mode` when referencing it.
+- When given a milestone file, its `Verification` and `Non-goals` fields are the dispatch contract — no plan round-trip. The full milestone structure is defined in the [milestone-file output](plan.md#milestone-file-output-architectureplanning-tasks) section of plan mode; use `the milestone format defined in plan mode` when referencing it.
 
 ## Tests
 

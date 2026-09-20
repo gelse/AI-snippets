@@ -28,7 +28,7 @@ Execute tasks directly from a milestone file under `plans/`. Skip investigator/p
 
 | Situation | Action |
 |-----------|--------|
-| Obvious failure | `code → verify` |
-| Unclear failure | `verify` |
-| Verify finds implementation cause | `code → verify` |
-| Verify finds design issue | targeted investigator → plan (nested review-plan) → re-dispatch code → verify |
+| Obvious failure at final verify or nested gate | `code → verify` |
+| Unclear failure at final verify or nested gate | `verify` |
+| Verify finds implementation cause at final verify or nested gate | `code → verify` |
+| Verify finds design issue at final verify or nested gate | targeted investigator → plan (nested review-plan) → re-dispatch code → verify |
