@@ -12,6 +12,7 @@ Merge semantics (mirrors src/merge.ts mergeModesYaml):
 
 from __future__ import annotations
 
+import os
 import sys
 
 import yaml
@@ -28,8 +29,16 @@ def main(argv: list[str]) -> int:
 
     gen_path, dest_path = argv[1], argv[2]
 
-    with open(gen_path, encoding="utf-8") as fh:
-        gen_data = yaml.safe_load(fh)
+    try:
+        with open(gen_path, encoding="utf-8") as fh:
+            gen_data = yaml.safe_load(fh)
+    except (FileNotFoundError, OSError) as exc:
+        print(f"ERROR: cannot read generated modes file {gen_path}: {exc}", file=sys.stderr)
+        return 1
+    except yaml.YAMLError as exc:
+        print(f"ERROR: malformed YAML in generated file {gen_path}: {exc}", file=sys.stderr)
+        return 1
+
     gen_modes: list[dict] = gen_data.get("customModes", []) if gen_data else []
 
     try:
@@ -37,6 +46,9 @@ def main(argv: list[str]) -> int:
             dest_data = yaml.safe_load(fh)
     except FileNotFoundError:
         # dest missing — write generated content as-is
+        dest_dir = os.path.dirname(dest_path)
+        if dest_dir:
+            os.makedirs(dest_dir, exist_ok=True)
         with open(gen_path, encoding="utf-8") as src:
             content = src.read()
         with open(dest_path, "w", encoding="utf-8") as fh:
@@ -48,7 +60,16 @@ def main(argv: list[str]) -> int:
         print(f"ERROR: malformed YAML in {dest_path}: {exc}", file=sys.stderr)
         return 1
 
-    dest_modes: list[dict] = dest_data.get("customModes", []) if dest_data else []
+    raw_dest_modes = dest_data.get("customModes", []) if dest_data else []
+    if not isinstance(raw_dest_modes, list):
+        print(
+            f"WARNING: customModes in {dest_path} is not a sequence "
+            f"({type(raw_dest_modes).__name__}); replacing with generated modes only",
+            file=sys.stderr,
+        )
+        dest_modes: list[dict] = []
+    else:
+        dest_modes = raw_dest_modes
 
     gen_slugs = {m["slug"] for m in gen_modes if "slug" in m}
 
@@ -80,6 +101,10 @@ def main(argv: list[str]) -> int:
     merged = deduped
 
     added = [m.get("slug", "?") for m in gen_modes if m.get("slug") not in {s for s in _slugs(dest_modes)}]
+
+    dest_dir = os.path.dirname(dest_path)
+    if dest_dir:
+        os.makedirs(dest_dir, exist_ok=True)
 
     out_data = dict(dest_data) if dest_data else {}
     out_data["customModes"] = merged
