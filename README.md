@@ -1,6 +1,6 @@
 # AI-Snippets
 
-One command installs 11 agent modes and 4 skills into Zoo Code, Kilo Code, OpenCode, or Claude Code. Modes give your coding agent specialized subagents — orchestrator, planner, reviewer, verifier, and more. Skills are reusable workflow runbooks that drive end-to-end autonomous pipelines.
+One command installs 12 agent modes and 9 skills into Zoo Code, Kilo Code, OpenCode, or Claude Code. Captain is the default entry point — it classifies tasks and dispatches the orchestrator with the matching skill. Modes give your coding agent specialized subagents — orchestrator, planner, reviewer, verifier, and more. Skills are reusable workflow runbooks that drive end-to-end autonomous pipelines.
 
 ## Quick Start
 
@@ -36,11 +36,12 @@ node dist/cli.cjs install <tool> [options]
 
 ## What You Get
 
-### 11 Agent Modes
+### 12 Agent Modes
 
 | Mode | Purpose |
 |------|---------|
-| `orchestrator` | Select task-type-specific workflows (full feature, small feature, architecture, bugfix, milestone implementation) and coordinate specialized modes |
+| `captain` | Classify tasks and dispatch the orchestrator with the matching skill — default entry point |
+| `orchestrator` | Execute the dispatched skill's workflow through shared dispatch contracts |
 | `investigator` | Gather repository evidence for planning |
 | `plan` | Design implementation-ready plans from repository evidence |
 | `review-code` | Review code changes locally |
@@ -52,11 +53,16 @@ node dist/cli.cjs install <tool> [options]
 | `architect` | Deprecated — aborts and directs you to `plan` |
 | `debug` | Deprecated — aborts and directs you to `plan` |
 
-### 4 Skills
+### 9 Skills
 
 | Skill | Purpose |
 |-------|---------|
 | [`github-issue`](skills/github-issue.md) | End-to-end GitHub issue → PR via `gh`, orchestrator-driven |
+| [`full-feature`](skills/full-feature.md) | Multi-part design-heavy work: investigate → plan → milestones → code → verify |
+| [`small-feature`](skills/small-feature.md) | Single contained change: code with mandatory unit tests |
+| [`architecture`](skills/architecture.md) | Plan-only output producing milestone files under plans/ |
+| [`bugfix`](skills/bugfix.md) | Defect fix: reproduction test first → fix → verify |
+| [`implementation-from-milestone`](skills/implementation-from-milestone.md) | Execute tasks directly from an approved milestone file |
 | [`grilling`](skills/grilling.md) | Plan stress-testing Q&A before building |
 | [`writing-for-humans`](skills/writing-for-humans.md) | Prose standard and review criteria for human-readable writing |
 | [`release`](skills/release/SKILL.md) | Testing-branch release workflow with helper scripts |
@@ -82,7 +88,7 @@ When installing zoo globally, `~/.roo/custom_modes.yaml` is **merged**, not over
 
 ## How It Works
 
-`modes.json` is the single source of truth for all mode definitions. Each mode's `customInstructions` is a repo-relative path `agents/<slug>.md` — 11 instruction files, one per mode — resolved at generation time by [`scripts/generate.py`](scripts/generate.py), which emits per-tool formats plus an `install-manifest.json` that maps every artifact to its destination paths and drives the installer. The installer reads the manifest, computes a plan with `[create]/[update]/[merge]/[overwrite]` labels, and executes it with collision handling.
+`modes.json` is the single source of truth for all mode definitions. Each mode's `customInstructions` is a repo-relative path `agents/<slug>.md` — 12 instruction files, one per mode — resolved at generation time by [`scripts/generate.py`](scripts/generate.py), which emits per-tool formats plus an `install-manifest.json` that maps every artifact to its destination paths and drives the installer. The installer reads the manifest, computes a plan with `[create]/[update]/[merge]/[overwrite]` labels, and executes it with collision handling.
 
 → Full details: [docs/architecture.md](docs/architecture.md)
 
@@ -91,7 +97,7 @@ When installing zoo globally, `~/.roo/custom_modes.yaml` is **merged**, not over
 | Document | What it covers |
 |----------|---------------|
 | [docs/architecture.md](docs/architecture.md) | Generation pipeline, manifest, installer merge/collision mechanics, per-tool emitted formats |
-| [docs/orchestrator-workflow.md](docs/orchestrator-workflow.md) | Orchestrator task-type workflows, milestones, github-issue pipeline, model-selection philosophy |
+| [docs/orchestrator-workflow.md](docs/orchestrator-workflow.md) | Captain classification, orchestrator skills, milestones, github-issue pipeline, model-selection philosophy |
 | [docs/development.md](docs/development.md) | Makefile targets, verify.py checks, smoke tests, build, packaging |
 | [docs/npm-trusted-publishing.md](docs/npm-trusted-publishing.md) | npm OIDC trusted publishing setup |
 

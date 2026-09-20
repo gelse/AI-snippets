@@ -1,80 +1,78 @@
 # Orchestrator Workflow
 
-This document covers the orchestrator work loop, the `github-issue` autonomous pipeline, and model-selection philosophy.
+This document covers the captain entry point, the orchestrator's shared execution playbook, the task-type skills, the `github-issue` autonomous pipeline, and model-selection philosophy.
 
-## The Orchestrator's Work Loop
+## Captain
 
-The orchestrator mode never writes code itself. It acts as a strategic coordinator, delegating every concrete action to a specialized subtask and retaining only orchestration-level context. Any agent can spawn nested sub-tasks via `new_task`, keeping review/verify context small by scoping it to individual tasks.
+The captain is the default entry point. It classifies the task into one of five types, dispatches the orchestrator as a subtask carrying the chosen skill, and supervises execution.
 
-### Task-Type Workflows
+### Classification
 
-The orchestrator selects a workflow based on the task type. Each row describes the full mode sequence for that branch.
+Captain reads the user's request, gathers minimal evidence (file references, branches, issues, milestones), and matches symptoms to a task type:
 
-| Task Type | Sequence |
-|---|---|
-| **Full feature** | `investigator → plan (nested review-plan) → milestone files under plans/ → code per milestone (nested verify + review-code) → final verify` |
-| **Small feature** | `code (nested verify; unit tests required; nested review-code when risky or externally visible)` |
-| **Architecture / planning** | `investigator → plan (nested review-plan) → milestone files under plans/` — no implementation dispatch |
-| **Bugfix** | `code (failing reproduction test first → fix → nested verify) → final verify` |
-| **Implementation from milestone** | `code per task directly from plans/<milestone>.md → final verify` — skip investigator/plan; milestone not yet reviewed → dispatch `plan` with the existing milestone file (plan runs its nested review-plan loop); milestone flawed mid-implementation → targeted investigator → plan (nested review-plan) → re-dispatch `code` |
+| Symptoms | Type | Skill |
+|----------|------|-------|
+| Multi-part, design-heavy; multiple files/components; architecture decisions | Full feature | `full-feature` |
+| Single, contained, obvious; one file or a few files; no design ambiguity | Small feature | `small-feature` |
+| Plan-only; no implementation requested; architecture or research | Architecture | `architecture` |
+| Defect or broken behavior; regression; reproduction test needed | Bugfix | `bugfix` |
+| Approved milestone file exists under `plans/` and maps to the task | Implementation from milestone | `implementation-from-milestone` |
 
-Each task type has a distinct flow.
+**Tiebreak:** If two types fit, prefer the smaller one. If evidence is missing to decide, investigate first; do not guess.
 
-#### Full feature
+### Dispatch and supervision
 
-A full-feature workflow runs investigation, planning with review, milestone creation, iterative code implementation, and final verification.
+Captain dispatches the orchestrator via `new_task` with the original request, the classified skill, and relevant evidence. The orchestrator loads the named skill and executes its workflow.
 
-```mermaid
-flowchart TD
-    A[Investigate] --> B[Plan]
-    B --> B1["review-plan loop\ndraft → revise until approved"]
-    B1 --> C[Milestone files under plans/]
-    C --> D[Code per milestone]
-    D --> D1["nested verify + review-code"]
-    D1 --> E{More milestones?}
-    E -->|Yes| D
-    E -->|No| F[Final verify]
-```
+Captain monitors the orchestrator's completion summary and verifies that the dispatched skill's workflow was followed and completion criteria were met.
 
-#### Small feature
+### Re-classification
 
-A small feature dispatches a single code task with mandatory unit tests; review-code runs when the change is risky or externally visible.
+If verify finds a design-level cause, or the task outgrows its classification, this is misclassification evidence — captain re-classifies and re-dispatches with the corrected skill, preserving all completed work.
 
-```mermaid
-flowchart TD
-    A[Code] --> B[nested verify]
-    B --> C{Risky/external?}
-    C -->|Yes| D[nested review-code]
-    C -->|No| E[Done]
-    D --> E
-```
+Captain's mode definition is instruction-level read-only (`[read, command, mcp]` groups); no tool-enforced edit restrictions are claimed.
 
-#### Architecture / planning
+## Skills
 
-An architecture workflow produces milestone files under `plans/` without dispatching implementation.
+The orchestrator dispatches exactly one skill per run. Each skill defines a workflow sequence, type-specific rules, and a failure-recovery table. The orchestrator loads the skill via the `skill` tool and follows it end-to-end.
 
-```mermaid
-flowchart TD
-    A[Investigate] --> B[Plan]
-    B --> B1["review-plan loop\ndraft → revise until approved"]
-    B1 --> C[Milestone files under plans/]
-```
+### Full feature
 
-#### Bugfix
+**Workflow:** `investigator → plan (nested review-plan) → milestone files under plans/ → code per milestone (nested verify + review-code) → final verify`
 
-A bugfix starts with a failing reproduction test, applies the fix, and runs nested and final verification.
+**Key rules:** Use the `grilling` skill in plan dispatch when human input is needed. Milestone files use the format defined in plan mode. Code dispatches are per milestone file. Final verify covers cross-task integration.
 
-```mermaid
-flowchart TD
-    A[Code] --> B[Failing reproduction test]
-    B --> C[Fix]
-    C --> D[nested verify]
-    D --> E[Final verify]
-```
+**Recovery:** Unclear failure → verify. Implementation cause → code → verify. Design issue → targeted investigator → plan → re-dispatch code → verify. Evidence gap in plan review → targeted investigator → plan → re-review.
 
-#### Implementation from milestone
+### Small feature
 
-An implementation-from-milestone task executes tasks directly from a milestone file. Unreviewed milestones go through plan first; flawed milestones trigger targeted investigation and re-planning.
+**Workflow:** `code (nested verify; unit tests required; nested review-code when risky or externally visible)`
+
+**Key rules:** Single code dispatch. No investigator or plan. Unit tests are mandatory.
+
+**Recovery:** Obvious failure → code → verify. Unclear failure → verify. Implementation cause → code → verify. Design issue or scope growth → report to captain for re-classification.
+
+### Architecture
+
+**Workflow:** `investigator → plan (nested review-plan) → milestone files under plans/` — no implementation dispatch.
+
+**Key rules:** Always use the `grilling` skill in plan dispatch. Milestone format per plan mode. Completion = approved milestone files.
+
+**Recovery:** Evidence gap in plan review → targeted investigator → plan → re-review.
+
+### Bugfix
+
+**Workflow:** `code (failing reproduction test first → fix → nested verify) → final verify`
+
+**Key rules:** Reproduction test fails before fix, passes after. Minimal fix — no unrelated refactoring.
+
+**Recovery:** Same as small feature: obvious failure → code → verify; unclear failure → verify; implementation cause → code → verify; design issue → report to captain for re-classification.
+
+### Implementation from milestone
+
+**Workflow:** `code per task directly from plans/<milestone>.md → final verify`
+
+Milestone not yet reviewed → dispatch `plan` with the existing milestone file (plan runs its nested review-plan loop). Milestone flawed mid-implementation → targeted investigator → plan (nested review-plan) → re-dispatch code.
 
 ```mermaid
 flowchart TD
@@ -90,36 +88,13 @@ flowchart TD
     G --> C
 ```
 
-### Failure Recovery
+**Key rules:** Milestone format per plan mode. Code uses `Verification` and `Non-goals` fields as its dispatch contract. Final verify covers cross-task integration.
 
-Per-task failures are handled inside the `code` sub-task via nested quality gates. The orchestrator handles final-verify failures:
-
-1. Obvious, in-scope failure → let `code` fix it.
-2. Unclear or out-of-scope → dispatch `verify`.
-3. `verify` finds implementation fix → dispatch `code`.
-4. `verify` finds design issue or new evidence → targeted investigator → plan (nested review-plan) → re-dispatch `code`.
-5. Requires human decision → escalate to user.
-6. Re-verify after every fix.
+**Recovery:** Obvious failure → code → verify. Unclear failure → verify. Implementation cause → code → verify. Design issue → targeted investigator → plan → re-dispatch code → verify.
 
 ## Milestones
 
-Milestone files live in `plans/` (local, gitignored). Each file is one implementation-ready unit produced or revised by `plan`.
-
-**File naming:** `plans/<kebab-case-name>.md`
-
-**Structure per file:**
-
-- **Goal** — concise outcome.
-- **Design** — decisions and rationale.
-- **Review verdict** — APPROVE / APPROVE WITH SUGGESTIONS / NEEDS CHANGES (set by nested review-plan).
-- **Risks / Open Decisions** (optional) — open questions or decision points requiring user input.
-- Per task:
-  - **Files** — affected files.
-  - **Changes** — exact changes.
-  - **Dependencies** — ordering constraints.
-  - **Acceptance** — observable criteria.
-  - **Verification** — how verify runs (required, distinct from Acceptance).
-  - **Non-goals** (optional) — explicit exclusions.
+Milestone files live in `plans/` (local, gitignored). Each file is one implementation-ready unit produced or revised by `plan`. The canonical format is defined in [plan mode](../agents/plan.md#milestone-file-output-architectureplanning-tasks) — orchestrator, skills, and `code` reference it by name and do not restate it.
 
 ## End-to-End Autonomous Issue Resolution with `github-issue`
 
@@ -131,7 +106,7 @@ The [`github-issue`](../skills/github-issue.md) skill combines the orchestrator'
 |-------|-------------|----------------|
 | **1. Retrieve & Validate** | Fetch issue, comments, labels, linked PRs via `gh`. Stop if ambiguous. | orchestrator (reads only) |
 | **2. Feature Branch** | Create a branch referencing the issue, starting at the remote testing branch. No code yet. | orchestrator (git via `execute_command`) |
-| **3. Execute** | Run the workflow matching the issue type: full feature for multi-part issues, bugfix (reproduction test first) for defect reports, milestone implementation when a matching milestone file exists in plans/. | orchestrator → selected workflow |
+| **3. Classify & Execute** | Hand the validated issue to captain. Captain classifies the issue type and dispatches the orchestrator with the matching skill. The skill context (this orchestrator run) owns the git/gh phases — branch, commit/push, PR; the captain subtask and its orchestrator dispatch run only the classified workflow. | orchestrator → captain → orchestrator with skill |
 | **4. Commit, Push, PR** | Review final diff, commit, push, open PR to the testing branch referencing the issue. | orchestrator (git/gh via `execute_command`) |
 | **5. Report** | Summarize branch, implementation, tests, PR link, limitations. | orchestrator (synthesis) |
 
@@ -155,7 +130,8 @@ If the original issue contains **material ambiguity** that cannot be resolved fr
 
 | Role | Needs | Why |
 |------|-------|-----|
-| **orchestrator** | Strong reasoning, structured output | Must decompose problems, track state across subtasks, decide next steps from summaries |
+| **captain** | Full-tier reasoning | Must classify tasks accurately, detect misclassification, supervise orchestrator output |
+| **orchestrator** | Strong reasoning, structured output | Must load and follow skills, track state across subtasks, decide next steps from summaries |
 | **plan / review-plan** | Strong reasoning, codebase comprehension | Must investigate files, understand architecture, produce actionable task lists; plan also manages nested review loop |
 | **review-code / security-review** | Strong reasoning, attention to detail | Must find real bugs, trace data flow, assess exploitability |
 | **code** | Strong coding ability, instruction following | Must implement precisely within scope, write tests, run verification, and manage nested quality gates |
@@ -165,6 +141,7 @@ If the original issue contains **material ambiguity** that cannot be resolved fr
 
 | Weak model assigned to… | Failure symptom |
 |------------------------|-----------------|
+| **captain** | Misclassifies tasks; fails to detect scope growth; dispatches wrong skill |
 | **orchestrator** | Loses track of subtask results; replans unnecessarily; fails to escalate; dispatches tasks with missing context |
 | **plan** | Produces vague, unactionable tasks; misses files; wrong dependency ordering; fails to manage nested review loop |
 | **review-plan** | Approves broken plans; misses CRITICAL findings |
@@ -172,7 +149,7 @@ If the original issue contains **material ambiguity** that cannot be resolved fr
 | **review-code** | Reports style nits but misses logic bugs; misses security issues |
 | **verify** | Misdiagnoses failures; applies incorrect fixes; loops indefinitely |
 
-**Rule of thumb:** The orchestrator and planning/review roles are the highest-leverage model assignments. A weak orchestrator breaks the entire system. A weak coder breaks one task; the orchestrator's review loop can catch and recover from that.
+**Rule of thumb:** The captain and orchestrator are the highest-leverage model assignments. A weak captain breaks the entire system through misclassification. A weak orchestrator breaks skill execution. A weak coder breaks one task; the orchestrator's review loop can catch and recover from that.
 
 ### Mode → Model Mapping
 
@@ -180,7 +157,8 @@ The model backing each mode is selected in the tool's settings. The principle: *
 
 | Mode | Role | Model Class |
 |------|------|-------------|
-| `orchestrator` | Coordination | Full-tier reasoning |
+| `captain` | Classification + supervision | Full-tier reasoning |
+| `orchestrator` | Shared execution playbook | Full-tier reasoning |
 | `plan` | Design + decomposition | Full-tier reasoning |
 | `review-plan` | Plan validation | Heavy-tier reasoning |
 | `investigator` | Evidence gathering | Flash-tier fast reading |
