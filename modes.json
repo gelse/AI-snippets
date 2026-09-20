@@ -191,6 +191,26 @@
       "file": "skills/github-issue.md"
     },
     {
+      "name": "full-feature",
+      "file": "skills/full-feature.md"
+    },
+    {
+      "name": "small-feature",
+      "file": "skills/small-feature.md"
+    },
+    {
+      "name": "architecture",
+      "file": "skills/architecture.md"
+    },
+    {
+      "name": "bugfix",
+      "file": "skills/bugfix.md"
+    },
+    {
+      "name": "implementation-from-milestone",
+      "file": "skills/implementation-from-milestone.md"
+    },
+    {
       "name": "grilling",
       "file": "skills/grilling.md"
     },
