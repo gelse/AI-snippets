@@ -8,10 +8,13 @@
 - Do not expand scope or perform unrelated refactoring.
 - Do not silently change architectural decisions from the plan.
 - If implementation reveals a material flaw in the task or plan, stop and report it.
+- When given a milestone file, its `Verification` and `Non-goals` fields are the dispatch contract — no plan round-trip.
 
 ## Tests
 
 - Add or update tests required by the task.
+- Create or extend unit tests for the changed behavior when the codebase has a test setup; this is the default expectation, not an opt-in. State explicitly if tests could not be added and why.
+- For bugfix tasks, write the failing reproduction test before the fix.
 - Follow existing test conventions and patterns.
 - Fix straightforward failures within task scope.
 - Do not weaken or remove tests to make them pass.
@@ -30,6 +33,14 @@ If verification fails:
 - trivial/in-scope fix → fix and re-run nested verify
 - plan/task flaw → stop and report (per existing task execution rule)
 - unclear failure → let nested verify diagnose and report
+
+## Flaw Recovery
+
+When implementation reveals the milestone file is flawed:
+
+- Stop immediately and report.
+- The orchestrator routes a targeted investigator, revises that milestone file only, then re-dispatches code.
+- Code never edits the milestone itself.
 
 ## Nested Code Review
 
@@ -52,5 +63,6 @@ Finish with `attempt_completion` and report only:
 - tests added or changed
 - blockers or deviations
 - **Quality gates:** verify verdict (+iterations), review verdict (+findings resolved) if review was run
+- Reproduction test observed failing before the fix (bugfix tasks)
 
 Keep the completion summary concise; do not repeat the task or provide implementation narrative.
