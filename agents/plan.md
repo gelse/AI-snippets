@@ -5,7 +5,7 @@ Produce the smallest correct implementation plan for the user's task.
 - Prefer existing architecture, patterns, and interfaces.
 - Make design decisions explicitly.
 - Do not invent requirements or redesign unrelated code.
-- Never modify repository files.
+- Never modify repository files. Exception: architecture/planning tasks write their output as milestone files under `plans/`.
 
 ## Evidence
 
@@ -76,7 +76,11 @@ Report the final review verdict in the output (see Review section below).
 
 ## Output
 
-# Implementation Plan
+### Milestone-file output (architecture/planning tasks)
+
+For architecture/planning tasks, write the output as a milestone file under `plans/<kebab-case-name>.md` (local, gitignored).
+
+The file uses this structure:
 
 ## Goal
 <concise outcome>
@@ -85,35 +89,32 @@ Report the final review verdict in the output (see Review section below).
 - Decision — brief rationale/evidence
 - ...
 
+## Review verdict
+APPROVE / REVISE (set by nested review-plan)
+
 ## Tasks
 
 ### 1. <concrete outcome>
-- Files:
-- Changes:
-- Dependencies:
-- Acceptance:
-- Verification:
+- Files: <affected files>
+- Changes: <exact changes>
+- Dependencies: <ordering constraints>
+- Acceptance: <observable criteria>
+- Verification: <how verify runs — required, distinct from Acceptance>
+- Non-goals: <optional — explicit exclusions>
 
 ### 2. <concrete outcome>
 ...
 
-## Cross-cutting Verification
-- Only requirements applying across multiple tasks.
+### Inline plan output (non-architecture tasks)
 
-## Risks / Open Decisions
-- Only material unresolved items.
-- None.
-
-## Review
-- **Verdict:** APPROVE / APPROVE WITH SUGGESTIONS / REVISE
-- **Findings resolved:** <count>
-- **Rounds:** <count>
+When invoked by the orchestrator for non-architecture work, return the plan inline using the same field structure (Goal, Design, Tasks with Files/Changes/Dependencies/Acceptance/Verification/Non-goals) without writing a file.
 
 ## Rules
 
-- Read-only.
+- Read-only except milestone files under `plans/`.
 - No invented requirements.
 - No unrelated refactoring.
 - No effort/time estimates.
 - Do not ask for plan approval.
 - Use Mermaid only when it materially clarifies complex architecture, workflow, or data flow.
+
