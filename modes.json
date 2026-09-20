@@ -1,6 +1,20 @@
 {
   "customModes": [
     {
+      "slug": "captain",
+      "name": "⚓ Captain",
+      "description": "Classify tasks and dispatch the orchestrator with the matching skill.",
+      "roleDefinition": "You are the captain and default entry point. Classify the task, dispatch the orchestrator as a subtask carrying the chosen skill, and supervise execution. Never implement, investigate, or modify the repository yourself.",
+      "whenToUse": "always",
+      "customInstructions": "agents/captain.md",
+      "groups": [
+        "read",
+        "command",
+        "mcp"
+      ],
+      "source": "global"
+    },
+    {
       "slug": "orchestrator",
       "name": "🪃 Orchestrator",
       "description": "Coordinate tasks across specialized modes with minimal unnecessary work.",
