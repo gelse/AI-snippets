@@ -111,7 +111,8 @@ Milestone files live in `plans/` (local, gitignored). Each file is one implement
 
 - **Goal** — concise outcome.
 - **Design** — decisions and rationale.
-- **Review verdict** — APPROVE / APPROVE WITH SUGGESTIONS / REVISE (set by nested review-plan).
+- **Review verdict** — APPROVE / APPROVE WITH SUGGESTIONS / NEEDS CHANGES (set by nested review-plan).
+- **Risks / Open Decisions** (optional) — open questions or decision points requiring user input.
 - Per task:
   - **Files** — affected files.
   - **Changes** — exact changes.
@@ -129,9 +130,9 @@ The [`github-issue`](../skills/github-issue.md) skill combines the orchestrator'
 | Phase | What happens | Modes involved |
 |-------|-------------|----------------|
 | **1. Retrieve & Validate** | Fetch issue, comments, labels, linked PRs via `gh`. Stop if ambiguous. | orchestrator (reads only) |
-| **2. Feature Branch** | Create a branch referencing the issue. No code yet. | orchestrator (git via `execute_command`) |
+| **2. Feature Branch** | Create a branch referencing the issue, starting at the remote testing branch. No code yet. | orchestrator (git via `execute_command`) |
 | **3. Execute** | Run the workflow matching the issue type: full feature for multi-part issues, bugfix (reproduction test first) for defect reports, milestone implementation when a matching milestone file exists in plans/. | orchestrator → selected workflow |
-| **4. Commit, Push, PR** | Review final diff, commit, push, open PR referencing the issue. | orchestrator (git/gh via `execute_command`) |
+| **4. Commit, Push, PR** | Review final diff, commit, push, open PR to the testing branch referencing the issue. | orchestrator (git/gh via `execute_command`) |
 | **5. Report** | Summarize branch, implementation, tests, PR link, limitations. | orchestrator (synthesis) |
 
 ### What Makes This Autonomous

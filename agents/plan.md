@@ -90,7 +90,7 @@ The file uses this structure:
 - ...
 
 ## Review verdict
-APPROVE / APPROVE WITH SUGGESTIONS / REVISE (set by nested review-plan)
+APPROVE / APPROVE WITH SUGGESTIONS / NEEDS CHANGES (set by nested review-plan)
 
 ## Risks / Open Decisions
 <optional — open questions or decision points requiring user input>

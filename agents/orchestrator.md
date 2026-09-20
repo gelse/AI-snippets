@@ -52,7 +52,8 @@ Milestone files live in `plans/` (local, gitignored). Each file is one implement
 
 - **Goal** — concise outcome.
 - **Design** — decisions and rationale.
-- **Review verdict** — APPROVE / APPROVE WITH SUGGESTIONS / REVISE (set by nested review-plan).
+- **Review verdict** — APPROVE / APPROVE WITH SUGGESTIONS / NEEDS CHANGES (set by nested review-plan).
+- **Risks / Open Decisions** (optional) — open questions or decision points requiring user input.
 - Per task:
   - **Files** — affected files.
   - **Changes** — exact changes.
@@ -121,7 +122,7 @@ The orchestrator still dispatches a final end-to-end `verify` after all tasks co
 
 ### Verify failure handling
 
-- trivial/in-scope fix → `verify` fixes and re-verifies
+- obvious/in-scope failure → dispatch `code` to fix, then re-verify
 - implementation cause → dispatch `code`
 - design/architecture cause → `targeted investigator → plan (nested review-plan) → re-dispatch code → verify`
 - user decision required → escalate
