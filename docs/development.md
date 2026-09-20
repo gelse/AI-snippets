@@ -44,11 +44,13 @@ make help              # Show all available targets
 | `make install-zoo-local` | Install zoo skills and agents locally (project root) |
 | `make install-zoo-local-skills` | Install zoo skills locally |
 | `make install-zoo-local-agents` | Install zoo agents locally (`.roomodes`) |
-| `make install-zoo-global` | Install zoo skills and agents globally (`~/.roo/`) |
+| `make install-zoo-global` | Install zoo skills and agents globally (`~/.roo/` + Zoo Code globalStorage merge) |
 | `make install-zoo-global-skills` | Install zoo skills globally |
-| `make install-zoo-global-agents` | Install zoo agents globally |
+| `make install-zoo-global-agents` | Install zoo agents globally — overwrites `~/.roo/custom_modes.yaml` and **merges** into Zoo Code globalStorage |
 
 > ⚠️ **Overwrite warning:** `install-zoo-global-agents` **overwrites** `~/.roo/custom_modes.yaml` with the generated modes. Any existing global modes not present in the generated file will be lost. The CLI installer (`npx @gelse/ai-snippets install zoo --global`) **merges** instead — use it for production installs.
+>
+> **Zoo Code globalStorage:** If `~/.config/Code/User/globalStorage/zoocodeorganization.zoo-code/settings/` exists, the target also **merges** generated modes into `custom_modes.yaml` in that directory (matching slugs replaced, foreign entries kept, new slugs appended). If the directory is absent, a skip notice is printed and the target exits successfully. Override the destination with `make install-zoo-global-agents ZOO_GLOBALSTORAGE=/path/to/custom_modes.yaml`.
 
 ## verify.py Checks
 

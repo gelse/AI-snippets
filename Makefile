@@ -6,6 +6,7 @@ NPM    ?= npm
 VENV    = .venv
 STAMP   = $(VENV)/.stamp
 NPM_STAMP = .npm-stamp
+ZOO_GLOBALSTORAGE ?= $(HOME)/.config/Code/User/globalStorage/zoocodeorganization.zoo-code/settings/custom_modes.yaml
 
 .PHONY: help check-py verify zoo kilo opencode claude manifest all clean \
         check-node package-npx \
@@ -115,10 +116,16 @@ install-zoo-global-skills: zoo ## Install zoo skills globally
 		fi; \
 	done
 
-install-zoo-global-agents: zoo ## Install zoo agents globally
+install-zoo-global-agents: zoo ## Install zoo agents globally to ~/.roo and merge into Zoo Code globalStorage
 	@mkdir -p $(HOME)/.roo
 	@echo "⚠  Overwriting $(HOME)/.roo/custom_modes.yaml with generated modes"
 	@cp output/zoo/.roomodes $(HOME)/.roo/custom_modes.yaml
+	@if [ -d "$(dir $(ZOO_GLOBALSTORAGE))" ]; then \
+		echo "Merging generated modes into $(ZOO_GLOBALSTORAGE)"; \
+		$(VENV)/bin/python scripts/merge-modes.py output/zoo/.roomodes "$(ZOO_GLOBALSTORAGE)"; \
+	else \
+		echo "SKIP: Zoo Code globalStorage not found at $(dir $(ZOO_GLOBALSTORAGE))"; \
+	fi
 
 install-zoo-local-skills: zoo ## Install zoo skills locally
 	@mkdir -p .roo/skills

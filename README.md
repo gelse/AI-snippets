@@ -73,7 +73,7 @@ The installer writes to these locations depending on tool and scope:
 
 | Tool | Agents (global) | Agents (local) | Skills (global) | Skills (local) |
 |------|----------------|----------------|-----------------|----------------|
-| **zoo** | `~/.roo/custom_modes.yaml` (merged) | `.roomodes` | `~/.roo/skills/<name>.md` | `.roo/skills/<name>.md` |
+| **zoo** | `~/.roo/custom_modes.yaml` (overwritten) + Zoo Code globalStorage `custom_modes.yaml` (merged) | `.roomodes` | `~/.roo/skills/<name>.md` | `.roo/skills/<name>.md` |
 | **kilo** | `~/.config/kilo/agent/` (individual `.md` files) | `.kilocodemodes` | `~/.kilo/skills/<name>.md` | `.kilo/skills/<name>.md` |
 | **opencode** | `~/.config/opencode/agents/*.md` | `.opencode/agents/*.md` | `~/.config/opencode/skills/<name>.md` | `.opencode/skills/<name>.md` |
 | **claude** | `~/.claude/agents/*.md` | `.claude/agents/*.md` | `~/.claude/skills/<name>/SKILL.md` | `.claude/skills/<name>/SKILL.md` |
@@ -82,9 +82,9 @@ Directory-form skills (like `release`) also ship companion files (scripts, confi
 
 ### Merge Safety (Zoo Global)
 
-When installing zoo globally, `~/.roo/custom_modes.yaml` is **merged**, not overwritten. The installer parses the YAML preserving comments, `---` separators, and sibling keys. Modes with matching slugs are replaced, duplicates are removed, foreign (non-ai-snippets) modes are kept, and new modes are appended. A missing destination file is treated as a plain copy.
+When installing zoo globally, the CLI installer **merges** `~/.roo/custom_modes.yaml`, not overwrites. The installer parses the YAML preserving comments, `---` separators, and sibling keys. Modes with matching slugs are replaced, duplicates are removed, foreign (non-ai-snippets) modes are kept, and new modes are appended. A missing destination file is treated as a plain copy.
 
-> ⚠️ The legacy Makefile target `install-zoo-global-agents` **overwrites** `custom_modes.yaml`. Use the CLI installer instead — see [docs/development.md](docs/development.md) for details.
+The legacy Makefile target `install-zoo-global-agents` **overwrites** `~/.roo/custom_modes.yaml` but also **merges** into the Zoo Code globalStorage `custom_modes.yaml` (matching slugs replaced, foreign entries kept, new slugs appended). If the globalStorage directory is absent, a skip notice is printed and the target exits successfully. Override with `make install-zoo-global-agents ZOO_GLOBALSTORAGE=/path/to/custom_modes.yaml`. See [docs/development.md](docs/development.md) for details.
 
 ## How It Works
 
