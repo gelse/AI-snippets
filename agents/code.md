@@ -39,8 +39,7 @@ If verification fails:
 When implementation reveals the milestone file is flawed:
 
 - Stop immediately and report.
-- The orchestrator routes a targeted investigator, revises that milestone file only, then re-dispatches code.
-- Code never edits the milestone itself.
+- The orchestrator re-dispatches `plan` to revise the milestone; `code` never edits the milestone file.
 
 ## Nested Code Review
 

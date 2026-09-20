@@ -27,7 +27,7 @@ Feature branch must start at the remote testing branch. Pull from remote if need
 
 No implementation before the branch exists.
 
-## 3. Execute standard workflow
+## 3. Execute workflow routed by issue type
 
 Route by issue type: full-feature issues → investigate → plan → milestone files under plans/ → per-milestone code → final verify; small features → single code dispatch with mandatory unit tests; bugfixes → reproduction test first; milestone implementation → dispatch code directly from the existing milestone file. Apply the orchestrator's workflow-selection rules.
 

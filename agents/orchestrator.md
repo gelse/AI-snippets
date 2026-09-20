@@ -18,7 +18,7 @@
 | `verify` | Testing + diagnosis | Changes must be verified, tests are missing, or failures need diagnosis |
 | `orchestrator` | Routing + state + escalation | Always |
 
-> `review-plan`, `review-code` are still available modes but are now spawned as nested sub-tasks inside `plan` and `code` respectively, not dispatched by the orchestrator directly.
+> `review-plan`, `review-code` are available modes spawned as nested sub-tasks inside `plan` and `code` respectively, not dispatched by the orchestrator directly.
 
 ## Workflow Selection
 
@@ -30,7 +30,7 @@
 | **Small feature** | `code (nested verify; unit tests required; nested review-code when risky or externally visible)` |
 | **Architecture / planning** | `investigator → plan (nested review-plan) → milestone files under plans/` — no implementation dispatch |
 | **Bugfix** | `code (failing reproduction test first → fix → nested verify) → final verify` |
-| **Implementation from milestone** | `code per task directly from plans/<milestone>.md → final verify` — skip investigator/plan; milestone not yet reviewed → nested review-plan on the milestone file first; milestone flawed mid-implementation → targeted investigator → revise that milestone file only → re-implement |
+| **Implementation from milestone** | `code per task directly from plans/<milestone>.md → final verify` — skip investigator/plan; milestone not yet reviewed → dispatch `plan` with the existing milestone file (plan runs its nested review-plan loop); milestone flawed mid-implementation → targeted investigator → plan (nested review-plan) → re-dispatch `code` |
 
 ### Failure Recovery
 
@@ -39,20 +39,20 @@
 | Obvious failure | `code → verify` |
 | Unclear/unexpected failure | `verify` |
 | Verify finds implementation cause | `code → verify` |
-| Verify finds design issue | `targeted investigator → revise affected milestone file → code → verify` |
-| Plan review finds material evidence gap | `targeted investigator → revise affected milestone file → code → verify` |
+| Verify finds design issue | `targeted investigator → plan (nested review-plan) → re-dispatch code → verify` |
+| Plan review finds material evidence gap | `targeted investigator → plan (nested review-plan) → re-review` |
 
 Do not add workflow stages without a reason.
 
 ## Milestones (plans/)
 
-Milestone files live in `plans/` (local, gitignored). Each file is one implementation-ready unit produced by `plan` or revised by the orchestrator.
+Milestone files live in `plans/` (local, gitignored). Each file is one implementation-ready unit produced or revised by `plan`.
 
 **Format** (per file):
 
 - **Goal** — concise outcome.
 - **Design** — decisions and rationale.
-- **Review verdict** — APPROVE / REVISE (set by nested review-plan).
+- **Review verdict** — APPROVE / APPROVE WITH SUGGESTIONS / REVISE (set by nested review-plan).
 - Per task:
   - **Files** — affected files.
   - **Changes** — exact changes.
@@ -115,7 +115,7 @@ When dispatched, `code` owns its task's quality gates:
 - **Nested verify**: after implementation, spawn a `verify` sub-task scoped to this task only (changed files, acceptance criteria, task design decisions). Fix CRITICAL/WARNING findings and re-run until clean.
 - **Nested review-code**: for non-trivial, risky, or externally visible changes, spawn a `review-code` sub-task scoped to the task's diff. Pass the task's test expectations to review-code. Review checks unit tests exist where required and meaningfully test the changed behavior. Resolve CRITICAL/WARNING findings before completing. SUGGESTIONs may be applied or noted.
 
-The orchestrator no longer reviews individual task diffs. It relies on per-task gate results reported in `code`'s completion summary.
+The orchestrator relies on per-task gate results reported in `code`'s completion summary.
 
 The orchestrator still dispatches a final end-to-end `verify` after all tasks complete (cross-task integration, regressions) and escalates or loops per the failure-handling tree below.
 
@@ -123,7 +123,7 @@ The orchestrator still dispatches a final end-to-end `verify` after all tasks co
 
 - trivial/in-scope fix → `verify` fixes and re-verifies
 - implementation cause → dispatch `code`
-- design/architecture cause → `targeted investigator → revise affected milestone file → code → verify`
+- design/architecture cause → `targeted investigator → plan (nested review-plan) → re-dispatch code → verify`
 - user decision required → escalate
 
 ## Execution State

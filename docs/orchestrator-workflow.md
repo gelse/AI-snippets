@@ -4,7 +4,7 @@ This document covers the orchestrator work loop, the `github-issue` autonomous p
 
 ## The Orchestrator's Work Loop
 
-The orchestrator mode never writes code itself. It acts as a strategic coordinator, delegating every concrete action to a specialized subtask and retaining only orchestration-level context. Any agent can now spawn nested sub-tasks via `new_task`, keeping review/verify context small by scoping it to individual tasks.
+The orchestrator mode never writes code itself. It acts as a strategic coordinator, delegating every concrete action to a specialized subtask and retaining only orchestration-level context. Any agent can spawn nested sub-tasks via `new_task`, keeping review/verify context small by scoping it to individual tasks.
 
 ### Task-Type Workflows
 
@@ -16,7 +16,7 @@ The orchestrator selects a workflow based on the task type. Each row describes t
 | **Small feature** | `code (nested verify; unit tests required; nested review-code when risky or externally visible)` |
 | **Architecture / planning** | `investigator → plan (nested review-plan) → milestone files under plans/` — no implementation dispatch |
 | **Bugfix** | `code (failing reproduction test first → fix → nested verify) → final verify` |
-| **Implementation from milestone** | `code per task directly from plans/<milestone>.md → final verify` — skip investigator/plan; milestone not yet reviewed → nested review-plan on the milestone file first; milestone flawed mid-implementation → targeted investigator → revise that milestone file only → re-implement |
+| **Implementation from milestone** | `code per task directly from plans/<milestone>.md → final verify` — skip investigator/plan; milestone not yet reviewed → dispatch `plan` with the existing milestone file (plan runs its nested review-plan loop); milestone flawed mid-implementation → targeted investigator → plan (nested review-plan) → re-dispatch `code` |
 
 The flowchart below shows the **full-feature** branch — the most complete workflow.
 
@@ -66,13 +66,13 @@ Per-task failures are handled inside the `code` sub-task via nested quality gate
 1. Obvious, in-scope failure → let `code` fix it.
 2. Unclear or out-of-scope → dispatch `verify`.
 3. `verify` finds implementation fix → dispatch `code`.
-4. `verify` finds design issue or new evidence → targeted investigator → revise affected milestone file → dispatch `code`.
+4. `verify` finds design issue or new evidence → targeted investigator → plan (nested review-plan) → re-dispatch `code`.
 5. Requires human decision → escalate to user.
 6. Re-verify after every fix.
 
 ## Milestones
 
-Milestone files live in `plans/` (local, gitignored). Each file is one implementation-ready unit produced by `plan` or revised by the orchestrator.
+Milestone files live in `plans/` (local, gitignored). Each file is one implementation-ready unit produced or revised by `plan`.
 
 **File naming:** `plans/<kebab-case-name>.md`
 
@@ -80,7 +80,7 @@ Milestone files live in `plans/` (local, gitignored). Each file is one implement
 
 - **Goal** — concise outcome.
 - **Design** — decisions and rationale.
-- **Review verdict** — APPROVE / REVISE (set by nested review-plan).
+- **Review verdict** — APPROVE / APPROVE WITH SUGGESTIONS / REVISE (set by nested review-plan).
 - Per task:
   - **Files** — affected files.
   - **Changes** — exact changes.
