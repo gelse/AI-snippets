@@ -29,7 +29,7 @@ No implementation before the branch exists.
 
 ## 3. Execute standard workflow
 
-Run the standard orchestrator workflow.
+Route by issue type: full-feature issues → investigate → plan → milestone files under plans/ → per-milestone code → final verify; small features → single code dispatch with mandatory unit tests; bugfixes → reproduction test first; milestone implementation → dispatch code directly from the existing milestone file. Apply the orchestrator's workflow-selection rules.
 
 ## 4. Commit, Push, and Create PR
 
