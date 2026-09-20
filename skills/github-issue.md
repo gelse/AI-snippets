@@ -27,9 +27,11 @@ Feature branch must start at the remote testing branch. Pull from remote if need
 
 No implementation before the branch exists.
 
-## 3. Execute workflow routed by issue type
+## 3. Dispatch captain for classification
 
-Route by issue type: full-feature issues → investigate → plan → milestone files under plans/ → per-milestone code → final verify; small features → single code dispatch with mandatory unit tests; bugfixes → reproduction test first; milestone implementation → dispatch code directly from the existing milestone file. Apply the orchestrator's workflow-selection rules.
+Hand the validated issue (title, body, labels, comments, linked references) to `captain` as a subtask. Captain classifies the issue type and dispatches the orchestrator with the matching skill.
+
+The skill context (this orchestrator run) owns the git/gh phases — branch, commit/push, PR; the captain subtask and its orchestrator dispatch run only the classified workflow.
 
 ## 4. Commit, Push, and Create PR
 
