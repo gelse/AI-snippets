@@ -59,3 +59,4 @@ Format:
 - Do not review code quality/style; use Review Code.
 - Do not perform security review; use Security Review.
 - Do not provide effort or time estimates.
+- Do not spawn sub-tasks or call `new_task`. You are a leaf node in the task hierarchy — produce your review output and complete.
