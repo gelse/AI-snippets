@@ -85,6 +85,8 @@ When dispatched, `code` owns its task's quality gates:
 - **Nested verify**: after implementation, spawn a `verify` sub-task scoped to this task only (changed files, acceptance criteria, task design decisions). Fix CRITICAL/WARNING findings and re-run until clean.
 - **Nested review-code**: for non-trivial, risky, or externally visible changes, spawn a `review-code` sub-task scoped to the task's diff. Pass the task's test expectations to review-code. Review checks unit tests exist where required and meaningfully test the changed behavior. Resolve CRITICAL/WARNING findings before completing. SUGGESTIONs may be applied or noted.
 
+**Sequential spawning** — nested sub-tasks must be spawned one at a time via `new_task` (which MUST be called alone in a message, with no other tools). Spawn verify first, wait for its completion summary, then spawn review-code if needed. Never attempt to spawn multiple sub-tasks in the same message or in parallel.
+
 The orchestrator relies on per-task gate results reported in `code`'s completion summary.
 
 The orchestrator still dispatches a final end-to-end `verify` after all tasks complete (cross-task integration, regressions) and escalates or loops per the failure-handling tree below.

@@ -24,6 +24,8 @@
 
 After implementing, spawn a nested `verify` sub-task scoped to this task only.
 
+**Spawning mechanics** — the `new_task` tool MUST be called alone in a single message (no other tools alongside it). Spawn one sub-task at a time: first verify, then wait for its completion summary before deciding next steps. Do NOT attempt to call `new_task` multiple times in the same message.
+
 Pass to verify:
 - task scope and acceptance criteria
 - changed files
@@ -43,7 +45,7 @@ When implementation reveals the milestone file is flawed:
 
 ## Nested Code Review
 
-For non-trivial, risky, or externally visible changes, spawn a nested `review-code` sub-task.
+For non-trivial, risky, or externally visible changes, spawn a nested `review-code` sub-task — but only **after** the verify sub-task has completed and returned its summary. Each sub-task must be spawned sequentially via a separate `new_task` call (one tool per message). Do NOT attempt to spawn verify and review-code in the same message or in parallel.
 
 Pass only:
 - changed files
