@@ -75,7 +75,7 @@ The installer writes to these locations depending on tool and scope:
 |------|----------------|----------------|-----------------|----------------|
 | **zoo** | `~/.roo/custom_modes.yaml` (overwritten) + Zoo Code globalStorage `custom_modes.yaml` (merged) | `.roomodes` | `~/.roo/skills/<name>.md` | `.roo/skills/<name>.md` |
 | **kilo** | `~/.config/kilo/agent/` (individual `.md` files) | `.kilocodemodes` | `~/.kilo/skills/<name>.md` | `.kilo/skills/<name>.md` |
-| **opencode** | `~/.config/opencode/agents/*.md` | `.opencode/agents/*.md` | `~/.config/opencode/skills/<name>.md` | `.opencode/skills/<name>.md` |
+| **opencode** | `~/.config/opencode/agents/*.md` | `.opencode/agents/*.md` | `~/.config/opencode/skills/<name>/SKILL.md` | `.opencode/skills/<name>/SKILL.md` |
 | **claude** | `~/.claude/agents/*.md` | `.claude/agents/*.md` | `~/.claude/skills/<name>/SKILL.md` | `.claude/skills/<name>/SKILL.md` |
 
 Directory-form skills (like `release`) also ship companion files (scripts, configs) alongside the runbook.

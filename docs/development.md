@@ -52,6 +52,14 @@ make help              # Show all available targets
 >
 > **Zoo Code globalStorage:** If `~/.config/Code/User/globalStorage/zoocodeorganization.zoo-code/settings/` exists, the target also **merges** generated modes into `custom_modes.yaml` in that directory (matching slugs replaced, foreign entries kept, new slugs appended). If the directory is absent, a skip notice is printed and the target exits successfully. Override the destination with `make install-zoo-global-agents ZOO_GLOBALSTORAGE=/path/to/custom_modes.yaml`.
 
+### OpenCode Install Targets
+
+| Target | What it does |
+|--------|-------------|
+| `make install-opencode-global` | Install opencode agents and skills globally — agents to `~/.config/opencode/agents/*.md`, skills to `~/.config/opencode/skills/<name>/SKILL.md` (directory-form skills ship companion files alongside `SKILL.md`) |
+
+> The CLI installer (`npx @gelse/ai-snippets install opencode --global`) writes skills as flat `~/.config/opencode/skills/<name>.md` files, which OpenCode does not discover — its skill pattern is `{skill,skills}/**/SKILL.md`, so skills must live in a per-name directory as `SKILL.md`. Use `make install-opencode-global` or move the emitted files accordingly.
+
 ## verify.py Checks
 
 [`scripts/verify.py`](../scripts/verify.py) validates `modes.json` and performs a round-trip fidelity check:

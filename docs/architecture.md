@@ -66,7 +66,7 @@ OpenCode scans config directories for `{agent,agents}/**/*.md` and `{skill,skill
 | Artifact | Emitted | Tool expects |
 |----------|---------|-------------|
 | Agents | `output/opencode/agents/*.md` | `.opencode/agents/*.md` (local) or `~/.config/opencode/agents/*.md` (global) |
-| Skills | `output/opencode/skill/<name>.md` | `.opencode/skills/<name>.md` (local) or `~/.config/opencode/skills/<name>.md` (global) |
+| Skills | `output/opencode/skill/<name>.md` | `.opencode/skills/<name>/SKILL.md` (local) or `~/.config/opencode/skills/<name>/SKILL.md` (global) |
 
 ### Claude Code
 
