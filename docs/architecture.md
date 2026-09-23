@@ -61,6 +61,8 @@ Generated `output/` files are not committed — regenerate with `make all`.
 
 ### OpenCode
 
+OpenCode scans config directories for `{agent,agents}/**/*.md` and `{skill,skills}/**/SKILL.md` — both singular and plural directory names are accepted.
+
 | Artifact | Emitted | Tool expects |
 |----------|---------|-------------|
 | Agents | `output/opencode/agents/*.md` | `.opencode/agents/*.md` (local) or `~/.config/opencode/agents/*.md` (global) |

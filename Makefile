@@ -13,7 +13,8 @@ ZOO_GLOBALSTORAGE ?= $(HOME)/.config/Code/User/globalStorage/zoocodeorganization
         package-npx-zoo package-npx-kilo package-npx-opencode package-npx-claude \
         install-zoo-global install-zoo-local \
         install-zoo-global-skills install-zoo-global-agents \
-        install-zoo-local-skills install-zoo-local-agents
+        install-zoo-local-skills install-zoo-local-agents \
+        install-opencode-global
 
 help: ## Show this help
 	@echo "Usage: make <target>"
@@ -140,3 +141,18 @@ install-zoo-local-skills: zoo ## Install zoo skills locally
 
 install-zoo-local-agents: zoo ## Install zoo agents locally
 	@cp output/zoo/.roomodes .roomodes
+
+# ── OpenCode install targets ───────────────────────────────────────
+
+install-opencode-global: opencode ## Install opencode agents and skills globally
+	@mkdir -p $(HOME)/.config/opencode/agents
+	@cp output/opencode/agents/*.md $(HOME)/.config/opencode/agents/
+	@mkdir -p $(HOME)/.config/opencode/skills
+	@for f in output/opencode/skill/*.md; do \
+		n=$$(basename "$$f" .md); \
+		mkdir -p "$(HOME)/.config/opencode/skills/$$n"; \
+		cp "$$f" "$(HOME)/.config/opencode/skills/$$n/SKILL.md"; \
+		if [ -d "output/opencode/skill/$$n" ]; then \
+			cp output/opencode/skill/$$n/* "$(HOME)/.config/opencode/skills/$$n/" || true; \
+		fi; \
+	done
