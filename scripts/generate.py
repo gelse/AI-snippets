@@ -272,7 +272,7 @@ def emit_opencode(data, out_dir):
 
         frontmatter = {
             "description": f"{desc} (Use when: {when})",
-            "mode": "subagent",
+            "mode": "all",
         }
 
         if not has_edit_group(groups):

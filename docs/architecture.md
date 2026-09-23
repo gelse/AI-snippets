@@ -65,6 +65,8 @@ OpenCode scans config directories for `{agent,agents}/**/*.md` and `{skill,skill
 
 The global config directory follows the XDG Base Directory specification: `$XDG_CONFIG_HOME/opencode/` if `XDG_CONFIG_HOME` is set, otherwise `~/.config/opencode/`. The `install-opencode-global` Makefile target respects this via the `OPENCODE_CONFIG_HOME` variable.
 
+Generated agent `.md` files include YAML frontmatter with `mode: all`, which makes each agent available both as a subagent and in the primary TUI picker. Agents with `mode: subagent` would be filtered out of the TUI picker by opencode.
+
 | Artifact | Emitted | Tool expects |
 |----------|---------|-------------|
 | Agents | `output/opencode/agents/*.md` | `.opencode/agents/*.md` (local) or `$OPENCODE_CONFIG_HOME/opencode/agents/*.md` (global) |

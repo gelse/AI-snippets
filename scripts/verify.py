@@ -240,12 +240,72 @@ def round_trip(data):
 
 
 # ---------------------------------------------------------------------------
+# (c) OpenCode agents: mode must be "all" (visible in TUI picker)
+# ---------------------------------------------------------------------------
+
+def verify_opencode_agent_modes():
+    """Emit opencode agents to a temp dir and assert frontmatter mode is 'all'.
+
+    opencode's TUI agent picker filters ``agent.mode !== "subagent"``.
+    Agents emitted with ``mode: subagent`` are therefore invisible to users.
+    The correct value is ``mode: all`` (available both as subagent and in the
+    primary TUI picker).
+    """
+    print("[c] OpenCode agent mode verification")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sys.path.insert(0, str(REPO_ROOT / "scripts"))
+        from generate import emit_opencode, resolve_custom_instructions
+
+        json_path = REPO_ROOT / "modes.json"
+        with open(json_path) as f:
+            data = json.load(f)
+
+        resolved = json.loads(json.dumps(data))
+        resolved["customModes"] = resolve_custom_instructions(resolved["customModes"])
+        emit_opencode(resolved, Path(tmpdir))
+
+        agents_dir = Path(tmpdir) / "opencode" / "agents"
+        if not agents_dir.exists():
+            fail("OpenCode emitter did not create agents/ directory")
+
+        agent_files = sorted(agents_dir.glob("*.md"))
+        if not agent_files:
+            fail("No agent .md files found in emitted opencode/agents/")
+
+        for agent_file in agent_files:
+            content = agent_file.read_text()
+            # Parse frontmatter between --- delimiters
+            if not content.startswith("---\n"):
+                fail(f"Agent {agent_file.name}: missing frontmatter")
+
+            end = content.index("---", 4)
+            fm_text = content[4:end]
+
+            m = re.search(r"^mode:\s*(.+)$", fm_text, re.MULTILINE)
+            if not m:
+                fail(f"Agent {agent_file.name}: missing 'mode' field in frontmatter")
+
+            mode_value = m.group(1).strip().strip('"').strip("'")
+            if mode_value != "all":
+                fail(
+                    f"Agent {agent_file.name}: mode is '{mode_value}', "
+                    f"expected 'all' (subagent hides agent from TUI picker)"
+                )
+
+            ok(f"{agent_file.name}: mode={mode_value}")
+
+    ok(f"All {len(agent_files)} opencode agents have mode: all")
+
+
+# ---------------------------------------------------------------------------
 # main
 # ---------------------------------------------------------------------------
 
 def main():
     data = validate_structure()
     round_trip(data)
+    verify_opencode_agent_modes()
     print("\nAll checks passed.")
 
 
