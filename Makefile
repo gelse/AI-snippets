@@ -7,6 +7,7 @@ VENV    = .venv
 STAMP   = $(VENV)/.stamp
 NPM_STAMP = .npm-stamp
 ZOO_GLOBALSTORAGE ?= $(HOME)/.config/Code/User/globalStorage/zoocodeorganization.zoo-code/settings/custom_modes.yaml
+OPENCODE_CONFIG_HOME ?= $(if $(XDG_CONFIG_HOME),$(XDG_CONFIG_HOME),$(HOME)/.config)
 
 .PHONY: help check-py verify zoo kilo opencode claude manifest all clean \
         check-node package-npx \
@@ -145,14 +146,14 @@ install-zoo-local-agents: zoo ## Install zoo agents locally
 # ── OpenCode install targets ───────────────────────────────────────
 
 install-opencode-global: opencode ## Install opencode agents and skills globally
-	@mkdir -p $(HOME)/.config/opencode/agents
-	@cp output/opencode/agents/*.md $(HOME)/.config/opencode/agents/
-	@mkdir -p $(HOME)/.config/opencode/skills
+	@mkdir -p $(OPENCODE_CONFIG_HOME)/opencode/agents
+	@cp output/opencode/agents/*.md $(OPENCODE_CONFIG_HOME)/opencode/agents/
+	@mkdir -p $(OPENCODE_CONFIG_HOME)/opencode/skills
 	@for f in output/opencode/skill/*.md; do \
 		n=$$(basename "$$f" .md); \
-		mkdir -p "$(HOME)/.config/opencode/skills/$$n"; \
-		cp "$$f" "$(HOME)/.config/opencode/skills/$$n/SKILL.md"; \
+		mkdir -p "$(OPENCODE_CONFIG_HOME)/opencode/skills/$$n"; \
+		cp "$$f" "$(OPENCODE_CONFIG_HOME)/opencode/skills/$$n/SKILL.md"; \
 		if [ -d "output/opencode/skill/$$n" ]; then \
-			cp output/opencode/skill/$$n/* "$(HOME)/.config/opencode/skills/$$n/" || true; \
+			cp output/opencode/skill/$$n/* "$(OPENCODE_CONFIG_HOME)/opencode/skills/$$n/" || true; \
 		fi; \
 	done

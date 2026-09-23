@@ -63,10 +63,12 @@ Generated `output/` files are not committed — regenerate with `make all`.
 
 OpenCode scans config directories for `{agent,agents}/**/*.md` and `{skill,skills}/**/SKILL.md` — both singular and plural directory names are accepted.
 
+The global config directory follows the XDG Base Directory specification: `$XDG_CONFIG_HOME/opencode/` if `XDG_CONFIG_HOME` is set, otherwise `~/.config/opencode/`. The `install-opencode-global` Makefile target respects this via the `OPENCODE_CONFIG_HOME` variable.
+
 | Artifact | Emitted | Tool expects |
 |----------|---------|-------------|
-| Agents | `output/opencode/agents/*.md` | `.opencode/agents/*.md` (local) or `~/.config/opencode/agents/*.md` (global) |
-| Skills | `output/opencode/skill/<name>.md` | `.opencode/skills/<name>/SKILL.md` (local) or `~/.config/opencode/skills/<name>/SKILL.md` (global) |
+| Agents | `output/opencode/agents/*.md` | `.opencode/agents/*.md` (local) or `$OPENCODE_CONFIG_HOME/opencode/agents/*.md` (global) |
+| Skills | `output/opencode/skill/<name>.md` | `.opencode/skills/<name>/SKILL.md` (local) or `$OPENCODE_CONFIG_HOME/opencode/skills/<name>/SKILL.md` (global) |
 
 ### Claude Code
 
