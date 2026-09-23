@@ -69,7 +69,7 @@ node dist/cli.cjs install <tool> [options]
 
 ## Per-Tool Install Paths
 
-The installer writes to these locations depending on tool and scope:
+The Makefile install targets and CLI installer write to these locations depending on tool and scope. OpenCode skills require the directory form (`<name>/SKILL.md`); the CLI installer currently emits flat `<name>.md` files which OpenCode ignores — use `make install-opencode-global` instead.
 
 | Tool | Agents (global) | Agents (local) | Skills (global) | Skills (local) |
 |------|----------------|----------------|-----------------|----------------|

@@ -5,9 +5,9 @@
 ### Fixed
 - Duplicate entries when re-installing zoo global modes: [`mergeModesYaml()`](src/merge.ts) replaced the stale-index `existingSlugs` splice with a single-pass `filter()` by slug, so repeated installs no longer duplicate generated slugs and pre-existing duplicates are cleaned up.
 - OpenCode skills documentation: [`docs/architecture.md`](docs/architecture.md) and [`README.md`](README.md) claimed OpenCode expects flat `skills/<name>.md` files. OpenCode's skill discovery only matches `{skill,skills}/**/SKILL.md` (per-name directory containing `SKILL.md`), so the documented destination now reflects the directory form.
-- `make install-opencode-global` now installs skills in the layout OpenCode actually discovers (`~/.config/opencode/skills/<name>/SKILL.md`) instead of the flat form. Note the CLI installer path still emits flat skills, which OpenCode ignores.
 
 ### Added
+- `make install-opencode-global` (new) installs agents and skills globally in the layout OpenCode discovers (`~/.config/opencode/skills/<name>/SKILL.md`); note the CLI installer still emits flat skills, which OpenCode ignores.
 - `scripts/smoke-test-double-install.sh` — double-install regression test asserting 12 slugs (11 generated + 1 foreign), no duplicates, correct `replaced`/`kept`, preserved foreign order, repeat-install stability, and the empty-`customModes` edge case.
 - Step 7 in `scripts/smoke-test.sh` — inline merge-idempotency gate: double install into a seeded `$HOME` must yield 12 unique slugs with the foreign mode kept and never listed as replaced.
 - `install-manifest.json` emitter in [`generate.py`](scripts/generate.py) and a `manifest` Makefile target (included in `all`) — writes `output/install-manifest.json` declaring each tool's artifact source paths and local/global destinations for the installer CLI.
