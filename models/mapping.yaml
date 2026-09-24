@@ -41,6 +41,11 @@ model-mapping:
       model: glm-5.3-flash
       fallbacks:
         - Qwen3.8-27B
+    - agent: lieutenant
+      model: mimo-v2.6-pro
+      fallbacks:
+        - minimax-m3
+    # deprecated: replaced by 'lieutenant' — kept for documentation consistency with modes.json
     - agent: orchestrator
       model: mimo-v2.6-pro
       fallbacks:
