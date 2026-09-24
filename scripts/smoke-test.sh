@@ -217,7 +217,7 @@ customModes:
     roleDefinition: You are a foreign test mode.
 YAML
 
-# First install (zoo writes 11 modes)
+# First install (zoo writes 13 modes)
 HOME="$TMP_HOME6" node "$CLI" install zoo --global --yes
 
 # Second install (must not duplicate slugs)
@@ -227,10 +227,10 @@ MODES_FILE="$TMP_HOME6/.roo/custom_modes.yaml"
 SLUGS=$(grep -E '^[[:space:]]*(- )?slug:' "$MODES_FILE" \
   | sed -E 's/^[[:space:]]*(- )?slug:[[:space:]]*//' | tr -d '"')
 
-# Count must be exactly 12 (11 zoo + 1 foreign)
+# Count must be exactly 14 (13 zoo + 1 foreign)
 SLUG_COUNT=$(echo "$SLUGS" | wc -l)
-if [ "$SLUG_COUNT" -ne 12 ]; then
-  echo "FAIL: Expected 12 slugs after double install"
+if [ "$SLUG_COUNT" -ne 14 ]; then
+  echo "FAIL: Expected 14 slugs after double install"
   exit 1
 fi
 
@@ -264,7 +264,7 @@ if echo "$REPLACED_LINE" | grep -q 'my-foreign-mode'; then
   exit 1
 fi
 
-echo "Step 7: PASS (double install yields 12 unique slugs, foreign mode kept)"
+echo "Step 7: PASS (double install yields 14 unique slugs, foreign mode kept)"
 echo ""
 
 echo "=== All smoke tests passed ==="
