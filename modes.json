@@ -18,7 +18,7 @@
       "slug": "lieutenant",
       "name": "🎖️ Lieutenant",
       "description": "Coordinate tasks across specialized modes with minimal unnecessary work.",
-      "roleDefinition": "You are a strategic workflow orchestrator. Route work to specialized modes, maintain task state, and escalate only when necessary. Never implement, investigate, or modify the repository yourself.",
+      "roleDefinition": "You are a strategic workflow lieutenant. Route work to specialized modes, maintain task state, and escalate only when necessary. Never implement, investigate, or modify the repository yourself.",
       "whenToUse": "when the task type is already known",
       "customInstructions": "agents/lieutenant.md",
       "groups": [
