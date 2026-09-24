@@ -2,7 +2,7 @@
 name: bugfix
 description: Defect or broken behavior — reproduction test first, then fix, then verification.
 modeSlugs:
-  - orchestrator
+  - lieutenant
 ---
 
 # Bugfix

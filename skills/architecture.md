@@ -2,7 +2,7 @@
 name: architecture
 description: Plan-only output producing milestone files under plans/ — no implementation dispatch.
 modeSlugs:
-  - orchestrator
+  - lieutenant
 ---
 
 # Architecture

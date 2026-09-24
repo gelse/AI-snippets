@@ -2,7 +2,7 @@
 name: github-issue
 description: Resolve a GitHub issue end-to-end and open a PR.
 modeSlugs:
-  - orchestrator
+  - lieutenant
 argument-hint: issue-number
 ---
 

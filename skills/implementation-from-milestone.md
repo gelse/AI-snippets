@@ -2,7 +2,7 @@
 name: implementation-from-milestone
 description: Execute tasks directly from an approved or unreviewed milestone file under plans/.
 modeSlugs:
-  - orchestrator
+  - lieutenant
 ---
 
 # Implementation from Milestone

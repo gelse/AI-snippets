@@ -2,7 +2,7 @@
 name: small-feature
 description: Single, contained, obvious change implemented in one code dispatch with mandatory unit tests.
 modeSlugs:
-  - orchestrator
+  - lieutenant
 ---
 
 # Small Feature

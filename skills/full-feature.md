@@ -2,7 +2,7 @@
 name: full-feature
 description: Multi-part, design-heavy work requiring investigation, planning, implementation, and verification.
 modeSlugs:
-  - orchestrator
+  - lieutenant
 ---
 
 # Full Feature
