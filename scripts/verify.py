@@ -26,6 +26,7 @@ REQUIRED_MODE_KEYS = {
     "customInstructions",
     "groups",
     "source",
+    "instantiation",
 }
 
 REQUIRED_TOP_KEYS = {"customModes", "skills"}
@@ -97,6 +98,14 @@ def validate_structure():
             fail(f"Mode '{slug}' agent file not found: {ci_path}")
         if not ci_path.read_text().strip():
             fail(f"Mode '{slug}' agent file is empty: {ci_path}")
+
+        # instantiation value check
+        inst = mode.get("instantiation")
+        if inst not in {"primary", "subagent", "all"}:
+            fail(
+                f"Mode '{slug}' instantiation must be one of "
+                f"'primary', 'subagent', 'all'; got '{inst}'"
+            )
 
         # Groups shape: list of strings or [str, dict]
         groups = mode.get("groups", [])
@@ -240,16 +249,17 @@ def round_trip(data):
 
 
 # ---------------------------------------------------------------------------
-# (c) OpenCode agents: mode must be "all" (visible in TUI picker)
+# (c) OpenCode agents: mode must match the mode's instantiation value
 # ---------------------------------------------------------------------------
 
 def verify_opencode_agent_modes():
-    """Emit opencode agents to a temp dir and assert frontmatter mode is 'all'.
+    """Emit opencode agents to a temp dir and assert frontmatter mode matches
+    the mode's ``instantiation`` value (defaulting to ``all`` when absent).
 
-    opencode's TUI agent picker filters ``agent.mode !== "subagent"``.
-    Agents emitted with ``mode: subagent`` are therefore invisible to users.
-    The correct value is ``mode: all`` (available both as subagent and in the
-    primary TUI picker).
+    The opencode emitter writes ``mode: <instantiation>`` so each agent's
+    visibility is driven by modes.json: ``primary`` agents appear in the
+    primary TUI picker, ``subagent`` agents are only invocable as subagents,
+    and ``all`` agents are available in both places.
     """
     print("[c] OpenCode agent mode verification")
 
@@ -287,15 +297,24 @@ def verify_opencode_agent_modes():
                 fail(f"Agent {agent_file.name}: missing 'mode' field in frontmatter")
 
             mode_value = m.group(1).strip().strip('"').strip("'")
-            if mode_value != "all":
+
+            slug = agent_file.stem
+            source_mode = next(
+                (m for m in data["customModes"] if m["slug"] == slug), None
+            )
+            if source_mode is None:
+                fail(f"Agent {agent_file.name}: no matching mode in modes.json")
+
+            expected = source_mode.get("instantiation", "all")
+            if mode_value != expected:
                 fail(
                     f"Agent {agent_file.name}: mode is '{mode_value}', "
-                    f"expected 'all' (subagent hides agent from TUI picker)"
+                    f"expected '{expected}' (from instantiation)"
                 )
 
             ok(f"{agent_file.name}: mode={mode_value}")
 
-    ok(f"All {len(agent_files)} opencode agents have mode: all")
+    ok(f"All {len(agent_files)} opencode agents match their instantiation value")
 
 
 # ---------------------------------------------------------------------------
