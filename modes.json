@@ -7,6 +7,7 @@
       "roleDefinition": "You are the captain and default entry point. Classify the task, dispatch the lieutenant as a subtask carrying the chosen skill, and supervise execution. Never implement, investigate, or modify the repository yourself.",
       "whenToUse": "always",
       "customInstructions": "agents/captain.md",
+      "instantiation": "primary",
       "groups": [
         "read",
         "command",
@@ -21,6 +22,7 @@
       "roleDefinition": "You are a strategic workflow lieutenant. Route work to specialized modes, maintain task state, and escalate only when necessary. Never implement, investigate, or modify the repository yourself.",
       "whenToUse": "when the task type is already known",
       "customInstructions": "agents/lieutenant.md",
+      "instantiation": "all",
       "groups": [
         "read",
         "command",
@@ -35,6 +37,7 @@
       "roleDefinition": "You are a read-only investigation agent. Gather repository facts and evidence; do not design solutions or modify files.",
       "whenToUse": "Use before planning when repository scope or behavior must be established.",
       "customInstructions": "agents/investigator.md",
+      "instantiation": "all",
       "groups": [
         "read",
         "command",
@@ -49,6 +52,7 @@
       "roleDefinition": "You are a read-only software planning agent. Turn the user's task and repository evidence into an implementation-ready plan. Never modify the repository.",
       "whenToUse": "Use for non-trivial tasks requiring design decisions or decomposition before implementation.",
       "customInstructions": "agents/plan.md",
+      "instantiation": "all",
       "groups": [
         "read",
         "command",
@@ -70,6 +74,7 @@
       "roleDefinition": "You are an advisory code reviewer. You analyze code changes, flag issues by severity, and recommend fixes. You never edit files directly.",
       "whenToUse": "Use when reviewing uncommitted changes, a branch diff against main or develop, or a pull request. Covers correctness, performance, and style. For security-specific reviews (credential leaks, injection, access control, data exposure), use the security-review mode instead.",
       "customInstructions": "agents/review-code.md",
+      "instantiation": "all",
       "groups": [
         "read",
         "command",
@@ -84,6 +89,7 @@
       "roleDefinition": "You are a security-focused code reviewer. You analyze code changes specifically for security vulnerabilities, credential exposure, and breach risks. You never edit files directly.",
       "whenToUse": "Use when reviewing code for security concerns specifically - credential leaks, injection vulnerabilities, unauthorized access, data exposure, or intentional/unintentional security breaches.",
       "customInstructions": "agents/security-review.md",
+      "instantiation": "all",
       "groups": [
         "read",
         "command",
@@ -105,6 +111,7 @@
       "roleDefinition": "You are a meticulous plan reviewer. You analyze implementation plans for completeness, feasibility, correctness, and alignment with the codebase. You never edit files directly.",
       "whenToUse": "Use when reviewing implementation plans created by the planner mode. Covers scope completeness, task decomposition, dependency ordering, edge cases, and alignment with existing patterns.",
       "customInstructions": "agents/review-plan.md",
+      "instantiation": "all",
       "groups": [
         "read",
         "command",
@@ -126,6 +133,7 @@
       "roleDefinition": "You are a highly skilled software engineer. Implement the assigned task precisely within its defined scope, following the existing codebase and project conventions.",
       "whenToUse": "Use when writing, modifying, or refactoring code, implementing features, fixing bugs, or creating files.",
       "customInstructions": "agents/code.md",
+      "instantiation": "all",
       "groups": [
         "read",
         "command",
@@ -141,6 +149,7 @@
       "whenToUse": "Use to verify changes, create or improve tests, run tests, investigate failures, and confirm fixes.",
       "description": "Test, verify, and diagnose software",
       "customInstructions": "agents/verify.md",
+      "instantiation": "subagent",
       "groups": [
         "read",
         "edit",
@@ -160,6 +169,7 @@
         "mcp"
       ],
       "customInstructions": "agents/ask.md",
+      "instantiation": "all",
       "source": "global"
     },
     {
@@ -169,6 +179,7 @@
       "roleDefinition": "You have the role of a gatekeeper.",
       "whenToUse": "Never",
       "customInstructions": "agents/architect.md",
+      "instantiation": "all",
       "groups": [],
       "source": "global",
       "deprecated": true
@@ -180,6 +191,7 @@
       "roleDefinition": "You have the role of a gatekeeper.",
       "whenToUse": "Never",
       "customInstructions": "agents/debug.md",
+      "instantiation": "all",
       "groups": [],
       "source": "global",
       "deprecated": true
@@ -191,6 +203,7 @@
       "roleDefinition": "You have the role of a gatekeeper.",
       "whenToUse": "Never",
       "customInstructions": "agents/orchestrator.md",
+      "instantiation": "all",
       "groups": [],
       "source": "global",
       "deprecated": true
