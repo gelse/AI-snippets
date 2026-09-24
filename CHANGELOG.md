@@ -24,7 +24,7 @@
 ### Changed
 - Mode instructions moved from embedded strings in `modes.json` to `agents/<slug>.md` files; generated output unchanged.
 - README updated to Node-only documentation: removed dual-stack (JS/Python) prose, added `npx @gelse/ai-snippets install` usage section, updated workspace tree listing to reflect `src/`, root `package.json`, and `tsup.config.ts`.
-- The `orchestrator` mode is deprecated in favour of the new `lieutenant` mode, which fills the same role (skill-driven workflow dispatch from `captain`). `orchestrator` now behaves as a gatekeeper that aborts and directs users to `lieutenant`; install manifests gain a new entry but the OpenCode and Claude emitters skip deprecated slugs, so the per-tool agent count is unchanged for those tools.
+- The `orchestrator` mode is deprecated in favour of the new `lieutenant` mode, which fills the same role (skill-driven workflow dispatch from `captain`). `orchestrator` now behaves as a gatekeeper that aborts and directs users to `lieutenant`. The OpenCode and Claude outputs omit deprecated modes, so their installed agent count is unchanged; `zoo` and `kilo` gain the new `lieutenant` mode alongside the deprecated `orchestrator` entry.
 ### Added (package scaffold)
 - npm package scaffold (`@gelse/ai-snippets` 0.1.0): tsup build emitting `dist/cli.cjs` (CommonJS, entry for the `ai-snippets` bin) and `dist/release.js` (ESM), with `yaml` bundled into the CLI so it runs from a bare tarball unpack; prebuild step stages `skills-embedded/` from `output/`, `files` field ships only `dist/` + `skills-embedded/`.
 - Installer CLI (`ai-snippets install <tool>`): reads bundled `install-manifest.json` and embedded skills tree, installs modes and skills for zoo, kilo, opencode, and claude.
