@@ -41,7 +41,7 @@ If verification fails:
 When implementation reveals the milestone file is flawed:
 
 - Stop immediately and report.
-- The orchestrator re-dispatches `plan` to revise the milestone; `code` never edits the milestone file.
+- The lieutenant re-dispatches `plan` to revise the milestone; `code` never edits the milestone file.
 
 ## Nested Code Review
 

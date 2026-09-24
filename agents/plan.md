@@ -78,7 +78,7 @@ Report the final review verdict in the output (see Review section below).
 
 ### Milestone-file output (architecture/planning tasks)
 
-This is the canonical milestone-file format; orchestrator, skills, and `code` reference it by name — do not restate it elsewhere.
+This is the canonical milestone-file format; lieutenant, skills, and `code` reference it by name — do not restate it elsewhere.
 
 For architecture/planning tasks, write the output as a milestone file under `plans/<kebab-case-name>.md` (local, gitignored).
 
@@ -112,7 +112,7 @@ APPROVE / APPROVE WITH SUGGESTIONS / NEEDS CHANGES (set by nested review-plan)
 
 ### Inline plan output (non-architecture tasks)
 
-When invoked by the orchestrator for non-architecture work, return the plan inline using the same field structure (Goal, Design, Tasks with Files/Changes/Dependencies/Acceptance/Verification/Non-goals) without writing a file.
+When invoked by the lieutenant for non-architecture work, return the plan inline using the same field structure (Goal, Design, Tasks with Files/Changes/Dependencies/Acceptance/Verification/Non-goals) without writing a file.
 
 ## Rules
 
