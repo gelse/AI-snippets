@@ -29,9 +29,9 @@ No implementation before the branch exists.
 
 ## 3. Dispatch captain for classification
 
-Hand the validated issue (title, body, labels, comments, linked references) to `captain` as a subtask. Captain classifies the issue type and dispatches the orchestrator with the matching skill.
+Hand the validated issue (title, body, labels, comments, linked references) to `captain` as a subtask. Captain classifies the issue type and dispatches the lieutenant with the matching skill.
 
-The skill context (this orchestrator run) owns the git/gh phases — branch, commit/push, PR; the captain subtask and its orchestrator dispatch run only the classified workflow.
+The skill context (this lieutenant run) owns the git/gh phases — branch, commit/push, PR; the captain subtask and its lieutenant dispatch run only the classified workflow.
 
 ## 4. Commit, Push, and Create PR
 
