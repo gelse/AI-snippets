@@ -1,6 +1,6 @@
 # AI-Snippets
 
-One command installs 12 agent modes and 9 skills into Zoo Code, Kilo Code, OpenCode, or Claude Code. Captain is the default entry point — it classifies tasks and dispatches the orchestrator with the matching skill. Modes give your coding agent specialized subagents — orchestrator, planner, reviewer, verifier, and more. Skills are reusable workflow runbooks that drive end-to-end autonomous pipelines.
+One command installs 13 agent modes and 9 skills into Zoo Code, Kilo Code, OpenCode, or Claude Code. Captain is the default entry point — it classifies tasks and dispatches the lieutenant with the matching skill. Modes give your coding agent specialized subagents — lieutenant, planner, reviewer, verifier, and more. Skills are reusable workflow runbooks that drive end-to-end autonomous pipelines.
 
 ## Quick Start
 
@@ -36,12 +36,12 @@ node dist/cli.cjs install <tool> [options]
 
 ## What You Get
 
-### 12 Agent Modes
+### 13 Agent Modes
 
 | Mode | Purpose |
 |------|---------|
-| `captain` | Classify tasks and dispatch the orchestrator with the matching skill — default entry point |
-| `orchestrator` | Execute the dispatched skill's workflow through shared dispatch contracts |
+| `captain` | Classify tasks and dispatch the lieutenant with the matching skill — default entry point |
+| `lieutenant` | Execute the dispatched skill's workflow through shared dispatch contracts |
 | `investigator` | Gather repository evidence for planning |
 | `plan` | Design implementation-ready plans from repository evidence |
 | `review-code` | Review code changes locally |
@@ -52,12 +52,13 @@ node dist/cli.cjs install <tool> [options]
 | `ask` | Answer technical questions and explain concepts |
 | `architect` | Deprecated — aborts and directs you to `plan` |
 | `debug` | Deprecated — aborts and directs you to `plan` |
+| `orchestrator` | Deprecated — aborts and directs you to `lieutenant` |
 
 ### 9 Skills
 
 | Skill | Purpose |
 |-------|---------|
-| [`github-issue`](skills/github-issue.md) | End-to-end GitHub issue → PR via `gh`, orchestrator-driven |
+| [`github-issue`](skills/github-issue.md) | End-to-end GitHub issue → PR via `gh`, lieutenant-driven |
 | [`full-feature`](skills/full-feature.md) | Multi-part design-heavy work: investigate → plan → milestones → code → verify |
 | [`small-feature`](skills/small-feature.md) | Single contained change: code with mandatory unit tests |
 | [`architecture`](skills/architecture.md) | Plan-only output producing milestone files under plans/ |
@@ -88,7 +89,7 @@ The legacy Makefile target `install-zoo-global-agents` **overwrites** `~/.roo/cu
 
 ## How It Works
 
-`modes.json` is the single source of truth for all mode definitions. Each mode's `customInstructions` is a repo-relative path `agents/<slug>.md` — 12 instruction files, one per mode — resolved at generation time by [`scripts/generate.py`](scripts/generate.py), which emits per-tool formats plus an `install-manifest.json` that maps every artifact to its destination paths and drives the installer. The installer reads the manifest, computes a plan with `[create]/[update]/[merge]/[overwrite]` labels, and executes it with collision handling.
+`modes.json` is the single source of truth for all mode definitions. Each mode's `customInstructions` is a repo-relative path `agents/<slug>.md` — 13 instruction files, one per mode — resolved at generation time by [`scripts/generate.py`](scripts/generate.py), which emits per-tool formats plus an `install-manifest.json` that maps every artifact to its destination paths and drives the installer. The installer reads the manifest, computes a plan with `[create]/[update]/[merge]/[overwrite]` labels, and executes it with collision handling.
 
 → Full details: [docs/architecture.md](docs/architecture.md)
 
@@ -97,7 +98,7 @@ The legacy Makefile target `install-zoo-global-agents` **overwrites** `~/.roo/cu
 | Document | What it covers |
 |----------|---------------|
 | [docs/architecture.md](docs/architecture.md) | Generation pipeline, manifest, installer merge/collision mechanics, per-tool emitted formats |
-| [docs/orchestrator-workflow.md](docs/orchestrator-workflow.md) | Captain classification, orchestrator skills, milestones, github-issue pipeline, model-selection philosophy |
+| [docs/lieutenant-workflow.md](docs/lieutenant-workflow.md) | Captain classification, lieutenant skills, milestones, github-issue pipeline, model-selection philosophy |
 | [docs/development.md](docs/development.md) | Makefile targets, verify.py checks, smoke tests, build, packaging |
 | [docs/npm-trusted-publishing.md](docs/npm-trusted-publishing.md) | npm OIDC trusted publishing setup |
 
