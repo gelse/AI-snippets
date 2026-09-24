@@ -7,7 +7,7 @@
 # - `replaced` lists the 13 generated slugs.
 # - `kept` lists only foreign slugs.
 # - Foreign modes preserved in original order.
-# - Repeated installs stay stable (regression: pre-fix 11→17 duplication).
+# - Repeated installs stay stable (regression: pre-fix duplicate-slug growth).
 #
 # Usage: bash scripts/smoke-test-double-install.sh
 #
@@ -142,7 +142,7 @@ done
 # These names anchor the lieutenant addition: the smoke test must
 # break loudly if either slug regresses from the generated set.
 for must_have in "captain" "lieutenant"; do
-  if ! echo "$SLUGS" | grep -qx "$must_have"; then
+  if ! echo "$SLUGS" | grep -q "^${must_have}$"; then
     echo "FAIL: required slug '$must_have' missing from installed modes"
     exit 1
   fi
@@ -184,7 +184,7 @@ if [ "$KEPT_SLUGS" != "my-custom-mode" ]; then
   exit 1
 fi
 
-# ── Regression: repeated installs stay stable (no 11→17 growth) ────────
+# ── Regression: repeated installs stay stable (no duplicate-slug growth) ─
 # Pre-fix, a third install grew the file further (splice of stale indices).
 echo ""
 echo "--- Third install: regression check for repeat-install stability ---"
