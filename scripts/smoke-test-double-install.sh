@@ -3,8 +3,8 @@
 # Smoke test: double install into a seeded HOME verifies no duplicate slugs.
 #
 # Acceptance criteria:
-# - Double install into a seeded HOME yields 12 slugs (11 generated + 1 foreign), no duplicates.
-# - `replaced` lists the 11 generated slugs.
+# - Double install into a seeded HOME yields 14 slugs (13 generated + 1 foreign), no duplicates.
+# - `replaced` lists the 13 generated slugs.
 # - `kept` lists only foreign slugs.
 # - Foreign modes preserved in original order.
 # - Repeated installs stay stable (regression: pre-fix 11→17 duplication).
@@ -85,14 +85,14 @@ SLUG_COUNT=$(echo "$SLUGS" | grep -c '.' || true)
 echo "Slugs found: $SLUG_COUNT"
 echo "$SLUGS" | sed 's/^/  /'
 
-if [ "$SLUG_COUNT" -ne 12 ]; then
-  echo "FAIL: expected 12 slugs (11 generated + 1 foreign), got $SLUG_COUNT"
+if [ "$SLUG_COUNT" -ne 14 ]; then
+  echo "FAIL: expected 14 slugs (13 generated + 1 foreign), got $SLUG_COUNT"
   exit 1
 fi
 
 # ── Verify no duplicate slugs ──────────────────────────────────────────
 UNIQUE_COUNT=$(echo "$SLUGS" | sort -u | wc -l)
-if [ "$UNIQUE_COUNT" -ne 12 ]; then
+if [ "$UNIQUE_COUNT" -ne 14 ]; then
   echo "FAIL: found duplicate slugs (unique=$UNIQUE_COUNT, total=$SLUG_COUNT)"
   echo "Duplicates:"
   echo "$SLUGS" | sort | uniq -d | sed 's/^/  /'
@@ -114,9 +114,10 @@ if [ "$FIRST_LINE" != "my-custom-mode" ]; then
   exit 1
 fi
 
-# ── Verify all 11 generated slugs present ──────────────────────────────
+# ── Verify all 13 generated slugs present ──────────────────────────────
 EXPECTED_GENERATED=(
-  "orchestrator"
+  "captain"
+  "lieutenant"
   "investigator"
   "plan"
   "review-code"
@@ -127,6 +128,7 @@ EXPECTED_GENERATED=(
   "ask"
   "architect"
   "debug"
+  "orchestrator"
 )
 
 for slug in "${EXPECTED_GENERATED[@]}"; do
@@ -136,8 +138,8 @@ for slug in "${EXPECTED_GENERATED[@]}"; do
   fi
 done
 
-# ── Verify `replaced` reports the 11 generated slugs ───────────────────
-# Acceptance criterion 2: `replaced` lists the 11 generated slugs.
+# ── Verify `replaced` reports the 13 generated slugs ───────────────────
+# Acceptance criterion 2: `replaced` lists the 13 generated slugs.
 REPLACED_LINE=$(echo "$SECOND_OUTPUT" | grep -m1 'Replaced slugs:' || true)
 if [ -z "$REPLACED_LINE" ]; then
   echo "FAIL: no 'Replaced slugs:' line in second install output"
@@ -146,8 +148,8 @@ fi
 
 REPLACED_SLUGS=$(echo "$REPLACED_LINE" | sed 's/.*Replaced slugs: *//')
 REPLACED_COUNT=$(echo "$REPLACED_SLUGS" | tr ',' '\n' | sed 's/^ *//;s/ *$//' | grep -c '.' || true)
-if [ "$REPLACED_COUNT" -ne 11 ]; then
-  echo "FAIL: expected 11 replaced slugs, got $REPLACED_COUNT ($REPLACED_SLUGS)"
+if [ "$REPLACED_COUNT" -ne 13 ]; then
+  echo "FAIL: expected 13 replaced slugs, got $REPLACED_COUNT ($REPLACED_SLUGS)"
   exit 1
 fi
 for slug in "${EXPECTED_GENERATED[@]}"; do
@@ -178,14 +180,14 @@ echo "--- Third install: regression check for repeat-install stability ---"
 HOME="$TMP_HOME" node "$CLI" install zoo --global --yes > /dev/null 2>&1
 SLUG_COUNT_3=$(grep -oP '^\s+-\s+slug:\s+\K.*' "$MODES_FILE" | grep -c '.' || true)
 UNIQUE_COUNT_3=$(grep -oP '^\s+-\s+slug:\s+\K.*' "$MODES_FILE" | sort -u | wc -l)
-if [ "$SLUG_COUNT_3" -ne 12 ] || [ "$UNIQUE_COUNT_3" -ne 12 ]; then
-  echo "FAIL: third install changed slug count (total=$SLUG_COUNT_3, unique=$UNIQUE_COUNT_3, expected 12)"
+if [ "$SLUG_COUNT_3" -ne 14 ] || [ "$UNIQUE_COUNT_3" -ne 14 ]; then
+  echo "FAIL: third install changed slug count (total=$SLUG_COUNT_3, unique=$UNIQUE_COUNT_3, expected 14)"
   exit 1
 fi
-echo "Third install: still 12 unique slugs (PASS)"
+echo "Third install: still 14 unique slugs (PASS)"
 
 # ── Edge case: empty customModes list ──────────────────────────────────
-# A fresh HOME with an empty block list must receive all 11 generated modes.
+# A fresh HOME with an empty block list must receive all 13 generated modes.
 echo ""
 echo "--- Edge case: empty customModes list ---"
 TMP_HOME_EMPTY="$(mktemp -d)"
@@ -194,18 +196,18 @@ mkdir -p "$TMP_HOME_EMPTY/.roo"
 printf 'customModes: []\n' > "$TMP_HOME_EMPTY/.roo/custom_modes.yaml"
 HOME="$TMP_HOME_EMPTY" node "$CLI" install zoo --global --yes > /dev/null 2>&1
 EMPTY_COUNT=$(cd "$ROOT_DIR" && count_slugs_yaml "$TMP_HOME_EMPTY/.roo/custom_modes.yaml")
-if [ "$EMPTY_COUNT" -ne 11 ]; then
-  echo "FAIL: empty customModes list expected 11 slugs, got $EMPTY_COUNT"
+if [ "$EMPTY_COUNT" -ne 13 ]; then
+  echo "FAIL: empty customModes list expected 13 slugs, got $EMPTY_COUNT"
   exit 1
 fi
-echo "Empty customModes list: 11 slugs installed (PASS)"
+echo "Empty customModes list: 13 slugs installed (PASS)"
 
 echo ""
 echo "=== Double-install smoke test PASSED ==="
-echo "  - 12 slugs total (11 generated + 1 foreign)"
+echo "  - 14 slugs total (13 generated + 1 foreign)"
 echo "  - No duplicates"
 echo "  - Foreign mode preserved in original position"
-echo "  - 'replaced' lists all 11 generated slugs"
+echo "  - 'replaced' lists all 13 generated slugs"
 echo "  - 'kept' lists only the foreign slug"
-echo "  - Repeat installs stay stable at 12 slugs"
-echo "  - Empty customModes list installs all 11 modes"
+echo "  - Repeat installs stay stable at 14 slugs"
+echo "  - Empty customModes list installs all 13 modes"
