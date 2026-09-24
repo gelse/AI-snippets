@@ -138,6 +138,17 @@ for slug in "${EXPECTED_GENERATED[@]}"; do
   fi
 done
 
+# ── Explicit slug assertions for captain and lieutenant ──────────────
+# These names anchor the lieutenant addition: the smoke test must
+# break loudly if either slug regresses from the generated set.
+for must_have in "captain" "lieutenant"; do
+  if ! echo "$SLUGS" | grep -qx "$must_have"; then
+    echo "FAIL: required slug '$must_have' missing from installed modes"
+    exit 1
+  fi
+done
+echo "  OK: captain and lieutenant present in installed modes"
+
 # ── Verify `replaced` reports the 13 generated slugs ───────────────────
 # Acceptance criterion 2: `replaced` lists the 13 generated slugs.
 REPLACED_LINE=$(echo "$SECOND_OUTPUT" | grep -m1 'Replaced slugs:' || true)
