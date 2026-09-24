@@ -6,24 +6,98 @@ Comparison of the opencode workspace agents in `/home/werner/.config/opencode/ag
 
 ## Per-file results
 
-One line per non-deprecated mode; the four checks are description, mode, permission, body. All 10 workspace agent files exist; every check passes on every file.
+One entry per non-deprecated mode. Each entry names the workspace agent path, gives a per-file verdict line covering the five checks (path existence, description, mode, permission, body), and shows the per-check detail. All 10 workspace agent files exist; every check passes on every file.
 
-| Agent | Description | Mode | Permission | Body |
-|---|---|---|---|---|
-| `agents/captain.md` | ✓ | ✓ (`primary`) | ✓ | ✓ |
-| `agents/lieutenant.md` | ✓ | ✓ (`all`) | ✓ | ✓ |
-| `agents/investigator.md` | ✓ | ✓ (`all`) | ✓ | ✓ |
-| `agents/plan.md` | ✓ | ✓ (`all`) | ✓ | ✓ |
-| `agents/review-code.md` | ✓ | ✓ (`all`) | ✓ | ✓ |
-| `agents/security-review.md` | ✓ | ✓ (`all`) | ✓ | ✓ |
-| `agents/review-plan.md` | ✓ | ✓ (`all`) | ✓ | ✓ |
-| `agents/code.md` | ✓ | ✓ (`all`) | ✓ | ✓ |
-| `agents/verify.md` | ✓ | ✓ (`subagent`) | ✓ | ✓ |
-| `agents/ask.md` | ✓ | ✓ (`all`) | ✓ | ✓ |
+### `agents/captain.md`
+
+**PASS** — path exists; description, mode, permission, and body all match.
+
+| Description | Mode | Permission | Body |
+|---|---|---|---|
+| ✓ | ✓ (`primary`) | ✓ | ✓ |
+
+### `agents/lieutenant.md`
+
+**PASS** — path exists; description, mode, permission, and body all match.
+
+| Description | Mode | Permission | Body |
+|---|---|---|---|
+| ✓ | ✓ (`all`) | ✓ | ✓ |
+
+### `agents/investigator.md`
+
+**PASS** — path exists; description, mode, permission, and body all match.
+
+| Description | Mode | Permission | Body |
+|---|---|---|---|
+| ✓ | ✓ (`all`) | ✓ | ✓ |
+
+### `agents/plan.md`
+
+**PASS** — path exists; description, mode, permission, and body all match.
+
+| Description | Mode | Permission | Body |
+|---|---|---|---|
+| ✓ | ✓ (`all`) | ✓ | ✓ |
+
+### `agents/review-code.md`
+
+**PASS** — path exists; description, mode, permission, and body all match.
+
+| Description | Mode | Permission | Body |
+|---|---|---|---|
+| ✓ | ✓ (`all`) | ✓ | ✓ |
+
+### `agents/security-review.md`
+
+**PASS** — path exists; description, mode, permission, and body all match.
+
+| Description | Mode | Permission | Body |
+|---|---|---|---|
+| ✓ | ✓ (`all`) | ✓ | ✓ |
+
+### `agents/review-plan.md`
+
+**PASS** — path exists; description, mode, permission, and body all match.
+
+| Description | Mode | Permission | Body |
+|---|---|---|---|
+| ✓ | ✓ (`all`) | ✓ | ✓ |
+
+### `agents/code.md`
+
+**PASS** — path exists; description, mode, permission, and body all match.
+
+| Description | Mode | Permission | Body |
+|---|---|---|---|
+| ✓ | ✓ (`all`) | ✓ | ✓ |
+
+### `agents/verify.md`
+
+**PASS** — path exists; description, mode, permission, and body all match.
+
+| Description | Mode | Permission | Body |
+|---|---|---|---|
+| ✓ | ✓ (`subagent`) | ✓ | ✓ |
+
+### `agents/ask.md`
+
+**PASS** — path exists; description, mode, permission, and body all match.
+
+| Description | Mode | Permission | Body |
+|---|---|---|---|
+| ✓ | ✓ (`all`) | ✓ | ✓ |
 
 ## Summary
 
-**No drift.** All 10 workspace agent files are byte-identical to what `emit_opencode()` produces from current source: description, mode, permission, and body all match. The only workspace artifact out of line with the generator is the stale `agents/orchestrator.md`, covered below.
+Files with drift, grouped by drift type:
+
+- **description**: none.
+- **mode**: none.
+- **permission**: none.
+- **body**: `agents/orchestrator.md` — stale body 8,078 chars vs 154 chars regenerated; the file is deleted by regeneration (see below).
+
+All 10 non-deprecated workspace agent files are byte-identical to what `emit_opencode()` produces from current source: description, mode, permission, and body all match. The only workspace artifact out of line with the generator is the stale `agents/orchestrator.md`, covered below.
 
 ## Orchestrator: deleted by regeneration
 
