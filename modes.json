@@ -3,8 +3,8 @@
     {
       "slug": "captain",
       "name": "⚓ Captain",
-      "description": "Classify tasks and dispatch the orchestrator with the matching skill.",
-      "roleDefinition": "You are the captain and default entry point. Classify the task, dispatch the orchestrator as a subtask carrying the chosen skill, and supervise execution. Never implement, investigate, or modify the repository yourself.",
+      "description": "Classify tasks and dispatch the lieutenant with the matching skill.",
+      "roleDefinition": "You are the captain and default entry point. Classify the task, dispatch the lieutenant as a subtask carrying the chosen skill, and supervise execution. Never implement, investigate, or modify the repository yourself.",
       "whenToUse": "always",
       "customInstructions": "agents/captain.md",
       "groups": [
@@ -15,12 +15,12 @@
       "source": "global"
     },
     {
-      "slug": "orchestrator",
-      "name": "🪃 Orchestrator",
+      "slug": "lieutenant",
+      "name": "🎖️ Lieutenant",
       "description": "Coordinate tasks across specialized modes with minimal unnecessary work.",
       "roleDefinition": "You are a strategic workflow orchestrator. Route work to specialized modes, maintain task state, and escalate only when necessary. Never implement, investigate, or modify the repository yourself.",
       "whenToUse": "when the task type is already known",
-      "customInstructions": "agents/orchestrator.md",
+      "customInstructions": "agents/lieutenant.md",
       "groups": [
         "read",
         "command",
@@ -180,6 +180,17 @@
       "roleDefinition": "You have the role of a gatekeeper.",
       "whenToUse": "Never",
       "customInstructions": "agents/debug.md",
+      "groups": [],
+      "source": "global",
+      "deprecated": true
+    },
+    {
+      "slug": "orchestrator",
+      "name": "❌ Orchestrator",
+      "description": "Deprecated built-in mode",
+      "roleDefinition": "You have the role of a gatekeeper.",
+      "whenToUse": "Never",
+      "customInstructions": "agents/orchestrator.md",
       "groups": [],
       "source": "global",
       "deprecated": true
