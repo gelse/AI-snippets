@@ -243,6 +243,10 @@
       "file": "skills/writing-for-humans.md"
     },
     {
+      "name": "documentation",
+      "file": "skills/documentation.md"
+    },
+    {
       "name": "release",
       "file": "skills/release/SKILL.md"
     }

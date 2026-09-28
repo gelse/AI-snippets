@@ -20,11 +20,12 @@ Classify the task into exactly one type using the table below. Use the evidence 
 | Single, contained, obvious change; one file or a few files; no design ambiguity | **Small feature** | `small-feature` |
 | Plan-only output; no implementation requested; architecture design, feasibility study, or research | **Architecture** | `architecture` |
 | Defect or broken behavior; a test or reproduction case is needed; regression fix | **Bugfix** | `bugfix` |
+| Primary deliverable is a document — create, update, or correct existing prose docs under `README.md` and `docs/` | **Documentation** | `documentation` |
 | An approved milestone file exists under `plans/` and the task maps directly to it | **Implementation from milestone** | `implementation-from-milestone` |
 
 ### Tiebreak
 
-If two types fit, prefer the smaller one. If evidence is missing to decide, investigate first; do not guess.
+If two types fit, prefer the smaller one. When the primary deliverable is a document, `documentation` takes precedence over `small-feature`, `full-feature`, and `architecture` regardless of size or how much research the task involves. Other types still win when a document is merely an *output* of the work rather than the deliverable — implementing a milestone that happens to update `docs/` stays `implementation-from-milestone`, and a bugfix whose fix touches docs stays `bugfix`. If evidence is missing to decide, investigate first; do not guess.
 
 ## Dispatch the Lieutenant
 
