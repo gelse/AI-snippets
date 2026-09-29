@@ -1,6 +1,6 @@
 # AI-Snippets
 
-One command installs 11 agent modes and 4 skills into Zoo Code, Kilo Code, OpenCode, or Claude Code. Modes give your coding agent specialized subagents — orchestrator, planner, reviewer, verifier, and more. Skills are reusable workflow runbooks that drive end-to-end autonomous pipelines.
+One command installs 13 agent modes and 9 skills into Zoo Code, Kilo Code, OpenCode, or Claude Code. Captain is the default entry point — it classifies tasks and dispatches the lieutenant with the matching skill. Modes give your coding agent specialized subagents — lieutenant, planner, reviewer, verifier, and more. Skills are reusable workflow runbooks that drive end-to-end autonomous pipelines.
 
 ## Quick Start
 
@@ -36,11 +36,12 @@ node dist/cli.cjs install <tool> [options]
 
 ## What You Get
 
-### 11 Agent Modes
+### 13 Agent Modes
 
 | Mode | Purpose |
 |------|---------|
-| `orchestrator` | Coordinate tasks across specialized modes with minimal unnecessary work |
+| `captain` | Classify tasks and dispatch the lieutenant with the matching skill — default entry point |
+| `lieutenant` | Execute the dispatched skill's workflow through shared dispatch contracts |
 | `investigator` | Gather repository evidence for planning |
 | `plan` | Design implementation-ready plans from repository evidence |
 | `review-code` | Review code changes locally |
@@ -51,38 +52,44 @@ node dist/cli.cjs install <tool> [options]
 | `ask` | Answer technical questions and explain concepts |
 | `architect` | Deprecated — aborts and directs you to `plan` |
 | `debug` | Deprecated — aborts and directs you to `plan` |
+| `orchestrator` | Deprecated — aborts and directs you to `lieutenant` |
 
-### 4 Skills
+### 9 Skills
 
 | Skill | Purpose |
 |-------|---------|
-| [`github-issue`](skills/github-issue.md) | End-to-end GitHub issue → PR via `gh`, orchestrator-driven |
+| [`github-issue`](skills/github-issue.md) | End-to-end GitHub issue → PR via `gh`, lieutenant-driven |
+| [`full-feature`](skills/full-feature.md) | Multi-part design-heavy work: investigate → plan → milestones → code → verify |
+| [`small-feature`](skills/small-feature.md) | Single contained change: code with mandatory unit tests |
+| [`architecture`](skills/architecture.md) | Plan-only output producing milestone files under plans/ |
+| [`bugfix`](skills/bugfix.md) | Defect fix: reproduction test first → fix → verify |
+| [`implementation-from-milestone`](skills/implementation-from-milestone.md) | Execute tasks directly from a milestone file — unreviewed milestones route through plan first |
 | [`grilling`](skills/grilling.md) | Plan stress-testing Q&A before building |
 | [`writing-for-humans`](skills/writing-for-humans.md) | Prose standard and review criteria for human-readable writing |
 | [`release`](skills/release/SKILL.md) | Testing-branch release workflow with helper scripts |
 
 ## Per-Tool Install Paths
 
-The installer writes to these locations depending on tool and scope:
+The Makefile install targets and CLI installer write to these locations depending on tool and scope. OpenCode skills require the directory form (`<name>/SKILL.md`); the CLI installer currently emits flat `<name>.md` files which OpenCode ignores — use `make install-opencode-global` instead.
 
 | Tool | Agents (global) | Agents (local) | Skills (global) | Skills (local) |
 |------|----------------|----------------|-----------------|----------------|
-| **zoo** | `~/.roo/custom_modes.yaml` (merged) | `.roomodes` | `~/.roo/skills/<name>.md` | `.roo/skills/<name>.md` |
+| **zoo** | `~/.roo/custom_modes.yaml` (overwritten) + Zoo Code globalStorage `custom_modes.yaml` (merged) | `.roomodes` | `~/.roo/skills/<name>.md` | `.roo/skills/<name>.md` |
 | **kilo** | `~/.config/kilo/agent/` (individual `.md` files) | `.kilocodemodes` | `~/.kilo/skills/<name>.md` | `.kilo/skills/<name>.md` |
-| **opencode** | `~/.config/opencode/agents/*.md` | `.opencode/agents/*.md` | `~/.config/opencode/skills/<name>.md` | `.opencode/skills/<name>.md` |
+| **opencode** | `~/.config/opencode/agents/*.md` | `.opencode/agents/*.md` | `~/.config/opencode/skills/<name>/SKILL.md` | `.opencode/skills/<name>/SKILL.md` |
 | **claude** | `~/.claude/agents/*.md` | `.claude/agents/*.md` | `~/.claude/skills/<name>/SKILL.md` | `.claude/skills/<name>/SKILL.md` |
 
 Directory-form skills (like `release`) also ship companion files (scripts, configs) alongside the runbook.
 
 ### Merge Safety (Zoo Global)
 
-When installing zoo globally, `~/.roo/custom_modes.yaml` is **merged**, not overwritten. The installer parses the YAML preserving comments, `---` separators, and sibling keys. Modes with matching slugs are replaced, duplicates are removed, foreign (non-ai-snippets) modes are kept, and new modes are appended. A missing destination file is treated as a plain copy.
+When installing zoo globally, the CLI installer **merges** `~/.roo/custom_modes.yaml`, not overwrites. The installer parses the YAML preserving comments, `---` separators, and sibling keys. Modes with matching slugs are replaced, duplicates are removed, foreign (non-ai-snippets) modes are kept, and new modes are appended. A missing destination file is treated as a plain copy.
 
-> ⚠️ The legacy Makefile target `install-zoo-global-agents` **overwrites** `custom_modes.yaml`. Use the CLI installer instead — see [docs/development.md](docs/development.md) for details.
+The legacy Makefile target `install-zoo-global-agents` **overwrites** `~/.roo/custom_modes.yaml` but also **merges** into the Zoo Code globalStorage `custom_modes.yaml` (matching slugs replaced, foreign entries kept, new slugs appended). If the globalStorage directory is absent, a skip notice is printed and the target exits successfully. Override with `make install-zoo-global-agents ZOO_GLOBALSTORAGE=/path/to/custom_modes.yaml`. See [docs/development.md](docs/development.md) for details.
 
 ## How It Works
 
-`modes.json` is the single source of truth for all mode definitions. A Python generator ([`scripts/generate.py`](scripts/generate.py)) emits per-tool formats, plus an `install-manifest.json` that maps every artifact to its destination paths and drives the installer. The installer reads the manifest, computes a plan with `[create]/[update]/[merge]/[overwrite]` labels, and executes it with collision handling.
+`modes.json` is the single source of truth for all mode definitions. Each mode's `customInstructions` is a repo-relative path `agents/<slug>.md` — 13 instruction files, one per mode — resolved at generation time by [`scripts/generate.py`](scripts/generate.py), which emits per-tool formats plus an `install-manifest.json` that maps every artifact to its destination paths and drives the installer. The installer reads the manifest, computes a plan with `[create]/[update]/[merge]/[overwrite]` labels, and executes it with collision handling.
 
 → Full details: [docs/architecture.md](docs/architecture.md)
 
@@ -91,7 +98,7 @@ When installing zoo globally, `~/.roo/custom_modes.yaml` is **merged**, not over
 | Document | What it covers |
 |----------|---------------|
 | [docs/architecture.md](docs/architecture.md) | Generation pipeline, manifest, installer merge/collision mechanics, per-tool emitted formats |
-| [docs/orchestrator-workflow.md](docs/orchestrator-workflow.md) | Orchestrator work loop, github-issue pipeline, model-selection philosophy |
+| [docs/lieutenant-workflow.md](docs/lieutenant-workflow.md) | Captain classification, lieutenant skills, milestones, github-issue pipeline, model-selection philosophy |
 | [docs/development.md](docs/development.md) | Makefile targets, verify.py checks, smoke tests, build, packaging |
 | [docs/npm-trusted-publishing.md](docs/npm-trusted-publishing.md) | npm OIDC trusted publishing setup |
 

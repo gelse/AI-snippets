@@ -6,8 +6,10 @@ This document covers the generation pipeline, install manifest, and installer me
 
 [`modes.json`](../modes.json) is the single source of truth for all mode definitions. It contains:
 
-- `customModes` — array of mode objects, each with `slug`, `name`, `description`, `roleDefinition`, `whenToUse`, `customInstructions`, `groups`, `source`
+- `customModes` — array of mode objects, each with `slug`, `name`, `description`, `roleDefinition`, `whenToUse`, `customInstructions` (a repo-relative path `agents/<slug>.md` resolved at generation time), `groups`, `source`
 - `skills` — array of skill objects, each with `name` and `file` (path to the runbook)
+
+Agent instruction files live in `agents/<slug>.md` — one file per mode, no frontmatter, source-only content inlined verbatim at generation time.
 
 Skills support two layout forms:
 
@@ -21,7 +23,7 @@ Both forms emit identically to all tools. `scripts/verify.py` enforces that only
 ## Generation Pipeline
 
 ```
-modes.json
+modes.json + agents/<slug>.md
     │
     ▼
 scripts/generate.py <tool|manifest>
@@ -59,10 +61,16 @@ Generated `output/` files are not committed — regenerate with `make all`.
 
 ### OpenCode
 
+OpenCode scans config directories for `{agent,agents}/**/*.md` and `{skill,skills}/**/SKILL.md` — both singular and plural directory names are accepted.
+
+The global config directory follows the XDG Base Directory specification: `$XDG_CONFIG_HOME/opencode/` if `XDG_CONFIG_HOME` is set, otherwise `~/.config/opencode/`. The `install-opencode-global` Makefile target respects this via the `OPENCODE_CONFIG_HOME` variable.
+
+Generated agent `.md` files include YAML frontmatter with `mode: all`, which makes each agent available both as a subagent and in the primary TUI picker. Agents with `mode: subagent` would be filtered out of the TUI picker by opencode.
+
 | Artifact | Emitted | Tool expects |
 |----------|---------|-------------|
-| Agents | `output/opencode/agents/*.md` | `.opencode/agents/*.md` (local) or `~/.config/opencode/agents/*.md` (global) |
-| Skills | `output/opencode/skill/<name>.md` | `.opencode/skills/<name>.md` (local) or `~/.config/opencode/skills/<name>.md` (global) |
+| Agents | `output/opencode/agents/*.md` | `.opencode/agents/*.md` (local) or `$OPENCODE_CONFIG_HOME/opencode/agents/*.md` (global) |
+| Skills | `output/opencode/skill/<name>.md` | `.opencode/skills/<name>/SKILL.md` (local) or `$OPENCODE_CONFIG_HOME/opencode/skills/<name>/SKILL.md` (global) |
 
 ### Claude Code
 

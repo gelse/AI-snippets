@@ -70,6 +70,35 @@ def load_skill_content(skill_file):
         return f.read()
 
 
+def load_agent_content(agent_file):
+    """Load agent .md content from a repo-relative path (e.g. agents/code.md)."""
+    return (REPO_ROOT / agent_file).read_text()
+
+
+def load_model_mapping():
+    """Load models/mapping.yaml and build an agent-slug -> model-id dict.
+
+    Only the ``agent`` and ``model`` fields of each ``agent-mapping`` entry
+    are used; ``fallbacks`` are ignored.
+    """
+    with open(REPO_ROOT / "models" / "mapping.yaml") as f:
+        data = yaml.safe_load(f)
+    return {
+        entry["agent"]: entry["model"]
+        for entry in data.get("model-mapping", {}).get("agent-mapping", [])
+        if entry.get("agent") and entry.get("model")
+    }
+
+
+def resolve_custom_instructions(modes):
+    """Replace agents/*.md paths in modes with their file contents."""
+    for mode in modes:
+        ci = mode["customInstructions"]
+        if isinstance(ci, str) and ci.startswith("agents/"):
+            mode["customInstructions"] = load_agent_content(ci)
+    return modes
+
+
 def copy_skill_extra_files(skill, dest_dir):
     """Copy companion files (e.g. *.py) for directory-form skills into dest_dir.
 
@@ -244,6 +273,8 @@ def emit_opencode(data, out_dir):
     agents_dir = oc_dir / "agents"
     agents_dir.mkdir(parents=True, exist_ok=True)
 
+    model_by_slug = load_model_mapping()
+
     count = 0
     for mode in data["customModes"]:
         if mode.get("deprecated"):
@@ -258,8 +289,15 @@ def emit_opencode(data, out_dir):
 
         frontmatter = {
             "description": f"{desc} (Use when: {when})",
-            "mode": "subagent",
+            "mode": mode.get("instantiation", "all"),
         }
+
+        # Inserted between 'mode' and 'permission' so frontmatter field order
+        # is: description, mode, model, permission. Skipped when the slug has
+        # no mapping entry.
+        model_id = model_by_slug.get(slug)
+        if model_id:
+            frontmatter["model"] = f"litellm/{model_id}"
 
         if not has_edit_group(groups):
             frontmatter["permission"] = {"edit": "deny"}
@@ -474,6 +512,7 @@ def main():
     args = parser.parse_args()
 
     data = load_modes()
+    data["customModes"] = resolve_custom_instructions(data["customModes"])
     out_dir = REPO_ROOT / args.out
 
     # Defense-in-depth: validate all skill names before processing

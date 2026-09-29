@@ -4,10 +4,12 @@
 
 ### Fixed
 - Duplicate entries when re-installing zoo global modes: [`mergeModesYaml()`](src/merge.ts) replaced the stale-index `existingSlugs` splice with a single-pass `filter()` by slug, so repeated installs no longer duplicate generated slugs and pre-existing duplicates are cleaned up.
+- OpenCode skills documentation: [`docs/architecture.md`](docs/architecture.md) and [`README.md`](README.md) claimed OpenCode expects flat `skills/<name>.md` files. OpenCode's skill discovery only matches `{skill,skills}/**/SKILL.md` (per-name directory containing `SKILL.md`), so the documented destination now reflects the directory form.
 
 ### Added
-- `scripts/smoke-test-double-install.sh` — double-install regression test asserting 12 slugs (11 generated + 1 foreign), no duplicates, correct `replaced`/`kept`, preserved foreign order, repeat-install stability, and the empty-`customModes` edge case.
-- Step 7 in `scripts/smoke-test.sh` — inline merge-idempotency gate: double install into a seeded `$HOME` must yield 12 unique slugs with the foreign mode kept and never listed as replaced.
+- `make install-opencode-global` (new) installs agents and skills globally in the layout OpenCode discovers (`~/.config/opencode/skills/<name>/SKILL.md`); note the CLI installer still emits flat skills, which OpenCode ignores.
+- `scripts/smoke-test-double-install.sh` — double-install regression test asserting 14 slugs (13 generated + 1 foreign), no duplicates, correct `replaced`/`kept`, preserved foreign order, repeat-install stability, and the empty-`customModes` edge case.
+- Step 7 in `scripts/smoke-test.sh` — inline merge-idempotency gate: double install into a seeded `$HOME` must yield 14 unique slugs with the foreign mode kept and never listed as replaced.
 - `install-manifest.json` emitter in [`generate.py`](scripts/generate.py) and a `manifest` Makefile target (included in `all`) — writes `output/install-manifest.json` declaring each tool's artifact source paths and local/global destinations for the installer CLI.
 - `check-node` Makefile guard that prints a clear failure message when Node.js is not installed.
 - Makefile `package-npx` target: generates all tool artifacts, builds the TypeScript package, copies `dist/release.js` into `skills-embedded/`, and produces a tarball in `dist/`.
@@ -20,7 +22,9 @@
 - Legacy dual-stack JS scripts: `scripts/generate.mjs` and `scripts/verify.mjs` — Python equivalents (`generate.py`, `verify.py`) are the sole generators.
 
 ### Changed
+- Mode instructions moved from embedded strings in `modes.json` to `agents/<slug>.md` files; generated output unchanged.
 - README updated to Node-only documentation: removed dual-stack (JS/Python) prose, added `npx @gelse/ai-snippets install` usage section, updated workspace tree listing to reflect `src/`, root `package.json`, and `tsup.config.ts`.
+- The `orchestrator` mode is deprecated in favour of the new `lieutenant` mode, which fills the same role (skill-driven workflow dispatch from `captain`). `orchestrator` now behaves as a gatekeeper that aborts and directs users to `lieutenant`. The OpenCode and Claude outputs omit deprecated modes, so their installed agent count is unchanged; `zoo` and `kilo` gain the new `lieutenant` mode alongside the deprecated `orchestrator` entry.
 ### Added (package scaffold)
 - npm package scaffold (`@gelse/ai-snippets` 0.1.0): tsup build emitting `dist/cli.cjs` (CommonJS, entry for the `ai-snippets` bin) and `dist/release.js` (ESM), with `yaml` bundled into the CLI so it runs from a bare tarball unpack; prebuild step stages `skills-embedded/` from `output/`, `files` field ships only `dist/` + `skills-embedded/`.
 - Installer CLI (`ai-snippets install <tool>`): reads bundled `install-manifest.json` and embedded skills tree, installs modes and skills for zoo, kilo, opencode, and claude.

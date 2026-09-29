@@ -2,7 +2,7 @@
 name: github-issue
 description: Resolve a GitHub issue end-to-end and open a PR.
 modeSlugs:
-  - orchestrator
+  - lieutenant
 argument-hint: issue-number
 ---
 
@@ -27,9 +27,11 @@ Feature branch must start at the remote testing branch. Pull from remote if need
 
 No implementation before the branch exists.
 
-## 3. Execute standard workflow
+## 3. Dispatch captain for classification
 
-Run the standard orchestrator workflow.
+Hand the validated issue (title, body, labels, comments, linked references) to `captain` as a subtask. Captain classifies the issue type and dispatches the lieutenant with the matching skill.
+
+The skill context (this lieutenant run) owns the git/gh phases — branch, commit/push, PR; the captain subtask and its lieutenant dispatch run only the classified workflow.
 
 ## 4. Commit, Push, and Create PR
 

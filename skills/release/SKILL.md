@@ -2,7 +2,7 @@
 name: release
 description: Release the testing branch end-to-end — version bump, changelog, PRs to testing and main, and a GitHub release tagged on main.
 modeSlugs:
-  - orchestrator
+  - lieutenant
 argument-hint: "[version]"
 ---
 
