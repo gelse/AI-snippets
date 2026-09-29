@@ -3,7 +3,7 @@
  * Stage embedded assets into skills-embedded/ for npm packaging.
  *
  * Copies the generated output/ tree and install-manifest.json into
- * skills-embedded/ so the published package contains everything needed
+ * skills-embedded/ so the npm package contains everything needed
  * to install without the repo's output/ directory.
  */
 

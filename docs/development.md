@@ -84,7 +84,7 @@ npm install
 npm run build   # stages skills-embedded/ from output/, then bundles dist/cli.cjs + dist/release.js
 ```
 
-The prebuild step ([`scripts/stage-embedded.mjs`](../scripts/stage-embedded.mjs)) copies `output/` into `skills-embedded/`, which tsup bundles into the published package. You need `make all` to generate `output/` before `npm run build` will succeed.
+The prebuild step ([`scripts/stage-embedded.mjs`](../scripts/stage-embedded.mjs)) copies `output/` into `skills-embedded/`, which tsup bundles into the npm package. You need `make all` to generate `output/` before `npm run build` will succeed.
 
 `npm run build` produces:
 - `dist/cli.cjs` — CommonJS entry point for the `ai-snippets` bin
@@ -94,5 +94,3 @@ The prebuild step ([`scripts/stage-embedded.mjs`](../scripts/stage-embedded.mjs)
 
 1. **Build:** `make package-npx` generates all artifacts, builds TypeScript, copies `release.js` into each embedded tool tree, and produces a tarball in `dist/`.
 2. **Verify version:** `node -p "require('./package.json').version"` must match the tag.
-3. **Tag and push:** `git tag vX.Y.Z && git push origin vX.Y.Z` triggers the CI publish workflow.
-4. **OIDC publishing:** The workflow uses npm trusted publishing — no access token secret required. See [npm-trusted-publishing.md](npm-trusted-publishing.md) for the one-time setup.

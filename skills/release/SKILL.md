@@ -10,7 +10,7 @@ argument-hint: "[version]"
 
 Release the testing branch; releases are always tagged on main. All git/gh commands run in the target repo root.
 
-**Invocation:** `release.py` lives beside this SKILL.md. Run it with `.venv/bin/python skills/release/release.py` from the target repo root (tomllib requires Python ≥ 3.11). A Node.js alternative `release.ts` ships alongside with identical CLI semantics — run it with `node dist/release.js <subcommand>` (Node.js ≥ 18, zero dependencies; built via `npm run build`). If neither script is available (missing venv/Python < 3.11, no Node.js, or not shipped), run the manual fallback in section 8.
+**Invocation:** `release.py` lives beside this SKILL.md. Run it with `.venv/bin/python skills/release/release.py` from the target repo root (tomllib requires Python ≥ 3.11). A Node.js alternative `release.ts` ships alongside with identical CLI semantics — run it with `node dist/release.js <subcommand>` (Node.js ≥ 18, zero dependencies; built via `npm run build`). If neither script is available (missing venv/Python < 3.11, no Node.js, or not shipped), run the manual fallback in section 7.
 
 ## 1. Preflight
 
@@ -59,20 +59,7 @@ Run `release.py changes` to draft commit/PR summaries. From the draft, propose a
 2. Run `release.py post-verify --version X`.
 3. Report: version, tagged commit, tag, release URL, included changes, verification performed, limitations.
 
-## 7. Publish `@gelse/ai-snippets`
-
-1. Confirm `package.json` `version` matches the tag being released (the workflow enforces this too — a mismatch fails the run).
-2. Finalize already pushes the tag; the tag push triggers `.github/workflows/npm-publish.yml`.
-3. Observe the workflow: `gh run watch`.
-4. Verify published version: `npm view @gelse/ai-snippets version`.
-
-**⏸ PAUSE GATE 4:** Present two options:
-- "Workflow succeeded, continue"
-- "I have troubles, help me with: …"
-
-**On trouble:** Diagnose with `gh run view`, check workflow logs. Assist but do not proceed until the package is published or the issue is resolved.
-
-## 8. Fallback: no release.py
+## 7. Fallback: no release.py
 
 If `release.py` cannot run — missing venv, Python < 3.11, script not shipped — execute each subcommand manually with the equivalent commands below. All commands run in the target repo root.
 
@@ -157,5 +144,5 @@ test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" # HEAD == origin/m
 - Never tag before the promotion PR is merged.
 - Use `gh` for GitHub, `git` locally.
 - Versions normalized: tags always `vX.Y.Z`.
-- Stop on any inconsistency once anything is published.
+- Stop on any inconsistency once the GitHub release or tag is live on `origin/main`.
 - **Do not merge the release PR or the promotion PR yourself — the user merges both.**
