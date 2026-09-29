@@ -2,7 +2,7 @@
 name: release
 description: Release the testing branch end-to-end — version bump, changelog, PRs to testing and main, and a GitHub release tagged on main.
 modeSlugs:
-  - orchestrator
+  - lieutenant
 argument-hint: "[version]"
 ---
 
@@ -10,7 +10,7 @@ argument-hint: "[version]"
 
 Release the testing branch; releases are always tagged on main. All git/gh commands run in the target repo root.
 
-**Invocation:** `release.py` lives beside this SKILL.md. Run it with `.venv/bin/python skills/release/release.py` from the target repo root (tomllib requires Python ≥ 3.11).
+**Invocation:** `release.py` lives beside this SKILL.md. Run it with `.venv/bin/python skills/release/release.py` from the target repo root (tomllib requires Python ≥ 3.11). A Node.js alternative `release.ts` ships alongside with identical CLI semantics — run it with `node dist/release.js <subcommand>` (Node.js ≥ 18, zero dependencies; built via `npm run build`). If neither script is available (missing venv/Python < 3.11, no Node.js, or not shipped), run the manual fallback in section 8.
 
 ## 1. Preflight
 
@@ -58,6 +58,96 @@ Run `release.py changes` to draft commit/PR summaries. From the draft, propose a
 1. Run `release.py finalize --version X --notes FILE`.
 2. Run `release.py post-verify --version X`.
 3. Report: version, tagged commit, tag, release URL, included changes, verification performed, limitations.
+
+## 7. Publish `@gelse/ai-snippets`
+
+1. Confirm `package.json` `version` matches the tag being released (the workflow enforces this too — a mismatch fails the run).
+2. Finalize already pushes the tag; the tag push triggers `.github/workflows/npm-publish.yml`.
+3. Observe the workflow: `gh run watch`.
+4. Verify published version: `npm view @gelse/ai-snippets version`.
+
+**⏸ PAUSE GATE 4:** Present two options:
+- "Workflow succeeded, continue"
+- "I have troubles, help me with: …"
+
+**On trouble:** Diagnose with `gh run view`, check workflow logs. Assist but do not proceed until the package is published or the issue is resolved.
+
+## 8. Fallback: no release.py
+
+If `release.py` cannot run — missing venv, Python < 3.11, script not shipped — execute each subcommand manually with the equivalent commands below. All commands run in the target repo root.
+
+### Critical invariants
+
+- Tag **ALWAYS** `vX.Y.Z` on `origin/main` HEAD — never on testing.
+- Never overwrite an existing tag or release.
+- Never tag before the promotion PR is merged.
+- `pyproject.toml` version **must match** the tag.
+
+### Manual commands by subcommand
+
+**preflight** `[--version X]`
+
+```sh
+test -z "$(git status --porcelain)"                         # clean tree
+test "$(git branch --show-current)" = "testing"             # on testing
+git fetch --all --tags
+test "$(git rev-parse HEAD)" = "$(git rev-parse origin/testing)" # HEAD == origin/testing
+git rev-parse origin/main                                   # origin/main exists
+git merge-base --is-ancestor origin/main origin/testing     # main ancestor of testing
+git tag -l 'v[0-9]*.[0-9]*.[0-9]*'                         # list release tags
+```
+
+If `--version X` given, additionally:
+
+```sh
+git tag -l vX.Y.Z                                      # must be empty
+git ls-remote --tags origin vX.Y.Z                      # must be empty
+gh release view vX.Y.Z                                 # must fail
+grep '^version' pyproject.toml                          # read current version
+```
+
+**changes** `[--base TAG]`
+
+```sh
+git log TAG..HEAD --oneline --no-decorate               # commits since last tag (omit range for first release)
+gh pr list --state merged --base testing --json number,title  # merged PRs for changelog draft
+```
+
+**check-version** `--version X.Y.Z`
+
+```sh
+# X.Y.Z must be strictly greater than last tag (version-tuple compare)
+git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -1 # last tag
+# Tag must be absent from remote:
+git ls-remote --tags origin vX.Y.Z                      # must be empty
+```
+
+**finalize** `--version X --notes FILE`
+
+```sh
+git fetch origin
+git merge-base --is-ancestor origin/testing origin/main # testing contained in main
+git diff --quiet HEAD                                   # clean tree
+git checkout main && git pull --ff-only
+grep '^version' pyproject.toml                          # must match vX.Y.Z
+TARGET=$(git rev-parse origin/main)
+git tag -a vX.Y.Z "$TARGET" -m "Release vX.Y.Z"
+git push origin vX.Y.Z
+gh release create vX.Y.Z --target "$TARGET" --title "Release vX.Y.Z" --notes-file FILE
+```
+
+**post-verify** `--version X`
+
+```sh
+git fetch origin
+# Tag (peeled) must point at origin/main HEAD:
+test "$(git ls-remote origin "refs/tags/vX.Y.Z^{}" | cut -f1)" = "$(git rev-parse origin/main)"
+git merge-base --is-ancestor origin/testing origin/main # testing in main
+gh release view vX.Y.Z                                 # must succeed
+test "$(git branch --show-current)" = "main"            # on main
+test -z "$(git status --porcelain)"                     # clean tree
+test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" # HEAD == origin/main
+```
 
 ## Rules
 

@@ -26,6 +26,7 @@ REQUIRED_MODE_KEYS = {
     "customInstructions",
     "groups",
     "source",
+    "instantiation",
 }
 
 REQUIRED_TOP_KEYS = {"customModes", "skills"}
@@ -83,6 +84,28 @@ def validate_structure():
         missing = REQUIRED_MODE_KEYS - set(mode.keys())
         if missing:
             fail(f"Mode '{slug}' missing keys: {missing}")
+
+        # Validate customInstructions is a valid agent file reference
+        ci = mode.get("customInstructions", "")
+        expected_ci = f"agents/{slug}.md"
+        if ci != expected_ci:
+            fail(
+                f"Mode '{slug}' customInstructions must be "
+                f"'{expected_ci}', got '{ci}'"
+            )
+        ci_path = REPO_ROOT / ci
+        if not ci_path.exists():
+            fail(f"Mode '{slug}' agent file not found: {ci_path}")
+        if not ci_path.read_text().strip():
+            fail(f"Mode '{slug}' agent file is empty: {ci_path}")
+
+        # instantiation value check
+        inst = mode.get("instantiation")
+        if inst not in {"primary", "subagent", "all"}:
+            fail(
+                f"Mode '{slug}' instantiation must be one of "
+                f"'primary', 'subagent', 'all'; got '{inst}'"
+            )
 
         # Groups shape: list of strings or [str, dict]
         groups = mode.get("groups", [])
@@ -175,9 +198,12 @@ def round_trip(data):
     with tempfile.TemporaryDirectory() as tmpdir:
         # Import and run zoo emitter
         sys.path.insert(0, str(REPO_ROOT / "scripts"))
-        from generate import emit_zoo
+        from generate import emit_zoo, resolve_custom_instructions
 
-        emit_zoo(data, Path(tmpdir))
+        # Resolve agent file references so emitted content matches file contents
+        resolved = json.loads(json.dumps(data))  # deep copy
+        resolved["customModes"] = resolve_custom_instructions(resolved["customModes"])
+        emit_zoo(resolved, Path(tmpdir))
 
         roomodes_path = Path(tmpdir) / "zoo" / ".roomodes"
         if not roomodes_path.exists():
@@ -190,7 +216,7 @@ def round_trip(data):
         fail("Emitted .roomodes missing 'customModes' key")
 
     emitted_modes = emitted["customModes"]
-    json_modes = data["customModes"]
+    json_modes = resolved["customModes"]
 
     if len(emitted_modes) != len(json_modes):
         fail(
@@ -223,12 +249,199 @@ def round_trip(data):
 
 
 # ---------------------------------------------------------------------------
+# (c) OpenCode agents: mode must match the mode's instantiation value
+# ---------------------------------------------------------------------------
+
+def verify_opencode_agent_modes():
+    """Emit opencode agents to a temp dir and assert frontmatter mode matches
+    the mode's ``instantiation`` value (defaulting to ``all`` when absent).
+
+    The opencode emitter writes ``mode: <instantiation>`` so each agent's
+    visibility is driven by modes.json: ``primary`` agents appear in the
+    primary TUI picker, ``subagent`` agents are only invocable as subagents,
+    and ``all`` agents are available in both places.
+    """
+    print("[c] OpenCode agent mode verification")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sys.path.insert(0, str(REPO_ROOT / "scripts"))
+        from generate import emit_opencode, resolve_custom_instructions
+
+        json_path = REPO_ROOT / "modes.json"
+        with open(json_path) as f:
+            data = json.load(f)
+
+        resolved = json.loads(json.dumps(data))
+        resolved["customModes"] = resolve_custom_instructions(resolved["customModes"])
+        emit_opencode(resolved, Path(tmpdir))
+
+        agents_dir = Path(tmpdir) / "opencode" / "agents"
+        if not agents_dir.exists():
+            fail("OpenCode emitter did not create agents/ directory")
+
+        agent_files = sorted(agents_dir.glob("*.md"))
+        if not agent_files:
+            fail("No agent .md files found in emitted opencode/agents/")
+
+        for agent_file in agent_files:
+            content = agent_file.read_text()
+            # Parse frontmatter between --- delimiters
+            if not content.startswith("---\n"):
+                fail(f"Agent {agent_file.name}: missing frontmatter")
+
+            end = content.index("---", 4)
+            fm_text = content[4:end]
+
+            m = re.search(r"^mode:\s*(.+)$", fm_text, re.MULTILINE)
+            if not m:
+                fail(f"Agent {agent_file.name}: missing 'mode' field in frontmatter")
+
+            mode_value = m.group(1).strip().strip('"').strip("'")
+
+            slug = agent_file.stem
+            source_mode = next(
+                (m for m in data["customModes"] if m["slug"] == slug), None
+            )
+            if source_mode is None:
+                fail(f"Agent {agent_file.name}: no matching mode in modes.json")
+
+            expected = source_mode.get("instantiation", "all")
+            if mode_value != expected:
+                fail(
+                    f"Agent {agent_file.name}: mode is '{mode_value}', "
+                    f"expected '{expected}' (from instantiation)"
+                )
+
+            ok(f"{agent_file.name}: mode={mode_value}")
+
+    ok(f"All {len(agent_files)} opencode agents match their instantiation value")
+
+
+# ---------------------------------------------------------------------------
+# (d) OpenCode agents: model must match models/mapping.yaml, in field position
+# ---------------------------------------------------------------------------
+
+def load_agent_model_mapping():
+    """Load models/mapping.yaml and build an agent-slug -> model-id dict.
+
+    Mirrors ``generate.load_model_mapping``: only the ``agent`` and ``model``
+    fields of each ``agent-mapping`` entry are used; ``fallbacks`` are ignored.
+    """
+    with open(REPO_ROOT / "models" / "mapping.yaml") as f:
+        data = yaml.safe_load(f)
+    return {
+        entry["agent"]: entry["model"]
+        for entry in data.get("model-mapping", {}).get("agent-mapping", [])
+        if entry.get("agent") and entry.get("model")
+    }
+
+
+def verify_opencode_agent_models():
+    """Emit opencode agents to a temp dir and assert each frontmatter carries
+    ``model: litellm/<model_id>`` matching models/mapping.yaml for that slug.
+
+    Also asserts field position: the ``model`` key must appear after ``mode``
+    and before ``permission`` (when a permission block is present).
+    """
+    print("[d] OpenCode agent model verification")
+
+    model_by_slug = load_agent_model_mapping()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sys.path.insert(0, str(REPO_ROOT / "scripts"))
+        from generate import emit_opencode, resolve_custom_instructions
+
+        json_path = REPO_ROOT / "modes.json"
+        with open(json_path) as f:
+            data = json.load(f)
+
+        resolved = json.loads(json.dumps(data))
+        resolved["customModes"] = resolve_custom_instructions(resolved["customModes"])
+        emit_opencode(resolved, Path(tmpdir))
+
+        agents_dir = Path(tmpdir) / "opencode" / "agents"
+        if not agents_dir.exists():
+            fail("OpenCode emitter did not create agents/ directory")
+
+        agent_files = sorted(agents_dir.glob("*.md"))
+        if not agent_files:
+            fail("No agent .md files found in emitted opencode/agents/")
+
+        for agent_file in agent_files:
+            content = agent_file.read_text()
+            if not content.startswith("---\n"):
+                fail(f"Agent {agent_file.name}: missing frontmatter")
+
+            end = content.index("---", 4)
+            fm_text = content[4:end]
+
+            # Ordered top-level frontmatter keys (nested keys are indented,
+            # so the column-0 anchor excludes them).
+            keys = re.findall(r"^([A-Za-z][\w-]*):", fm_text, re.MULTILINE)
+
+            slug = agent_file.stem
+            expected_model = model_by_slug.get(slug)
+
+            # Defensive default: slugs without a mapping entry legitimately
+            # carry no 'model' field (the emitter skips it) — skip checks.
+            if expected_model is None:
+                if "model" in keys:
+                    fail(
+                        f"Agent {agent_file.name}: has 'model' field but no "
+                        f"mapping entry in mapping.yaml"
+                    )
+                ok(f"{agent_file.name}: model=(no mapping entry, skipped)")
+                continue
+
+            if "model" not in keys:
+                fail(
+                    f"Agent {agent_file.name}: missing 'model' field in "
+                    f"frontmatter (mapping has model={expected_model!r})"
+                )
+
+            m = re.search(r"^model:\s*(.+)$", fm_text, re.MULTILINE)
+            model_value = m.group(1).strip().strip('"').strip("'")
+
+            expected_value = f"litellm/{expected_model}"
+            if model_value != expected_value:
+                fail(
+                    f"Agent {agent_file.name}: model is '{model_value}', "
+                    f"expected '{expected_value}' (from mapping.yaml)"
+                )
+
+            # Field position: description < mode < model < permission
+            if keys[:2] != ["description", "mode"]:
+                fail(
+                    f"Agent {agent_file.name}: frontmatter must start with "
+                    f"'description', 'mode'; got {keys[:2]}"
+                )
+            model_idx = keys.index("model")
+            mode_idx = keys.index("mode")
+            if model_idx != mode_idx + 1:
+                fail(
+                    f"Agent {agent_file.name}: 'model' must come directly "
+                    f"after 'mode'; key order is {keys}"
+                )
+            if "permission" in keys and keys.index("permission") < model_idx:
+                fail(
+                    f"Agent {agent_file.name}: 'permission' must come after "
+                    f"'model'; key order is {keys}"
+                )
+
+            ok(f"{agent_file.name}: model={model_value}")
+
+    ok(f"All {len(agent_files)} opencode agents match mapping.yaml (model + position)")
+
+
+# ---------------------------------------------------------------------------
 # main
 # ---------------------------------------------------------------------------
 
 def main():
     data = validate_structure()
     round_trip(data)
+    verify_opencode_agent_modes()
+    verify_opencode_agent_models()
     print("\nAll checks passed.")
 
 

@@ -70,6 +70,35 @@ def load_skill_content(skill_file):
         return f.read()
 
 
+def load_agent_content(agent_file):
+    """Load agent .md content from a repo-relative path (e.g. agents/code.md)."""
+    return (REPO_ROOT / agent_file).read_text()
+
+
+def load_model_mapping():
+    """Load models/mapping.yaml and build an agent-slug -> model-id dict.
+
+    Only the ``agent`` and ``model`` fields of each ``agent-mapping`` entry
+    are used; ``fallbacks`` are ignored.
+    """
+    with open(REPO_ROOT / "models" / "mapping.yaml") as f:
+        data = yaml.safe_load(f)
+    return {
+        entry["agent"]: entry["model"]
+        for entry in data.get("model-mapping", {}).get("agent-mapping", [])
+        if entry.get("agent") and entry.get("model")
+    }
+
+
+def resolve_custom_instructions(modes):
+    """Replace agents/*.md paths in modes with their file contents."""
+    for mode in modes:
+        ci = mode["customInstructions"]
+        if isinstance(ci, str) and ci.startswith("agents/"):
+            mode["customInstructions"] = load_agent_content(ci)
+    return modes
+
+
 def copy_skill_extra_files(skill, dest_dir):
     """Copy companion files (e.g. *.py) for directory-form skills into dest_dir.
 
@@ -244,6 +273,8 @@ def emit_opencode(data, out_dir):
     agents_dir = oc_dir / "agents"
     agents_dir.mkdir(parents=True, exist_ok=True)
 
+    model_by_slug = load_model_mapping()
+
     count = 0
     for mode in data["customModes"]:
         if mode.get("deprecated"):
@@ -258,8 +289,15 @@ def emit_opencode(data, out_dir):
 
         frontmatter = {
             "description": f"{desc} (Use when: {when})",
-            "mode": "subagent",
+            "mode": mode.get("instantiation", "all"),
         }
+
+        # Inserted between 'mode' and 'permission' so frontmatter field order
+        # is: description, mode, model, permission. Skipped when the slug has
+        # no mapping entry.
+        model_id = model_by_slug.get(slug)
+        if model_id:
+            frontmatter["model"] = f"litellm/{model_id}"
 
         if not has_edit_group(groups):
             frontmatter["permission"] = {"edit": "deny"}
@@ -351,6 +389,100 @@ def emit_claude(data, out_dir):
 
 
 # ---------------------------------------------------------------------------
+# Manifest emitter
+# ---------------------------------------------------------------------------
+
+def _read_version():
+    """Read package version from scripts/package.json or root package.json.
+
+    Returns version string or None if unavailable.
+    """
+    for candidate in (REPO_ROOT / "scripts" / "package.json",
+                      REPO_ROOT / "package.json"):
+        try:
+            with open(candidate) as f:
+                pkg = json.load(f)
+            v = pkg.get("version")
+            if v:
+                return v
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass
+    return None
+
+
+def emit_manifest(data, out_dir):
+    """Emit install-manifest.json describing tool artifact paths."""
+    manifest_dir = out_dir
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+
+    manifest = {
+        "package": "@gelse/ai-snippets",
+        "tools": {
+            "zoo": {
+                "modes": {
+                    "src": "zoo/.roomodes",
+                    "local": ".roomodes",
+                    "global": "~/.roo/custom_modes.yaml",
+                    "merge": True,
+                },
+                "skillsDir": {
+                    "src": "zoo/skills",
+                    "local": ".roo/skills",
+                    "global": "~/.roo/skills",
+                },
+            },
+            "kilo": {
+                "modes": {
+                    "src": "kilo/.kilocodemodes",
+                    "local": ".kilocodemodes",
+                    "global": None,
+                },
+                "skillsDir": {
+                    "src": "kilo/skills",
+                    "local": ".kilo/skills",
+                    "global": "~/.kilo/skills",
+                },
+            },
+            "opencode": {
+                "modesDir": {
+                    "src": "opencode/agents",
+                    "local": ".opencode/agents",
+                    "global": "~/.config/opencode/agents",
+                },
+                "skillsDir": {
+                    "src": "opencode/skill",
+                    "local": ".opencode/skills",
+                    "global": "~/.config/opencode/skills",
+                },
+            },
+            "claude": {
+                "modesDir": {
+                    "src": "claude/agents",
+                    "local": ".claude/agents",
+                    "global": "~/.claude/agents",
+                },
+                "skillsDir": {
+                    "src": "claude/skills",
+                    "local": ".claude/skills",
+                    "global": "~/.claude/skills",
+                },
+            },
+        },
+    }
+
+    version = _read_version()
+    if version:
+        manifest["version"] = version
+
+    manifest_path = manifest_dir / "install-manifest.json"
+    with open(manifest_path, "w") as f:
+        json.dump(manifest, f, indent=2)
+        f.write("\n")
+
+    print(f"  manifest: {manifest_path}")
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
@@ -359,6 +491,7 @@ EMITTERS = {
     "kilo": emit_kilo,
     "opencode": emit_opencode,
     "claude": emit_claude,
+    "manifest": emit_manifest,
 }
 
 
@@ -379,6 +512,7 @@ def main():
     args = parser.parse_args()
 
     data = load_modes()
+    data["customModes"] = resolve_custom_instructions(data["customModes"])
     out_dir = REPO_ROOT / args.out
 
     # Defense-in-depth: validate all skill names before processing

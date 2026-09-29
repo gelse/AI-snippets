@@ -1,13 +1,21 @@
 .DEFAULT_GOAL := help
 
 PYTHON ?= python3
+NODE   ?= node
+NPM    ?= npm
 VENV    = .venv
 STAMP   = $(VENV)/.stamp
+NPM_STAMP = .npm-stamp
+ZOO_GLOBALSTORAGE ?= $(HOME)/.config/Code/User/globalStorage/zoocodeorganization.zoo-code/settings/custom_modes.yaml
+OPENCODE_CONFIG_HOME ?= $(if $(XDG_CONFIG_HOME),$(XDG_CONFIG_HOME),$(HOME)/.config)
 
-.PHONY: help verify zoo kilo opencode claude all clean \
+.PHONY: help check-py verify zoo kilo opencode claude manifest all clean \
+        check-node package-npx \
+        package-npx-zoo package-npx-kilo package-npx-opencode package-npx-claude \
         install-zoo-global install-zoo-local \
         install-zoo-global-skills install-zoo-global-agents \
-        install-zoo-local-skills install-zoo-local-agents
+        install-zoo-local-skills install-zoo-local-agents \
+        install-opencode-global
 
 help: ## Show this help
 	@echo "Usage: make <target>"
@@ -21,26 +29,77 @@ $(STAMP): ## Bootstrap venv (idempotent)
 	$(VENV)/bin/pip install --quiet pyyaml ruff
 	touch $(STAMP)
 
-verify: $(STAMP) ## Validate modes.json and round-trip check
+check-py: $(STAMP) ## Validate modes.json, lint scripts/skills (Python only)
 	$(VENV)/bin/python scripts/verify.py
 	$(VENV)/bin/ruff check scripts/ skills/
 
-zoo: verify ## Generate Zoo Code artifacts
+verify: check-py ## Validate modes.json, round-trip check, and TS build (node-optional)
+	@if command -v $(NODE) >/dev/null 2>&1 && command -v $(NPM) >/dev/null 2>&1; then \
+		$(MAKE) $(NPM_STAMP) && \
+		$(NPM) run typecheck && \
+		$(NPM) run build && \
+		TMPHOME=$$(mktemp -d) && \
+		HOME=$$TMPHOME $(NODE) dist/cli.cjs install zoo --global --dry-run; \
+		status=$$?; rm -rf "$$TMPHOME"; exit $$status; \
+	else \
+		echo "SKIP: node not available"; \
+	fi
+
+zoo: check-py ## Generate Zoo Code artifacts
 	$(VENV)/bin/python scripts/generate.py zoo
 
-kilo: verify ## Generate Kilo Code artifacts
+kilo: check-py ## Generate Kilo Code artifacts
 	$(VENV)/bin/python scripts/generate.py kilo
 
-opencode: verify ## Generate OpenCode artifacts
+opencode: check-py ## Generate OpenCode artifacts
 	$(VENV)/bin/python scripts/generate.py opencode
 
-claude: verify ## Generate Claude Code artifacts
+claude: check-py ## Generate Claude Code artifacts
 	$(VENV)/bin/python scripts/generate.py claude
 
-all: zoo kilo opencode claude ## Generate all tool artifacts
+all: zoo kilo opencode claude manifest ## Generate all tool artifacts
+
+manifest: check-py ## Generate install-manifest.json
+	$(VENV)/bin/python scripts/generate.py manifest
 
 clean: ## Remove generated output
 	rm -rf output
+
+# ── npm packaging ───────────────────────────────────────────────────
+
+$(NPM_STAMP): package.json
+	$(NPM) install
+	@touch $(NPM_STAMP)
+
+check-node: ## Guard: verify node and npm are available
+	@command -v $(NODE) >/dev/null 2>&1 && command -v $(NPM) >/dev/null 2>&1 || \
+		(echo "FAIL: node and npm are required — install Node.js to use package-npx targets" && exit 1)
+
+package-npx: check-node $(NPM_STAMP) $(STAMP) ## Build and pack the npm package
+	$(VENV)/bin/python scripts/generate.py zoo
+	$(VENV)/bin/python scripts/generate.py kilo
+	$(VENV)/bin/python scripts/generate.py opencode
+	$(VENV)/bin/python scripts/generate.py claude
+	$(VENV)/bin/python scripts/generate.py manifest
+	$(NPM) run build
+	@# Place dist/release.js alongside the release skill in each embedded tool tree
+	cp dist/release.js skills-embedded/zoo/skills/release/release.js
+	cp dist/release.js skills-embedded/kilo/skills/release/release.js
+	cp dist/release.js skills-embedded/opencode/skill/release/release.js
+	cp dist/release.js skills-embedded/claude/skills/release/release.js
+	$(NPM) pack --pack-destination dist/
+
+package-npx-zoo: package-npx ## Smoke-test: install zoo via built package
+	$(NODE) dist/cli.cjs install zoo --global --yes
+
+package-npx-kilo: package-npx ## Smoke-test: install kilo via built package
+	$(NODE) dist/cli.cjs install kilo --global --yes
+
+package-npx-opencode: package-npx ## Smoke-test: install opencode via built package
+	$(NODE) dist/cli.cjs install opencode --global --yes
+
+package-npx-claude: package-npx ## Smoke-test: install claude via built package
+	$(NODE) dist/cli.cjs install claude --global --yes
 
 # ── Zoo install targets ─────────────────────────────────────────────
 
@@ -59,10 +118,16 @@ install-zoo-global-skills: zoo ## Install zoo skills globally
 		fi; \
 	done
 
-install-zoo-global-agents: zoo ## Install zoo agents globally
+install-zoo-global-agents: zoo ## Install zoo agents globally to ~/.roo and merge into Zoo Code globalStorage
 	@mkdir -p $(HOME)/.roo
 	@echo "⚠  Overwriting $(HOME)/.roo/custom_modes.yaml with generated modes"
 	@cp output/zoo/.roomodes $(HOME)/.roo/custom_modes.yaml
+	@if [ -d "$(dir $(ZOO_GLOBALSTORAGE))" ]; then \
+		echo "Merging generated modes into $(ZOO_GLOBALSTORAGE)"; \
+		$(VENV)/bin/python scripts/merge-modes.py output/zoo/.roomodes "$(ZOO_GLOBALSTORAGE)"; \
+	else \
+		echo "SKIP: Zoo Code globalStorage not found at $(dir $(ZOO_GLOBALSTORAGE))"; \
+	fi
 
 install-zoo-local-skills: zoo ## Install zoo skills locally
 	@mkdir -p .roo/skills
@@ -77,3 +142,18 @@ install-zoo-local-skills: zoo ## Install zoo skills locally
 
 install-zoo-local-agents: zoo ## Install zoo agents locally
 	@cp output/zoo/.roomodes .roomodes
+
+# ── OpenCode install targets ───────────────────────────────────────
+
+install-opencode-global: opencode ## Install opencode agents and skills globally
+	@mkdir -p $(OPENCODE_CONFIG_HOME)/opencode/agents
+	@cp output/opencode/agents/*.md $(OPENCODE_CONFIG_HOME)/opencode/agents/
+	@mkdir -p $(OPENCODE_CONFIG_HOME)/opencode/skills
+	@for f in output/opencode/skill/*.md; do \
+		n=$$(basename "$$f" .md); \
+		mkdir -p "$(OPENCODE_CONFIG_HOME)/opencode/skills/$$n"; \
+		cp "$$f" "$(OPENCODE_CONFIG_HOME)/opencode/skills/$$n/SKILL.md"; \
+		if [ -d "output/opencode/skill/$$n" ]; then \
+			cp output/opencode/skill/$$n/* "$(OPENCODE_CONFIG_HOME)/opencode/skills/$$n/" || true; \
+		fi; \
+	done
