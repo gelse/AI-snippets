@@ -100,7 +100,6 @@ The legacy Makefile target `install-zoo-global-agents` **overwrites** `~/.roo/cu
 | [docs/architecture.md](docs/architecture.md) | Generation pipeline, manifest, installer merge/collision mechanics, per-tool emitted formats |
 | [docs/lieutenant-workflow.md](docs/lieutenant-workflow.md) | Captain classification, lieutenant skills, milestones, github-issue pipeline, model-selection philosophy |
 | [docs/development.md](docs/development.md) | Makefile targets, verify.py checks, smoke tests, build, packaging |
-| [docs/npm-trusted-publishing.md](docs/npm-trusted-publishing.md) | npm OIDC trusted publishing setup |
 
 ## Contributing
 
