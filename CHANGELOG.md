@@ -2,9 +2,12 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-29
+
 ### Fixed
 - Duplicate entries when re-installing zoo global modes: [`mergeModesYaml()`](src/merge.ts) replaced the stale-index `existingSlugs` splice with a single-pass `filter()` by slug, so repeated installs no longer duplicate generated slugs and pre-existing duplicates are cleaned up.
 - OpenCode skills documentation: [`docs/architecture.md`](docs/architecture.md) and [`README.md`](README.md) claimed OpenCode expects flat `skills/<name>.md` files. OpenCode's skill discovery only matches `{skill,skills}/**/SKILL.md` (per-name directory containing `SKILL.md`), so the documented destination now reflects the directory form.
+- `make install-opencode-global` now honors `XDG_CONFIG_HOME` instead of assuming `~/.config`.
 
 ### Added
 - `make install-opencode-global` (new) installs agents and skills globally in the layout OpenCode discovers (`~/.config/opencode/skills/<name>/SKILL.md`); note the CLI installer still emits flat skills, which OpenCode ignores.
@@ -15,6 +18,11 @@
 - Makefile `package-npx` target: generates all tool artifacts, builds the TypeScript package, copies `dist/release.js` into `skills-embedded/`, and produces a tarball in `dist/`.
 - Makefile `package-npx-zoo`, `package-npx-kilo`, `package-npx-opencode`, `package-npx-claude` smoke-test targets that run a real install via the built package.
 - `make verify` now includes a node-optional block: when both `node` and `npm` are available, it runs `tsc --noEmit`, `npm run build`, and a dry-run install; otherwise prints `SKIP: node not available`.
+- `captain` mode — classification and supervision entry point that routes work to the appropriate mode and skill; the default entry point, referenced by the `lieutenant` agent.
+- Five task-type skills — `full-feature`, `small-feature`, `bugfix`, `architecture`, and `implementation-from-milestone` — workflow playbooks dispatched from `captain`.
+- `documentation` skill for human-facing prose deliverables (documentation, READMEs, release notes, specs).
+- `models/mapping.yaml` model mapping (v0.1) with generator support: OpenCode agents emit their mapped `model` and a `mode` field derived from the mode's `instantiation` value (defaulting to `all`).
+- `docs/opencode-target-drift.md` — drift report comparing generated OpenCode targets against the installed baseline, with a clarified verdict format and corrected comparison baseline.
 
 ### Removed
 - Legacy Makefile JS-only targets: `verify-js`, `zoo-js`, `kilo-js`, `opencode-js`, `claude-js`, `all-js`.
@@ -25,6 +33,11 @@
 - Mode instructions moved from embedded strings in `modes.json` to `agents/<slug>.md` files; generated output unchanged.
 - README updated to Node-only documentation: removed dual-stack (JS/Python) prose, added `npx @gelse/ai-snippets install` usage section, updated workspace tree listing to reflect `src/`, root `package.json`, and `tsup.config.ts`.
 - The `orchestrator` mode is deprecated in favour of the new `lieutenant` mode, which fills the same role (skill-driven workflow dispatch from `captain`). `orchestrator` now behaves as a gatekeeper that aborts and directs users to `lieutenant`. The OpenCode and Claude outputs omit deprecated modes, so their installed agent count is unchanged; `zoo` and `kilo` gain the new `lieutenant` mode alongside the deprecated `orchestrator` entry.
+- `code` and `lieutenant` agents require nested sub-tasks (`new_task`) to be spawned sequentially, one at a time.
+- `review-code` and `review-plan` no longer spawn further sub-tasks.
+- `merge-modes.py` edge cases hardened.
+- Documentation restructure: new `docs/architecture.md`, `docs/development.md`, and `docs/lieutenant-workflow.md` (renamed from `orchestrator-workflow`); README rewritten around the captain/skills layout; `github-issue` routed through `captain`.
+
 ### Added (package scaffold)
 - npm package scaffold (`@gelse/ai-snippets` 0.1.0): tsup build emitting `dist/cli.cjs` (CommonJS, entry for the `ai-snippets` bin) and `dist/release.js` (ESM), with `yaml` bundled into the CLI so it runs from a bare tarball unpack; prebuild step stages `skills-embedded/` from `output/`, `files` field ships only `dist/` + `skills-embedded/`.
 - Installer CLI (`ai-snippets install <tool>`): reads bundled `install-manifest.json` and embedded skills tree, installs modes and skills for zoo, kilo, opencode, and claude.
