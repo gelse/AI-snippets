@@ -30,7 +30,7 @@ scripts/generate.py <tool|manifest>
     │
     ├── output/zoo/          .roomodes + skills/<name>.md
     ├── output/kilo/         .kilocodemodes + skills/<name>.md
-    ├── output/opencode/     agents/*.md + skill/<name>.md
+    ├── output/opencode/     agents/*.md + skill/<name>/SKILL.md
     ├── output/claude/       agents/*.md + skills/<name>/SKILL.md
     └── output/install-manifest.json
 ```
@@ -70,7 +70,7 @@ Generated agent `.md` files include YAML frontmatter with `mode: all`, which mak
 | Artifact | Emitted | Tool expects |
 |----------|---------|-------------|
 | Agents | `output/opencode/agents/*.md` | `.opencode/agents/*.md` (local) or `$OPENCODE_CONFIG_HOME/opencode/agents/*.md` (global) |
-| Skills | `output/opencode/skill/<name>.md` | `.opencode/skills/<name>/SKILL.md` (local) or `$OPENCODE_CONFIG_HOME/opencode/skills/<name>/SKILL.md` (global) |
+| Skills | `output/opencode/skill/<name>/SKILL.md` | `.opencode/skills/<name>/SKILL.md` (local) or `$OPENCODE_CONFIG_HOME/opencode/skills/<name>/SKILL.md` (global) |
 
 ### Claude Code
 

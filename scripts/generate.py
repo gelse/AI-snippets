@@ -323,7 +323,9 @@ def emit_opencode(data, out_dir):
             frontmatter["description"] = skill_desc
 
         fm_str = _yaml_dump(frontmatter)
-        with open(skill_dir / f"{skill['name']}.md", "w") as f:
+        skill_subdir = skill_dir / skill["name"]
+        skill_subdir.mkdir(parents=True, exist_ok=True)
+        with open(skill_subdir / "SKILL.md", "w") as f:
             f.write(f"---\n{fm_str}---\n{body}\n")
         # Companion files for directory-form skills go in skill/<name>/
         copy_skill_extra_files(skill, skill_dir / skill["name"])
