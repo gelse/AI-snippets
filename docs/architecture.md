@@ -11,6 +11,10 @@ This document covers the generation pipeline, install manifest, and installer me
 
 Agent instruction files live in `agents/<slug>.md` — one file per mode, no frontmatter, source-only content inlined verbatim at generation time.
 
+Each `agents/<slug>.md` is a minimal stub, not a full instruction file: it names the mode's `agent-<slug>` skill and lists the mode's tools.
+
+The full runbook — workflow, dispatch contract, quality gates — lives in `skills/agent-<slug>.md`; at runtime the mode loads that skill via the `skill` tool instead of carrying its own instructions.
+
 Skills support two layout forms:
 
 | Form | `file` value | When to use |
@@ -71,6 +75,8 @@ Generated agent `.md` files include YAML frontmatter with `mode: all`, which mak
 |----------|---------|-------------|
 | Agents | `output/opencode/agents/*.md` | `.opencode/agents/*.md` (local) or `$OPENCODE_CONFIG_HOME/opencode/agents/*.md` (global) |
 | Skills | `output/opencode/skill/<name>/SKILL.md` | `.opencode/skills/<name>/SKILL.md` (local) or `$OPENCODE_CONFIG_HOME/opencode/skills/<name>/SKILL.md` (global) |
+
+The skill emitter now writes this directory form directly — the flat-output bug is fixed in this release, so the emitted source matches what OpenCode discovers.
 
 ### Claude Code
 
