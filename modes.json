@@ -249,6 +249,46 @@
     {
       "name": "release",
       "file": "skills/release/SKILL.md"
+    },
+    {
+      "name": "agent-ask",
+      "file": "skills/agent-ask.md"
+    },
+    {
+      "name": "agent-captain",
+      "file": "skills/agent-captain.md"
+    },
+    {
+      "name": "agent-code",
+      "file": "skills/agent-code.md"
+    },
+    {
+      "name": "agent-investigator",
+      "file": "skills/agent-investigator.md"
+    },
+    {
+      "name": "agent-lieutenant",
+      "file": "skills/agent-lieutenant.md"
+    },
+    {
+      "name": "agent-plan",
+      "file": "skills/agent-plan.md"
+    },
+    {
+      "name": "agent-review-code",
+      "file": "skills/agent-review-code.md"
+    },
+    {
+      "name": "agent-review-plan",
+      "file": "skills/agent-review-plan.md"
+    },
+    {
+      "name": "agent-security-review",
+      "file": "skills/agent-security-review.md"
+    },
+    {
+      "name": "agent-verify",
+      "file": "skills/agent-verify.md"
     }
   ]
 }
