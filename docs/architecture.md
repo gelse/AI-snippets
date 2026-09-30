@@ -35,7 +35,6 @@ scripts/generate.py <tool|manifest>
     ├── output/zoo/          .roomodes + skills/<name>.md
     ├── output/kilo/         .kilocodemodes + skills/<name>.md
     ├── output/opencode/     agents/*.md + skill/<name>/SKILL.md
-    ├── output/claude/       agents/*.md + skills/<name>/SKILL.md
     └── output/install-manifest.json
 ```
 
@@ -77,15 +76,6 @@ Generated agent `.md` files include YAML frontmatter with `mode: all`, which mak
 | Skills | `output/opencode/skill/<name>/SKILL.md` | `.opencode/skills/<name>/SKILL.md` (local) or `$OPENCODE_CONFIG_HOME/opencode/skills/<name>/SKILL.md` (global) |
 
 The skill emitter now writes this directory form directly — the flat-output bug is fixed in this release, so the emitted source matches what OpenCode discovers.
-
-### Claude Code
-
-| Artifact | Emitted | Tool expects |
-|----------|---------|-------------|
-| Agents | `output/claude/agents/*.md` | `.claude/agents/*.md` (local) or `~/.claude/agents/*.md` (global) |
-| Skills | `output/claude/skills/<name>/SKILL.md` | `.claude/skills/<name>/SKILL.md` (local) or `~/.claude/skills/<name>/SKILL.md` (global) |
-
-Directory-form skills ship companion files (scripts, configs) alongside the runbook in all tools.
 
 ## Installer Plan and Execution
 

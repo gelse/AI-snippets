@@ -22,9 +22,8 @@ make help              # Show all available targets
 | `make zoo` | Generate Zoo Code artifacts into `output/zoo/` |
 | `make kilo` | Generate Kilo Code artifacts into `output/kilo/` |
 | `make opencode` | Generate OpenCode artifacts into `output/opencode/` |
-| `make claude` | Generate Claude Code artifacts into `output/claude/` |
 | `make manifest` | Generate `output/install-manifest.json` |
-| `make all` | Generate all four tool artifact trees plus the install manifest |
+| `make all` | Generate all three tool artifact trees plus the install manifest |
 | `make clean` | Remove `output/` |
 
 ### npm Packaging
@@ -35,7 +34,6 @@ make help              # Show all available targets
 | `make package-npx-zoo` | Smoke-test: install zoo via the built package |
 | `make package-npx-kilo` | Smoke-test: install kilo via the built package |
 | `make package-npx-opencode` | Smoke-test: install opencode via the built package |
-| `make package-npx-claude` | Smoke-test: install claude via the built package |
 
 ### Legacy Zoo Install Targets
 
