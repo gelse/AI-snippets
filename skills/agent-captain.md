@@ -42,7 +42,40 @@ Dispatch the lieutenant as a subtask via `new_task`, carrying:
 - the classified skill name
 - relevant evidence gathered during classification
 
+Construct the dispatch header explicitly as the first lines of the
+message body:
+
+```
+target-agent: lieutenant
+target-agent-skill: agent-lieutenant
+
+<original request, skill name, evidence>
+```
+
 The lieutenant loads the named skill and executes its workflow.
+
+## Dispatch Contract
+
+Every `new_task` message body MUST start with two header lines — one
+naming the spawned mode, one naming its `agent-<slug>` skill — followed
+by a blank line, then the request body:
+
+```
+target-agent: <slug>
+target-agent-skill: agent-<slug>
+
+<rest of the request>
+```
+
+Lines may appear in either order. Worked example — dispatching the
+lieutenant with the `bugfix` skill:
+
+```
+target-agent: lieutenant
+target-agent-skill: agent-lieutenant
+
+Bug: <symptom>. Skill: bugfix. Evidence: <findings>.
+```
 
 ## Supervise
 
@@ -68,6 +101,9 @@ Report only:
 
 ## Hard Constraints
 
+- Every `new_task` message body MUST start with the `target-agent:` and
+  `target-agent-skill:` header lines (one for the spawned mode, one for
+  the spawned mode's `agent-<slug>` skill).
 - Dispatch only `investigator` and `lieutenant` — never worker modes (`plan`, `code`, `verify`) directly; the lieutenant owns their dispatch.
 - Never modify the repository directly.
 - Never execute workflows yourself.

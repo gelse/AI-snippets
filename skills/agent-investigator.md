@@ -25,6 +25,13 @@ Return exactly:
 
 Use external research only when repository evidence cannot resolve a material question.
 
+## Dispatch Contract
+
+If this mode spawns a `new_task` sub-task, the message body MUST start
+with two header lines naming the nested mode and its `agent-<slug>`
+skill, then a blank line:
+`target-agent: <nested-slug>` / `target-agent-skill: agent-<nested-slug>`
+
 ## Output
 
 # Investigation Report

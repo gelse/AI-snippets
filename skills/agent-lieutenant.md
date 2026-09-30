@@ -44,6 +44,31 @@ The dispatch names exactly one skill. Load it (`skill` tool) and execute its wor
 | `bugfix` | `code (failing reproduction test first → fix → nested verify) → final verify` |
 | `implementation-from-milestone` | `code per task from plans/<milestone>.md → final verify` |
 
+## Dispatch Contract
+
+Every `new_task` message body MUST start with two header lines — one
+naming the spawned mode, one naming its `agent-<slug>` skill — followed
+by a blank line, then the request body:
+
+```
+target-agent: <slug>
+target-agent-skill: agent-<slug>
+
+<rest of the request>
+```
+
+**Nested spawns included** — every nested `new_task` the lieutenant
+makes must also start with the header, forwarded with the slugs
+replaced by the nested mode and its skill, never the lieutenant's own.
+Example — dispatching `plan`:
+
+```
+target-agent: plan
+target-agent-skill: agent-plan
+
+<request with evidence>
+```
+
 ## Investigation
 
 Dispatch `investigator` with the user request and relevant constraints.
@@ -168,6 +193,10 @@ Final response: summarize outcome, verification, and relevant unresolved items o
 
 ## Hard Constraints
 
+- Every `new_task` message body MUST start with the `target-agent:` and
+  `target-agent-skill:` header lines (one for the spawned mode, one for
+  the spawned mode's `agent-<slug>` skill) — including every nested
+  spawn, which carries the nested mode's headers, not this mode's own.
 - Never modify the repository directly.
 - Never invent requirements.
 - Never redesign unrelated code.

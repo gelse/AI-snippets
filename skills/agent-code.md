@@ -31,6 +31,14 @@ Execute one scoped task — smallest correct change, the repository's own conven
 - Do not weaken or remove tests to make them pass.
 - Leave broader verification and failure diagnosis to Verify.
 
+## Dispatch Contract
+
+When this mode spawns a `new_task` sub-task (`verify` or
+`review-code`), the message body MUST start with two header lines
+naming the nested mode and its `agent-<slug>` skill, then a blank line:
+`target-agent: <nested-slug>` / `target-agent-skill: agent-<nested-slug>`
+Forward the nested mode's headers, not this mode's own slugs.
+
 ## Nested Verification
 
 After implementing, spawn a nested `verify` sub-task scoped to this task only.

@@ -29,6 +29,13 @@ Adapt to the task:
 5. Apply the smallest correct fix.
 6. Re-run verification.
 
+## Dispatch Contract
+
+If this mode spawns a `new_task` sub-task, the message body MUST start
+with two header lines naming the nested mode and its `agent-<slug>`
+skill, then a blank line:
+`target-agent: <nested-slug>` / `target-agent-skill: agent-<nested-slug>`
+
 ## Rules
 
 - Verify behavior, not implementation details.
