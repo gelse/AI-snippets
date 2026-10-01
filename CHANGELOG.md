@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Removed
+- npm publishing: the `npm-publish` GitHub Actions workflow (`.github/workflows/npm-publish.yml`) and `docs/npm-trusted-publishing.md` are removed, along with the release skill's Publish phase — `release.py finalize` (GitHub release + tag on `main`) is now the sole release automation.
+- `@gelse/ai-snippets` remains installable: `make package-npx` produces a tarball in `dist/`, and source builds install via `node dist/cli.cjs install <tool>`.
+
 ## [0.2.0] - 2026-09-29
 
 ### Fixed
