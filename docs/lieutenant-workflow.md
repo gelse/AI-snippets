@@ -22,7 +22,16 @@ Captain reads the user's request, gathers minimal evidence (file references, bra
 
 ### Dispatch and supervision
 
-Captain dispatches the lieutenant via `new_task` with the original request, the classified skill, and relevant evidence. The lieutenant loads the named skill and executes its workflow.
+Captain dispatches the lieutenant via `new_task` with the original request, the classified skill, and relevant evidence. Every `new_task` message body MUST start with two header lines — `target-agent:` naming the spawned mode and `target-agent-skill:` naming that mode's `agent-<slug>` skill — followed by a blank line, then the request:
+
+```
+target-agent: lieutenant
+target-agent-skill: agent-lieutenant
+
+<original request, skill name, evidence>
+```
+
+The lieutenant reads the header, loads the named skill, and executes its workflow.
 
 Captain monitors the lieutenant's completion summary and verifies that the dispatched skill's workflow was followed and completion criteria were met.
 
@@ -34,7 +43,7 @@ Captain's mode definition is instruction-level read-only (`[read, command, mcp]`
 
 ## Skills
 
-The lieutenant dispatches exactly one skill per run. Each skill defines a workflow sequence, type-specific rules, and a failure-recovery table. The lieutenant loads the skill via the `skill` tool and follows it end-to-end.
+The lieutenant dispatches exactly one skill per run. Each skill defines a workflow sequence, type-specific rules, and a failure-recovery table. The lieutenant loads the skill via the `skill` tool and follows it end-to-end. The ten `agent-*` skills are the mode runbooks — each `agents/<slug>.md` stub loads its `agent-<slug>` skill, which carries the mode's full workflow, dispatch contract, and quality gates. The subsections below cover both groups.
 
 ### Full feature
 
@@ -91,6 +100,46 @@ flowchart TD
 **Key rules:** Milestone format per plan mode. Code uses `Verification` and `Non-goals` fields as its dispatch contract. Final verify covers cross-task integration.
 
 **Recovery:** Obvious failure → code → verify. Unclear failure → verify. Implementation cause → code → verify. Design issue → targeted investigator → plan → re-dispatch code → verify.
+
+### Agent-captain
+
+Classifies incoming work and supervises the lieutenant as it executes the chosen skill; every dispatch carries the `target-agent` / `target-agent-skill` header. Runbook: [`skills/agent-captain.md`](../skills/agent-captain.md).
+
+### Agent-lieutenant
+
+Runs a dispatched skill end to end by delegating each step to specialist sub-tasks. Runbook: [`skills/agent-lieutenant.md`](../skills/agent-lieutenant.md).
+
+### Agent-investigator
+
+Turns an unclear task into a short, cited evidence report for planning. Runbook: [`skills/agent-investigator.md`](../skills/agent-investigator.md).
+
+### Agent-plan
+
+Turns a task and repository evidence into the smallest correct, implementation-ready plan. Runbook: [`skills/agent-plan.md`](../skills/agent-plan.md).
+
+### Agent-review-code
+
+Advisory review of a change for correctness, security, reliability, and compatibility regressions. Runbook: [`skills/agent-review-code.md`](../skills/agent-review-code.md).
+
+### Agent-security-review
+
+Advisory security-only review of a change for injection, credential, and breach risks. Runbook: [`skills/agent-security-review.md`](../skills/agent-security-review.md).
+
+### Agent-review-plan
+
+Adversarial check of a plan's completeness, feasibility, dependencies, and verifiability. Runbook: [`skills/agent-review-plan.md`](../skills/agent-review-plan.md).
+
+### Agent-code
+
+Executes one scoped task with a minimal correct implementation plus tests and nested quality gates. Runbook: [`skills/agent-code.md`](../skills/agent-code.md).
+
+### Agent-verify
+
+Proves the change works — focused tests, execution, failure diagnosis, and fix confirmation. Runbook: [`skills/agent-verify.md`](../skills/agent-verify.md).
+
+### Agent-ask
+
+Answers technical questions from repository evidence with only the needed detail. Runbook: [`skills/agent-ask.md`](../skills/agent-ask.md).
 
 ## Milestones
 

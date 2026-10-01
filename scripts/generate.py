@@ -1,7 +1,7 @@
-"""Generate mode/skill artifacts for Zoo Code, Kilo Code, OpenCode, and Claude Code.
+"""Generate mode/skill artifacts for Zoo Code, Kilo Code, and OpenCode.
 
 Usage:
-    scripts/generate.py {zoo|kilo|opencode|claude} [--out output]
+    scripts/generate.py {zoo|kilo|opencode} [--out output]
 """
 
 import argparse
@@ -323,69 +323,14 @@ def emit_opencode(data, out_dir):
             frontmatter["description"] = skill_desc
 
         fm_str = _yaml_dump(frontmatter)
-        with open(skill_dir / f"{skill['name']}.md", "w") as f:
+        skill_subdir = skill_dir / skill["name"]
+        skill_subdir.mkdir(parents=True, exist_ok=True)
+        with open(skill_subdir / "SKILL.md", "w") as f:
             f.write(f"---\n{fm_str}---\n{body}\n")
         # Companion files for directory-form skills go in skill/<name>/
         copy_skill_extra_files(skill, skill_dir / skill["name"])
 
     print(f"  opencode: {count} agents + {len(data['skills'])} skills in {oc_dir}")
-
-
-# ---------------------------------------------------------------------------
-# Claude Code emitter
-# ---------------------------------------------------------------------------
-
-def emit_claude(data, out_dir):
-    """Emit Claude Code artifacts."""
-    claude_dir = out_dir / "claude"
-    shutil.rmtree(claude_dir, ignore_errors=True)
-    agents_dir = claude_dir / "agents"
-    agents_dir.mkdir(parents=True, exist_ok=True)
-
-    count = 0
-    for mode in data["customModes"]:
-        if mode.get("deprecated"):
-            continue
-
-        slug = mode["slug"]
-        desc = mode["description"]
-        when = mode["whenToUse"]
-        role = mode["roleDefinition"]
-        instructions = mode.get("customInstructions", "")
-
-        frontmatter = {
-            "name": slug,
-            "description": f"{desc} (Use when: {when})",
-        }
-
-        body = f"{role}\n\n{instructions}" if instructions else role
-
-        fm_str = _yaml_dump(frontmatter)
-        content = f"---\n{fm_str}---\n{body}\n"
-
-        with open(agents_dir / f"{slug}.md", "w") as f:
-            f.write(content)
-        count += 1
-
-    for skill in data["skills"]:
-        skill_dir = claude_dir / "skills" / skill["name"]
-        skill_dir.mkdir(parents=True, exist_ok=True)
-
-        raw = load_skill_content(skill["file"])
-        skill_desc = extract_skill_description(raw)
-        body = extract_body_after_frontmatter(raw)
-
-        frontmatter = {"name": skill["name"]}
-        if skill_desc:
-            frontmatter["description"] = skill_desc
-
-        fm_str = _yaml_dump(frontmatter)
-        with open(skill_dir / "SKILL.md", "w") as f:
-            f.write(f"---\n{fm_str}---\n{body}\n")
-        # Companion files for directory-form skills go beside SKILL.md
-        copy_skill_extra_files(skill, skill_dir)
-
-    print(f"  claude: {count} agents + {len(data['skills'])} skills in {claude_dir}")
 
 
 # ---------------------------------------------------------------------------
@@ -455,18 +400,6 @@ def emit_manifest(data, out_dir):
                     "global": "~/.config/opencode/skills",
                 },
             },
-            "claude": {
-                "modesDir": {
-                    "src": "claude/agents",
-                    "local": ".claude/agents",
-                    "global": "~/.claude/agents",
-                },
-                "skillsDir": {
-                    "src": "claude/skills",
-                    "local": ".claude/skills",
-                    "global": "~/.claude/skills",
-                },
-            },
         },
     }
 
@@ -490,7 +423,6 @@ EMITTERS = {
     "zoo": emit_zoo,
     "kilo": emit_kilo,
     "opencode": emit_opencode,
-    "claude": emit_claude,
     "manifest": emit_manifest,
 }
 

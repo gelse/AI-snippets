@@ -89,7 +89,7 @@ function printHelp(): void {
 
 Install generated skills and agent modes for an AI coding tool.
 
-Tools: zoo, kilo, opencode, claude
+Tools: zoo, kilo, opencode
 
 Options:
   --global          Install to global tool config directory (default)
@@ -104,7 +104,6 @@ If no tool is specified, an interactive wizard will guide you.
 
 Examples:
   ai-snippets install zoo --global
-  ai-snippets install claude --local --dry-run
   ai-snippets install opencode --global --skills-only --yes`);
 }
 

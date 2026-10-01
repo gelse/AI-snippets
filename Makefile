@@ -9,9 +9,9 @@ NPM_STAMP = .npm-stamp
 ZOO_GLOBALSTORAGE ?= $(HOME)/.config/Code/User/globalStorage/zoocodeorganization.zoo-code/settings/custom_modes.yaml
 OPENCODE_CONFIG_HOME ?= $(if $(XDG_CONFIG_HOME),$(XDG_CONFIG_HOME),$(HOME)/.config)
 
-.PHONY: help check-py verify zoo kilo opencode claude manifest all clean \
+.PHONY: help check-py verify zoo kilo opencode manifest all clean \
         check-node package-npx \
-        package-npx-zoo package-npx-kilo package-npx-opencode package-npx-claude \
+        package-npx-zoo package-npx-kilo package-npx-opencode \
         install-zoo-global install-zoo-local \
         install-zoo-global-skills install-zoo-global-agents \
         install-zoo-local-skills install-zoo-local-agents \
@@ -54,10 +54,7 @@ kilo: check-py ## Generate Kilo Code artifacts
 opencode: check-py ## Generate OpenCode artifacts
 	$(VENV)/bin/python scripts/generate.py opencode
 
-claude: check-py ## Generate Claude Code artifacts
-	$(VENV)/bin/python scripts/generate.py claude
-
-all: zoo kilo opencode claude manifest ## Generate all tool artifacts
+all: zoo kilo opencode manifest ## Generate all tool artifacts
 
 manifest: check-py ## Generate install-manifest.json
 	$(VENV)/bin/python scripts/generate.py manifest
@@ -79,14 +76,12 @@ package-npx: check-node $(NPM_STAMP) $(STAMP) ## Build and pack the npm package
 	$(VENV)/bin/python scripts/generate.py zoo
 	$(VENV)/bin/python scripts/generate.py kilo
 	$(VENV)/bin/python scripts/generate.py opencode
-	$(VENV)/bin/python scripts/generate.py claude
 	$(VENV)/bin/python scripts/generate.py manifest
 	$(NPM) run build
 	@# Place dist/release.js alongside the release skill in each embedded tool tree
 	cp dist/release.js skills-embedded/zoo/skills/release/release.js
 	cp dist/release.js skills-embedded/kilo/skills/release/release.js
 	cp dist/release.js skills-embedded/opencode/skill/release/release.js
-	cp dist/release.js skills-embedded/claude/skills/release/release.js
 	$(NPM) pack --pack-destination dist/
 
 package-npx-zoo: package-npx ## Smoke-test: install zoo via built package
@@ -97,9 +92,6 @@ package-npx-kilo: package-npx ## Smoke-test: install kilo via built package
 
 package-npx-opencode: package-npx ## Smoke-test: install opencode via built package
 	$(NODE) dist/cli.cjs install opencode --global --yes
-
-package-npx-claude: package-npx ## Smoke-test: install claude via built package
-	$(NODE) dist/cli.cjs install claude --global --yes
 
 # ── Zoo install targets ─────────────────────────────────────────────
 

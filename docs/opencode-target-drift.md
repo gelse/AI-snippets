@@ -1,5 +1,7 @@
 # OpenCode target drift report
 
+> **Stale after the agent/skill refactor.** The refactor reduced each active `agents/<slug>.md` to a stub that loads its `agent-<slug>` skill, so the per-file PASS results below describe the pre-refactor source and no longer match the current tree. Before trusting this report, regenerate it against the post-refactor source using the comparison method described under **Methodology**.
+
 Comparison of the opencode workspace agents in `/home/werner/.config/opencode/agents/` against the source of truth in this repo (`modes.json` + `agents/*.md`), as of the current state of both trees.
 
 **Methodology.** Frontmatter was parsed with `yaml.safe_load` on the block between the `---` delimiters and compared as parsed values (descriptions contain `": "` and may be YAML-quoted in the files). Body comparison resolves `customInstructions` from the repo's own `agents/<slug>.md` (not the workspace file), mirrors the generator's fallback (`roleDefinition` alone when instructions are empty), and compares against the emitter's actual output — `body + "\n"` — with the emitter-appended file-final newline normalized on both sides. The `permission.edit: deny` check uses the same `has_edit_group` predicate as the generator. The `mode` check compares against `modes.json.instantiation`, defaulting to `"all"` when the field is absent.

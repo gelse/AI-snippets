@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Fixed
+- OpenCode skill emitter dir form: [`generate.py`](scripts/generate.py) emitted flat `output/opencode/skill/<name>.md` files — a latent pre-existing bug, since OpenCode only discovers `{skill,skills}/**/SKILL.md` and silently ignored the flat output. Skills are now written as `output/opencode/skill/<name>/SKILL.md` (frontmatter and body unchanged), matching what OpenCode discovers.
+
+### Changed
+- Agent/skill refactor: each active mode's `agents/<slug>.md` instruction file is reduced to a stub that names its `agent-<slug>` runbook skill, and ten new `skills/agent-<slug>.md` skills carry the full workflows; `modes.json` wires the two together. [`docs/architecture.md`](docs/architecture.md) documents the stub/runbook split and the opencode dir-form emitter, [`docs/lieutenant-workflow.md`](docs/lieutenant-workflow.md) documents the dispatch header and the ten mode runbooks, and [`README.md`](README.md) reflects the new counts and layout.
+- Dispatch contract: the `target-agent` / `target-agent-skill` header every `new_task` dispatch must carry is specified in the matching runbook skills — [`skills/agent-captain.md`](skills/agent-captain.md) and [`skills/agent-lieutenant.md`](skills/agent-lieutenant.md).
+
 ### Removed
 - npm publishing: the `npm-publish` GitHub Actions workflow (`.github/workflows/npm-publish.yml`) and `docs/npm-trusted-publishing.md` are removed, along with the release skill's Publish phase — `release.py finalize` (GitHub release + tag on `main`) is now the sole release automation.
 - `@gelse/ai-snippets` remains installable: `make package-npx` produces a tarball in `dist/`, and source builds install via `node dist/cli.cjs install <tool>`.
