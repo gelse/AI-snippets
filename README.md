@@ -2,6 +2,8 @@
 
 One command installs 13 agent modes (10 active + 3 deprecated gatekeepers) and 20 skills (10 existing + 10 `agent-*` runbook skills) into Zoo Code, Kilo Code, or OpenCode. Captain is the default entry point — it classifies tasks and dispatches the lieutenant with the matching skill. Modes give your coding agent specialized subagents — lieutenant, planner, reviewer, verifier, and more. Skills are reusable workflow runbooks that drive end-to-end autonomous pipelines.
 
+> **Note:** Claude Code is currently a research-phase target and is NOT officially supported.
+
 ## Quick Start
 
 ```bash
