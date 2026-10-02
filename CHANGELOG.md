@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Fixed
+- [`docs/development.md`](docs/development.md) CLI-installer note states the CLI emits directory-form skills that OpenCode discovers; the [`scripts/smoke-test.sh`](scripts/smoke-test.sh) post-overwrite assertion comment references the generated `output/` tree.
 - OpenCode skill emitter dir form: [`generate.py`](scripts/generate.py) emitted flat `output/opencode/skill/<name>.md` files — a latent pre-existing bug, since OpenCode only discovers `{skill,skills}/**/SKILL.md` and silently ignored the flat output. Skills are now written as `output/opencode/skill/<name>/SKILL.md` (frontmatter and body unchanged), matching what OpenCode discovers.
 
 ### Changed
@@ -14,6 +15,7 @@
 - `scripts/merge-modes.py` minimal refactor — extract importable `merge(gen_path, dest_path) -> tuple[list[str], list[str], list[str]]` returning replaced/kept/added slug lists; `main()` is now a thin wrapper that keeps the existing CLI output and exit behavior byte-identical so the Makefile subprocess call still works.
 - `scripts/smoke-test.sh` and `scripts/smoke-test-double-install.sh` rewritten to invoke the Python installer via `.venv/bin/python`; `count_slugs_yaml()` swapped for a PyYAML one-liner.
 - `Dockerfile` and `docker-compose.yml` for running the generators on hosts without Python 3.11. Base image `python:3.11-slim`, in-image venv at `/opt/venv` (avoids host venv shadowing under the compose bind mount), `make` available, `pyyaml`+`ruff` pre-installed. Default compose service bind-mounts host `./output` so generated artifacts persist on the host.
+- Claude Code is documented in [`README.md`](README.md) as a research-phase target that is not officially supported; the install manifest does not list it as an installable tool.
 
 ### Removed
 - npm publishing: the `npm-publish` GitHub Actions workflow (`.github/workflows/npm-publish.yml`) and `docs/npm-trusted-publishing.md` are removed, along with the release skill's Publish phase — `release.py finalize` (GitHub release + tag on `main`) is now the sole release automation.
