@@ -4,7 +4,7 @@ This document covers the captain entry point, the lieutenant's shared execution 
 
 ## Captain
 
-The captain is the default entry point. It classifies the task into one of five types, dispatches the lieutenant as a subtask carrying the chosen skill, and supervises execution.
+The captain is the default entry point. It classifies the task into one of six types, dispatches the lieutenant as a subtask carrying the chosen skill, and supervises execution.
 
 ### Classification
 
@@ -16,9 +16,10 @@ Captain reads the user's request, gathers minimal evidence (file references, bra
 | Single, contained, obvious; one file or a few files; no design ambiguity | Small feature | `small-feature` |
 | Plan-only; no implementation requested; architecture or research | Architecture | `architecture` |
 | Defect or broken behavior; regression; reproduction test needed | Bugfix | `bugfix` |
+| Primary deliverable is a document — create, update, or correct existing prose docs under `README.md` and `docs/` | Documentation | `documentation` |
 | Approved milestone file exists under `plans/` and maps to the task | Implementation from milestone | `implementation-from-milestone` |
 
-**Tiebreak:** If two types fit, prefer the smaller one. If evidence is missing to decide, investigate first; do not guess.
+**Tiebreak:** If two types fit, prefer the smaller one. When the primary deliverable is a document, `documentation` takes precedence over `small-feature`, `full-feature`, and `architecture` regardless of size or how much research the task involves. Other types still win when a document is merely an output of the work — implementing a milestone that happens to update `docs/` stays `implementation-from-milestone`, and a bugfix whose fix touches docs stays `bugfix`. If evidence is missing to decide, investigate first; do not guess.
 
 ### Dispatch and supervision
 
@@ -76,6 +77,14 @@ The lieutenant dispatches exactly one skill per run. Each skill defines a workfl
 **Key rules:** Reproduction test fails before fix, passes after. Minimal fix — no unrelated refactoring.
 
 **Recovery:** Same as small feature: obvious failure → code → verify; unclear failure → verify; implementation cause → code → verify; design issue → report to captain for re-classification.
+
+### Documentation
+
+**Workflow:** `investigator → plan (conditional) → code (nested verify) → verify` — per [`skills/documentation.md`](../skills/documentation.md):14. Plan dispatches only when the request spans new documents that need a shared structure before anyone writes; single-doc edits dispatch `code` directly.
+
+**Key rules:** Every claim, code sample, command, link, and version reference is checked against the code before it ships. Updating stale docs is in scope — a document wrong against the code is a defect this skill fixes. Scope-out boundaries are binding: [`CHANGELOG.md`](../CHANGELOG.md) and release notes route to the [`release`](../skills/release/SKILL.md) skill, milestone files under [`plans/`](../plans/) route to the [`architecture`](../skills/architecture.md) skill, in-source docstrings and code comments route to the [`code`](../skills/agent-code.md) skill.
+
+**Recovery:** Per the [`skills/documentation.md`](../skills/documentation.md):75-80 failure-recovery table — obvious failure at final verify or nested gate → `code → verify`; unclear failure → `verify`; verify finds inaccuracy or broken reference → `code → verify`; verify finds design issue or task outgrows scope → report to captain for re-classification.
 
 ### Implementation from milestone
 
@@ -143,7 +152,7 @@ Answers technical questions from repository evidence with only the needed detail
 
 ## Milestones
 
-Milestone files live in `plans/` (local, gitignored). Each file is one implementation-ready unit produced or revised by `plan`. The canonical format is defined in [plan mode](../agents/plan.md#milestone-file-output-architectureplanning-tasks) — lieutenant, skills, and `code` reference it by name and do not restate it.
+Milestone files live in `plans/` (local, gitignored). Each file is one implementation-ready unit produced or revised by `plan`. The canonical format is defined in [plan mode](../skills/agent-plan.md#milestone-file-output-architectureplanning-tasks) — lieutenant, skills, and `code` reference it by name and do not restate it.
 
 ## End-to-End Autonomous Issue Resolution with `github-issue`
 
@@ -202,7 +211,7 @@ If the original issue contains **material ambiguity** that cannot be resolved fr
 
 ### Mode → Model Mapping
 
-The model backing each mode is selected in the tool's settings. The principle: **never leave the pipeline's roles on a single uniform default.** Autonomy quality is bounded by the weakest model in the loop, and different roles fail in different ways.
+Each mode has a backing model. For OpenCode, the model is preset into the agent's frontmatter from [`models/mapping.yaml`](../models/mapping.yaml) at generation time — the emitter inserts `model: litellm/<id>` between `mode` and `permission`, and [`scripts/verify.py`](../scripts/verify.py) at `verify_opencode_agent_models()` enforces the match. For Zoo and Kilo, the model is selected in the tool's settings. The principle: **never leave the pipeline's roles on a single uniform default.** Autonomy quality is bounded by the weakest model in the loop, and different roles fail in different ways.
 
 | Mode | Role | Model Class |
 |------|------|-------------|

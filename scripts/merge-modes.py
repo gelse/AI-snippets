@@ -8,6 +8,9 @@ Merge semantics (mirrors src/merge.ts mergeModesYaml):
   - dest exists  → replace entries with matching slug, keep foreign entries,
                     append new generated slugs (order: existing file first, then new)
   - malformed dest YAML → exit non-zero, do not modify dest
+
+The ``merge()`` function is importable: scripts/install.py loads it via
+importlib and reuses it for merge-counted installs.
 """
 
 from __future__ import annotations
@@ -22,22 +25,31 @@ def _slugs(modes: list[dict]) -> list[str]:
     return [m["slug"] for m in modes if "slug" in m]
 
 
-def main(argv: list[str]) -> int:
-    if len(argv) != 3:
-        print("Usage: merge-modes.py <generated-modes> <dest>", file=sys.stderr)
-        return 2
+def merge(
+    gen_path: str | os.PathLike,
+    dest_path: str | os.PathLike,
+) -> tuple[list[str], list[str], list[str]]:
+    """Merge the generated modes file into ``dest_path``.
 
-    gen_path, dest_path = argv[1], argv[2]
+    Returns ``(replaced, kept, added)`` slug lists:
+      - replaced: destination slugs overwritten by generated entries
+      - kept:     destination slugs preserved (not in the generated set)
+      - added:    generated slugs not already present in dest
 
+    Error contract: on unreadable or malformed input the error is printed to
+    stderr and the PROCESS EXITS 1 without modifying the destination. This is
+    intentional — callers (including scripts/install.py) must not expect
+    merge() to return on failure.
+    """
     try:
         with open(gen_path, encoding="utf-8") as fh:
             gen_data = yaml.safe_load(fh)
     except (FileNotFoundError, OSError) as exc:
         print(f"ERROR: cannot read generated modes file {gen_path}: {exc}", file=sys.stderr)
-        return 1
+        sys.exit(1)
     except yaml.YAMLError as exc:
         print(f"ERROR: malformed YAML in generated file {gen_path}: {exc}", file=sys.stderr)
-        return 1
+        sys.exit(1)
 
     gen_modes: list[dict] = gen_data.get("customModes", []) if gen_data else []
 
@@ -53,12 +65,20 @@ def main(argv: list[str]) -> int:
             content = src.read()
         with open(dest_path, "w", encoding="utf-8") as fh:
             fh.write(content)
-        slugs = _slugs(gen_modes)
-        print(f"replaced=[] kept=[] added={slugs}")
-        return 0
+        return [], [], _slugs(gen_modes)
     except yaml.YAMLError as exc:
         print(f"ERROR: malformed YAML in {dest_path}: {exc}", file=sys.stderr)
-        return 1
+        sys.exit(1)
+
+    if dest_data is not None and not isinstance(dest_data, dict):
+        # Non-mapping dest (scalar/list junk) — mirror src/merge.ts, which
+        # replaces such content with a fresh customModes mapping.
+        print(
+            f"WARNING: {dest_path} is not a mapping "
+            f"({type(dest_data).__name__}); replacing with generated modes only",
+            file=sys.stderr,
+        )
+        dest_data = {}
 
     raw_dest_modes = dest_data.get("customModes", []) if dest_data else []
     if not isinstance(raw_dest_modes, list):
@@ -112,7 +132,16 @@ def main(argv: list[str]) -> int:
     with open(dest_path, "w", encoding="utf-8") as fh:
         yaml.safe_dump(out_data, fh, sort_keys=False, allow_unicode=True)
 
-    print(f"replaced={replaced} kept={kept_slugs} added={added}")
+    return replaced, kept_slugs, added
+
+
+def main(argv: list[str]) -> int:
+    if len(argv) != 3:
+        print("Usage: merge-modes.py <generated-modes> <dest>", file=sys.stderr)
+        return 2
+
+    replaced, kept, added = merge(argv[1], argv[2])
+    print(f"replaced={replaced} kept={kept} added={added}")
     return 0
 
 

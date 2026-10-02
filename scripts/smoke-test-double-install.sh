@@ -15,25 +15,24 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-CLI="$ROOT_DIR/dist/cli.cjs"
+CLI="$ROOT_DIR/scripts/install.py"
+VENV="$ROOT_DIR/.venv"
 
-if [ ! -f "$CLI" ]; then
-  echo "FAIL: $CLI not found — run 'npm run build' first"
+if [ ! -f "$ROOT_DIR/output/install-manifest.json" ]; then
+  echo "FAIL: $ROOT_DIR/output/install-manifest.json not found — run 'make all' first"
   exit 1
 fi
 
 # Count slug entries using the same YAML parser the CLI uses. This is robust
 # to block- vs flow-style serialization (e.g. `customModes: []` seeds).
 count_slugs_yaml() {
-  MODES_FILE="$1" node -e '
-    const y = require("yaml");
-    const fs = require("fs");
-    const doc = y.parseDocument(fs.readFileSync(process.env.MODES_FILE, "utf8"));
-    const seq = doc.contents && doc.contents.get ? doc.contents.get("customModes") : null;
-    const items = seq && seq.items ? seq.items : [];
-    const slugs = items.map(i => (i && i.get ? i.get("slug") : null)).filter(Boolean);
-    console.log(slugs.length);
-  ' 2>/dev/null
+  "$VENV/bin/python" - "$1" <<'PY'
+import sys, yaml
+with open(sys.argv[1], encoding="utf-8") as f:
+  data = yaml.safe_load(f) or {}
+seq = data.get("customModes") or []
+print(sum(1 for m in seq if isinstance(m, dict) and m.get("slug")))
+PY
 }
 
 # ── Seeded HOME ────────────────────────────────────────────────────────
@@ -61,13 +60,13 @@ echo ""
 
 # ── First install ──────────────────────────────────────────────────────
 echo "--- First install: zoo --global --yes ---"
-FIRST_OUTPUT=$(HOME="$TMP_HOME" node "$CLI" install zoo --global --yes 2>&1)
+FIRST_OUTPUT=$(HOME="$TMP_HOME" "$VENV/bin/python" "$CLI" install zoo --global --yes 2>&1)
 echo "$FIRST_OUTPUT"
 echo ""
 
 # ── Second install (should not create duplicates) ──────────────────────
 echo "--- Second install: zoo --global --yes ---"
-SECOND_OUTPUT=$(HOME="$TMP_HOME" node "$CLI" install zoo --global --yes 2>&1)
+SECOND_OUTPUT=$(HOME="$TMP_HOME" "$VENV/bin/python" "$CLI" install zoo --global --yes 2>&1)
 echo "$SECOND_OUTPUT"
 echo ""
 
@@ -79,7 +78,7 @@ if [ ! -f "$MODES_FILE" ]; then
 fi
 
 # Extract all slug values from the YAML file.
-SLUGS=$(grep -oP '^\s+-\s+slug:\s+\K.*' "$MODES_FILE" || true)
+SLUGS=$(grep -oP '^\s*-\s+slug:\s+\K.*' "$MODES_FILE" || true)
 SLUG_COUNT=$(echo "$SLUGS" | grep -c '.' || true)
 
 echo "Slugs found: $SLUG_COUNT"
@@ -188,9 +187,9 @@ fi
 # Pre-fix, a third install grew the file further (splice of stale indices).
 echo ""
 echo "--- Third install: regression check for repeat-install stability ---"
-HOME="$TMP_HOME" node "$CLI" install zoo --global --yes > /dev/null 2>&1
-SLUG_COUNT_3=$(grep -oP '^\s+-\s+slug:\s+\K.*' "$MODES_FILE" | grep -c '.' || true)
-UNIQUE_COUNT_3=$(grep -oP '^\s+-\s+slug:\s+\K.*' "$MODES_FILE" | sort -u | wc -l)
+HOME="$TMP_HOME" "$VENV/bin/python" "$CLI" install zoo --global --yes > /dev/null 2>&1
+SLUG_COUNT_3=$(grep -oP '^\s*-\s+slug:\s+\K.*' "$MODES_FILE" | grep -c '.' || true)
+UNIQUE_COUNT_3=$(grep -oP '^\s*-\s+slug:\s+\K.*' "$MODES_FILE" | sort -u | wc -l)
 if [ "$SLUG_COUNT_3" -ne 14 ] || [ "$UNIQUE_COUNT_3" -ne 14 ]; then
   echo "FAIL: third install changed slug count (total=$SLUG_COUNT_3, unique=$UNIQUE_COUNT_3, expected 14)"
   exit 1
@@ -205,8 +204,8 @@ TMP_HOME_EMPTY="$(mktemp -d)"
 trap 'rm -rf "$TMP_HOME" "$TMP_HOME_EMPTY"' EXIT
 mkdir -p "$TMP_HOME_EMPTY/.roo"
 printf 'customModes: []\n' > "$TMP_HOME_EMPTY/.roo/custom_modes.yaml"
-HOME="$TMP_HOME_EMPTY" node "$CLI" install zoo --global --yes > /dev/null 2>&1
-EMPTY_COUNT=$(cd "$ROOT_DIR" && count_slugs_yaml "$TMP_HOME_EMPTY/.roo/custom_modes.yaml")
+HOME="$TMP_HOME_EMPTY" "$VENV/bin/python" "$CLI" install zoo --global --yes > /dev/null 2>&1
+EMPTY_COUNT=$(count_slugs_yaml "$TMP_HOME_EMPTY/.roo/custom_modes.yaml")
 if [ "$EMPTY_COUNT" -ne 13 ]; then
   echo "FAIL: empty customModes list expected 13 slugs, got $EMPTY_COUNT"
   exit 1
