@@ -45,7 +45,7 @@ make help              # Show all available targets
 
 | Target | What it does |
 |--------|-------------|
-| `make install-opencode-global` | Install opencode agents and skills globally — agents to `~/.config/opencode/agents/*.md`, skills to `~/.config/opencode/skills/<name>/SKILL.md` (directory-form skills ship companion files alongside `SKILL.md`) |
+| `make install-opencode-global` | Install opencode agents and skills globally. Agents copy correctly to `$OPENCODE_CONFIG_HOME/opencode/agents/*.md` (the agent glob `output/opencode/agents/*.md` matches the generator output). Skills target `$OPENCODE_CONFIG_HOME/opencode/skills/<name>/SKILL.md`, but the skill copy step globs the flat `output/opencode/skill/*.md` path while the generator emits `output/opencode/skill/<name>/SKILL.md`, so the glob matches no files and the target copies no skills. `$OPENCODE_CONFIG_HOME` defaults to `$XDG_CONFIG_HOME` or `~/.config` (see the OpenCode section in [`docs/architecture.md`](../docs/architecture.md)). Use the CLI installer (`.venv/bin/python scripts/install.py install opencode --global`) for opencode skill installation. |
 
 > The CLI installer (`.venv/bin/python scripts/install.py install opencode --global`) emits the same directory-form skills (`~/.config/opencode/skills/<name>/SKILL.md`) that OpenCode discovers.
 
@@ -56,6 +56,7 @@ make help              # Show all available targets
 1. **Structural validation** — valid JSON, required top-level keys (`customModes`, `skills`), required mode keys (`slug`, `name`, `description`, `roleDefinition`, `whenToUse`, `customInstructions`, `groups`, `source`), unique slugs matching `^[a-z0-9-]+$`, `customInstructions` must be `agents/<slug>.md` referencing an existing non-empty file, skill file existence, and no duplicate skill names across flat/directory forms.
 2. **Round-trip check** — resolves `agents/<slug>.md` references, generates zoo output, parses it back, and verifies mode data round-trips losslessly against the resolved file contents.
 3. **OpenCode agent mode check** — generates opencode agent artifacts and asserts each agent's frontmatter contains `mode: all`. Agents with `mode: subagent` are invisible in opencode's TUI picker.
+4. **OpenCode agent model check** — generates opencode agent artifacts to a temp dir, reads [`models/mapping.yaml`](../models/mapping.yaml), and asserts each agent with a mapping entry carries a `model: litellm/<id>` frontmatter field matching the mapping. The check also asserts field position: frontmatter keys must start with `description`, `mode`, then `model`, then `permission` (when present). Agents whose slug has no mapping entry legitimately carry no `model` field and are skipped.
 
 ## Smoke Tests
 
