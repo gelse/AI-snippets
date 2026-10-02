@@ -9,9 +9,14 @@
 - Agent/skill refactor: each active mode's `agents/<slug>.md` instruction file is reduced to a stub that names its `agent-<slug>` runbook skill, and ten new `skills/agent-<slug>.md` skills carry the full workflows; `modes.json` wires the two together. [`docs/architecture.md`](docs/architecture.md) documents the stub/runbook split and the opencode dir-form emitter, [`docs/lieutenant-workflow.md`](docs/lieutenant-workflow.md) documents the dispatch header and the ten mode runbooks, and [`README.md`](README.md) reflects the new counts and layout.
 - Dispatch contract: the `target-agent` / `target-agent-skill` header every `new_task` dispatch must carry is specified in the matching runbook skills — [`skills/agent-captain.md`](skills/agent-captain.md) and [`skills/agent-lieutenant.md`](skills/agent-lieutenant.md).
 
+### Added
+- `scripts/install.py` — Python installer mirroring the deleted TS CLI: plan-then-execute, collision prompts `[o]verwrite/[s]kip/[a]bort` (files and directories), `--yes`/`--dry-run`, `--global|--local`, `--skills-only|--agents-only`, interactive wizard, summary lines (`INSTALL SUMMARY` / `DRY RUN SUMMARY (no files were written)`, `Installed/updated:`, `Skipped:`, `Merged:`, `Replaced slugs:`, `Kept user slugs:`, `Nothing to install.`), and the non-TTY stdin contract. Reads `output/install-manifest.json` (emit via `make manifest` / `make all`).
+- `scripts/merge-modes.py` minimal refactor — extract importable `merge(gen_path, dest_path) -> tuple[list[str], list[str], list[str]]` returning replaced/kept/added slug lists; `main()` is now a thin wrapper that keeps the existing CLI output and exit behavior byte-identical so the Makefile subprocess call still works.
+- `scripts/smoke-test.sh` and `scripts/smoke-test-double-install.sh` rewritten to invoke the Python installer via `.venv/bin/python`; `count_slugs_yaml()` swapped for a PyYAML one-liner.
+
 ### Removed
 - npm publishing: the `npm-publish` GitHub Actions workflow (`.github/workflows/npm-publish.yml`) and `docs/npm-trusted-publishing.md` are removed, along with the release skill's Publish phase — `release.py finalize` (GitHub release + tag on `main`) is now the sole release automation.
-- `@gelse/ai-snippets` remains installable: `make package-npx` produces a tarball in `dist/`, and source builds install via `node dist/cli.cjs install <tool>`.
+- npm packaging + npx install path: `package.json`, `package-lock.json`, `tsconfig.json`, `tsup.config.ts`, the `src/` TypeScript sources, `scripts/stage-embedded.mjs`, `skills/release/release.ts`, `skills/release/tsconfig.json`, and the Makefile `NODE`/`NPM`/`NPM_STAMP` variables, `check-node`, and `package-npx*` targets. The `skills-embedded/` staging tree and `.npm-stamp` are gone. `make verify` is now a thin alias of `make check-py`.
 
 ## [0.2.0] - 2026-09-29
 

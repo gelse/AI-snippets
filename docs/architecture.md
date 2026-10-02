@@ -1,6 +1,6 @@
 # Architecture
 
-This document covers the generation pipeline, install manifest, and installer mechanics for `@gelse/ai-snippets`.
+This document covers the generation pipeline, install manifest, and installer mechanics for AI-Snippets.
 
 ## Source of Truth: modes.json
 
@@ -79,7 +79,7 @@ The skill emitter now writes this directory form directly — the flat-output bu
 
 ## Installer Plan and Execution
 
-The installer (`src/installer.ts`) follows a two-phase plan-execute pattern:
+The installer (`scripts/install.py`) follows a two-phase plan-execute pattern:
 
 1. **Plan phase:** Reads the manifest and destination filesystem. For each artifact, prints a plan with labels:
    - `[create]` — new file, no collision
@@ -98,11 +98,11 @@ The installer (`src/installer.ts`) follows a two-phase plan-execute pattern:
 
 When installing zoo globally, `~/.roo/custom_modes.yaml` is merged (not overwritten):
 
-- YAML is parsed preserving comments, `---` separators, and sibling keys
+- YAML is parsed preserving sibling keys
 - Modes with matching slugs are replaced
 - Duplicates are removed
 - Foreign (non-ai-snippets) modes are preserved
 - New modes are appended
 - Missing destination file → plain copy
 
-The merge logic lives in `src/merge.ts`.
+Comments and `---` separators are not preserved: the merged file is re-emitted by `yaml.safe_dump` in block style. The merge logic lives in `scripts/merge-modes.py`.

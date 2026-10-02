@@ -7,8 +7,10 @@ One command installs 13 agent modes (10 active + 3 deprecated gatekeepers) and 2
 ## Quick Start
 
 ```bash
-npx @gelse/ai-snippets install <tool> [flags]
+.venv/bin/python scripts/install.py install <tool> [flags]
 ```
+
+Run `make all` once after cloning — it bootstraps `.venv/` and generates the manifest. `make check-py` validates `modes.json` and lints `scripts/` and `skills/`.
 
 **Tools:** `zoo`, `kilo`, `opencode`
 
@@ -24,16 +26,15 @@ npx @gelse/ai-snippets install <tool> [flags]
 
 Running without arguments launches an **interactive wizard** — pick a tool, choose scope, confirm.
 
-**Collision handling:** When a destination file already exists, the installer prompts `[o]verwrite / [s]kip / [a]bort`. `--yes` implies overwrite. On non-TTY (piped/redirected stdin), EOF or empty answer aborts with exit code 1 — use `--yes` for scripted installs.
+**Collision handling:** When a destination file or directory already exists, the installer prompts `[o]verwrite / [s]kip / [a]bort`. `--yes` implies overwrite. On non-TTY (piped/redirected stdin), EOF or empty answer aborts with exit code 1 — use `--yes` for scripted installs.
 
 ### Build from Source
 
 ```bash
 git clone https://github.com/gelse/ai-snippets.git && cd ai-snippets
-npm install
-make all        # generate output/ artifacts — npm run build fails without them
-npm run build
-node dist/cli.cjs install <tool> [options]
+make all        # generate output/ artifacts + install manifest (bootstraps .venv/)
+make check-py   # validate modes.json, lint scripts/ and skills/
+.venv/bin/python scripts/install.py install <tool> [flags]
 ```
 
 ## What You Get
@@ -88,14 +89,14 @@ The Makefile install targets and CLI installer write to these locations dependin
 | Tool | Agents (global) | Agents (local) | Skills (global) | Skills (local) |
 |------|----------------|----------------|-----------------|----------------|
 | **zoo** | `~/.roo/custom_modes.yaml` (overwritten) + Zoo Code globalStorage `custom_modes.yaml` (merged) | `.roomodes` | `~/.roo/skills/<name>.md` | `.roo/skills/<name>.md` |
-| **kilo** | `~/.config/kilo/agent/` (individual `.md` files) | `.kilocodemodes` | `~/.kilo/skills/<name>.md` | `.kilo/skills/<name>.md` |
+| **kilo** | n/a — kilo `--global` installs skills only | `.kilocodemodes` | `~/.kilo/skills/<name>.md` | `.kilo/skills/<name>.md` |
 | **opencode** | `~/.config/opencode/agents/*.md` | `.opencode/agents/*.md` | `~/.config/opencode/skills/<name>/SKILL.md` | `.opencode/skills/<name>/SKILL.md` |
 
 Directory-form skills (like `release`) also ship companion files (scripts, configs) alongside the runbook.
 
 ### Merge Safety (Zoo Global)
 
-When installing zoo globally, the CLI installer **merges** `~/.roo/custom_modes.yaml`, not overwrites. The installer parses the YAML preserving comments, `---` separators, and sibling keys. Modes with matching slugs are replaced, duplicates are removed, foreign (non-ai-snippets) modes are kept, and new modes are appended. A missing destination file is treated as a plain copy.
+When installing zoo globally, the CLI installer **merges** `~/.roo/custom_modes.yaml`, not overwrites. The merge preserves sibling keys: modes with matching slugs are replaced, duplicates are removed, foreign (non-ai-snippets) modes are kept, and new modes are appended. A missing destination file is treated as a plain copy. Comments and `---` separators are not preserved — the merged file is re-emitted by `yaml.safe_dump` in block style.
 
 The legacy Makefile target `install-zoo-global-agents` **overwrites** `~/.roo/custom_modes.yaml` but also **merges** into the Zoo Code globalStorage `custom_modes.yaml` (matching slugs replaced, foreign entries kept, new slugs appended). If the globalStorage directory is absent, a skip notice is printed and the target exits successfully. Override with `make install-zoo-global-agents ZOO_GLOBALSTORAGE=/path/to/custom_modes.yaml`. See [docs/development.md](docs/development.md) for details.
 
@@ -111,11 +112,11 @@ The legacy Makefile target `install-zoo-global-agents` **overwrites** `~/.roo/cu
 |----------|---------------|
 | [docs/architecture.md](docs/architecture.md) | Generation pipeline, manifest, installer merge/collision mechanics, per-tool emitted formats |
 | [docs/lieutenant-workflow.md](docs/lieutenant-workflow.md) | Captain classification, lieutenant skills, milestones, github-issue pipeline, model-selection philosophy |
-| [docs/development.md](docs/development.md) | Makefile targets, verify.py checks, smoke tests, build, packaging |
+| [docs/development.md](docs/development.md) | Makefile targets, verify.py checks, smoke tests, release workflow |
 
 ## Contributing
 
-See [docs/development.md](docs/development.md) for build instructions, test targets, and contribution workflow. The Makefile provides `make verify` (lint + typecheck + build + dry-run), `make all` (generate all tool artifacts), and `make package-npx` (full npm pack).
+See [docs/development.md](docs/development.md) for the Makefile targets, test targets, and contribution workflow. The Makefile provides `make verify` (alias of `check-py`) and `make all` (generate all tool artifacts).
 
 ---
 
