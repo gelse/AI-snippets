@@ -131,7 +131,7 @@ fi
 
 # Verify skills file was overwritten with current content
 if ! grep -q "writing-for-humans" "$TMP_HOME3/.roo/skills/writing-for-humans.md" 2>/dev/null; then
-  # The file content comes from skills-embedded, just check it exists and is non-empty
+  # Content comes from the generated output/ tree, just check it exists and is non-empty
   if [ ! -s "$TMP_HOME3/.roo/skills/writing-for-humans.md" ]; then
     echo "FAIL: skills file is empty after overwrite"
     exit 1

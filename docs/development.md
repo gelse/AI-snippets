@@ -47,7 +47,7 @@ make help              # Show all available targets
 |--------|-------------|
 | `make install-opencode-global` | Install opencode agents and skills globally — agents to `~/.config/opencode/agents/*.md`, skills to `~/.config/opencode/skills/<name>/SKILL.md` (directory-form skills ship companion files alongside `SKILL.md`) |
 
-> The CLI installer (`.venv/bin/python scripts/install.py install opencode --global`) writes skills as flat `~/.config/opencode/skills/<name>.md` files, which OpenCode does not discover — its skill pattern is `{skill,skills}/**/SKILL.md`, so skills must live in a per-name directory as `SKILL.md`. Use `make install-opencode-global` or move the emitted files accordingly.
+> The CLI installer (`.venv/bin/python scripts/install.py install opencode --global`) emits the same directory-form skills (`~/.config/opencode/skills/<name>/SKILL.md`) that OpenCode discovers.
 
 ## verify.py Checks
 
