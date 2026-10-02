@@ -95,15 +95,15 @@ The first run builds the `ai-snippets:dev` image — `python:3.11-slim` with `py
 
 ## Per-Tool Install Paths
 
-The Makefile install targets and CLI installer write to these locations depending on tool and scope. OpenCode skills require the directory form (`<name>/SKILL.md`); the generator emits that form (the flat-output emitter bug was fixed this release), and the Makefile targets install it directly.
+The Makefile install targets and CLI installer write to these locations depending on tool and scope. OpenCode skills require the directory form (`<name>/SKILL.md`). The generator emits that form; the CLI installer copies it as-is. The Makefile target `install-opencode-global` globs the flat `output/opencode/skill/*.md` path while the generator emits `output/opencode/skill/<name>/SKILL.md`, so the glob matches no files and the target copies no skills. Agents install correctly via the same target because the agent copy step uses a different glob. Use the CLI installer (`.venv/bin/python scripts/install.py install opencode --global`) for opencode skill installation.
 
 | Tool | Agents (global) | Agents (local) | Skills (global) | Skills (local) |
 |------|----------------|----------------|-----------------|----------------|
-| **zoo** | `~/.roo/custom_modes.yaml` (overwritten) + Zoo Code globalStorage `custom_modes.yaml` (merged) | `.roomodes` | `~/.roo/skills/<name>.md` | `.roo/skills/<name>.md` |
+| **zoo** | `~/.roo/custom_modes.yaml` (merged — see Merge Safety below) + Zoo Code globalStorage `custom_modes.yaml` (merged) | `.roomodes` | `~/.roo/skills/<name>.md` (CLI installer) or `~/.roo/skills/<name>/SKILL.md` (Makefile converts flat → directory) | `.roo/skills/<name>.md` (CLI installer) or `.roo/skills/<name>/SKILL.md` (Makefile converts flat → directory) |
 | **kilo** | n/a — kilo `--global` installs skills only | `.kilocodemodes` | `~/.kilo/skills/<name>.md` | `.kilo/skills/<name>.md` |
 | **opencode** | `~/.config/opencode/agents/*.md` | `.opencode/agents/*.md` | `~/.config/opencode/skills/<name>/SKILL.md` | `.opencode/skills/<name>/SKILL.md` |
 
-Directory-form skills (like `release`) also ship companion files (scripts, configs) alongside the runbook.
+Directory-form skills (like `release`) also ship companion files (scripts, configs) alongside the runbook. Zoo skill layout differs by installer: the CLI installer writes the flat `<name>.md` form at the destination; the Makefile targets wrap each flat file into a `<name>/SKILL.md` directory and copy companion files alongside it.
 
 ### Merge Safety (Zoo Global)
 
