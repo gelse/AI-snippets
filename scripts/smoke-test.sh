@@ -17,10 +17,11 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-CLI="$ROOT_DIR/dist/cli.cjs"
+CLI="$ROOT_DIR/scripts/install.py"
+VENV="$ROOT_DIR/.venv"
 
-if [ ! -f "$CLI" ]; then
-  echo "FAIL: $CLI not found — run 'npm run build' first"
+if [ ! -f "$ROOT_DIR/output/install-manifest.json" ]; then
+  echo "FAIL: $ROOT_DIR/output/install-manifest.json not found — run 'make all' first"
   exit 1
 fi
 
@@ -38,14 +39,14 @@ echo ""
 
 # ── 1. Dry run ──────────────────────────────────────────────────────
 echo "--- Step 1: dry-run zoo --global --dry-run ---"
-HOME="$TMP_HOME" node "$CLI" install zoo --global --dry-run
+HOME="$TMP_HOME" "$VENV/bin/python" "$CLI" install zoo --global --dry-run
 echo ""
 echo "Step 1: PASS (dry-run completed without writing)"
 echo ""
 
 # ── 2. Real install ─────────────────────────────────────────────────
 echo "--- Step 2: real install zoo --global ---"
-HOME="$TMP_HOME" node "$CLI" install zoo --global --yes
+HOME="$TMP_HOME" "$VENV/bin/python" "$CLI" install zoo --global --yes
 echo ""
 
 # Verify skills installed (zoo skills are flat .md files, copied as-is)
@@ -82,7 +83,7 @@ CKSUM_SKILL_BEFORE=$(md5sum "$TMP_HOME2/.roo/skills/writing-for-humans.md" | awk
 
 # Drive BOTH prompts: 'o' (overwrite first) then 'a' (abort second)
 set +e
-printf 'o\na\n' | HOME="$TMP_HOME2" node "$CLI" install zoo --global 2>&1
+printf 'o\na\n' | HOME="$TMP_HOME2" "$VENV/bin/python" "$CLI" install zoo --global 2>&1
 EXIT_CODE=$?
 set -e
 
@@ -114,7 +115,7 @@ echo "old_skill" > "$TMP_HOME3/.roo/skills/writing-for-humans.md"
 echo "old_modes" > "$TMP_HOME3/.roo/custom_modes.yaml"
 
 # Drive BOTH prompts with 'o' (overwrite) for each
-OUTPUT=$(printf 'o\no\n' | HOME="$TMP_HOME3" node "$CLI" install zoo --global 2>&1)
+OUTPUT=$(printf 'o\no\n' | HOME="$TMP_HOME3" "$VENV/bin/python" "$CLI" install zoo --global 2>&1)
 EXIT_CODE=$?
 
 if [ "$EXIT_CODE" -ne 0 ]; then
@@ -155,7 +156,7 @@ mkdir -p "$TMP_HOME4/.roo/skills"
 echo "preexisting" > "$TMP_HOME4/.roo/skills/grilling.md"
 echo "preexisting" > "$TMP_HOME4/.roo/custom_modes.yaml"
 
-HOME="$TMP_HOME4" node "$CLI" install zoo --global --yes
+HOME="$TMP_HOME4" "$VENV/bin/python" "$CLI" install zoo --global --yes
 EXIT_CODE=$?
 
 if [ "$EXIT_CODE" -ne 0 ]; then
@@ -183,7 +184,7 @@ echo "existing" > "$TMP_HOME5/.roo/custom_modes.yaml"
 
 # Pipe empty stdin (EOF with no answer)
 set +e
-printf '' | HOME="$TMP_HOME5" node "$CLI" install zoo --global 2>&1
+printf '' | HOME="$TMP_HOME5" "$VENV/bin/python" "$CLI" install zoo --global 2>&1
 EXIT_CODE=$?
 set -e
 
@@ -218,10 +219,10 @@ customModes:
 YAML
 
 # First install (zoo writes 13 modes)
-HOME="$TMP_HOME6" node "$CLI" install zoo --global --yes
+HOME="$TMP_HOME6" "$VENV/bin/python" "$CLI" install zoo --global --yes
 
 # Second install (must not duplicate slugs)
-OUTPUT2=$(HOME="$TMP_HOME6" node "$CLI" install zoo --global --yes 2>&1)
+OUTPUT2=$(HOME="$TMP_HOME6" "$VENV/bin/python" "$CLI" install zoo --global --yes 2>&1)
 
 MODES_FILE="$TMP_HOME6/.roo/custom_modes.yaml"
 SLUGS=$(grep -E '^[[:space:]]*(- )?slug:' "$MODES_FILE" \
