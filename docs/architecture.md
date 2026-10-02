@@ -6,7 +6,7 @@ This document covers the generation pipeline, install manifest, and installer me
 
 [`modes.json`](../modes.json) is the single source of truth for all mode definitions. It contains:
 
-- `customModes` — array of mode objects, each with `slug`, `name`, `description`, `roleDefinition`, `whenToUse`, `customInstructions` (a repo-relative path `agents/<slug>.md` resolved at generation time), `groups`, `source`
+- `customModes` — array of mode objects, each with `slug`, `name`, `description`, `roleDefinition`, `whenToUse`, `customInstructions` (a repo-relative path `agents/<slug>.md` resolved at generation time), `instantiation` (one of `primary`, `subagent`, `all`; defaults to `all` in opencode frontmatter and controls whether the agent appears in opencode's TUI picker), `groups`, `source`
 - `skills` — array of skill objects, each with `name` and `file` (path to the runbook)
 
 Agent instruction files live in `agents/<slug>.md` — one file per mode, no frontmatter, source-only content inlined verbatim at generation time.
@@ -53,7 +53,7 @@ Generated `output/` files are not committed — regenerate with `make all`.
 | Artifact | Emitted | Tool expects |
 |----------|---------|-------------|
 | Modes | `output/zoo/.roomodes` | Project root as `.roomodes` or merged into `~/.roo/custom_modes.yaml` |
-| Skills | `output/zoo/skills/<name>.md` | `.roo/skills/<name>.md` (local) or `~/.roo/skills/<name>.md` (global) |
+| Skills | `output/zoo/skills/<name>.md` | CLI installer: `.roo/skills/<name>.md` (local) or `~/.roo/skills/<name>.md` (global). Makefile targets: `.roo/skills/<name>/SKILL.md` (local) or `~/.roo/skills/<name>/SKILL.md` (global) — each flat file is wrapped into a directory form so companion files ship alongside the runbook. |
 
 ### Kilo Code
 
@@ -68,7 +68,7 @@ OpenCode scans config directories for `{agent,agents}/**/*.md` and `{skill,skill
 
 The global config directory follows the XDG Base Directory specification: `$XDG_CONFIG_HOME/opencode/` if `XDG_CONFIG_HOME` is set, otherwise `~/.config/opencode/`. The `install-opencode-global` Makefile target respects this via the `OPENCODE_CONFIG_HOME` variable.
 
-Generated agent `.md` files include YAML frontmatter with `mode: all`, which makes each agent available both as a subagent and in the primary TUI picker. Agents with `mode: subagent` would be filtered out of the TUI picker by opencode.
+Generated agent `.md` files include YAML frontmatter with `mode: <instantiation>` (defaulting to `all`), which makes each agent available both as a subagent and in the primary TUI picker. Agents with `mode: subagent` are filtered out of the TUI picker by opencode. When a slug appears in [`models/mapping.yaml`](../models/mapping.yaml), a `model: litellm/<id>` field is inserted between `mode` and `permission`; [`scripts/verify.py`](../scripts/verify.py) asserts the field is present, matches the mapping, and occupies that position.
 
 | Artifact | Emitted | Tool expects |
 |----------|---------|-------------|
