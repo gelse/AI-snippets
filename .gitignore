@@ -5,7 +5,3 @@ __pycache__/
 *.pyc
 ideas/
 plans/
-node_modules/
-dist/
-skills-embedded/
-.npm-stamp
