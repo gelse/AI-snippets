@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-02
+
 ### Fixed
 - [`docs/development.md`](docs/development.md) CLI-installer note states the CLI emits directory-form skills that OpenCode discovers; the [`scripts/smoke-test.sh`](scripts/smoke-test.sh) post-overwrite assertion comment references the generated `output/` tree.
 - OpenCode skill emitter dir form: [`generate.py`](scripts/generate.py) emitted flat `output/opencode/skill/<name>.md` files — a latent pre-existing bug, since OpenCode only discovers `{skill,skills}/**/SKILL.md` and silently ignored the flat output. Skills are now written as `output/opencode/skill/<name>/SKILL.md` (frontmatter and body unchanged), matching what OpenCode discovers.
