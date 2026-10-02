@@ -1,0 +1,11 @@
+.venv/
+output/
+dist/
+skills-embedded/
+.ruff_cache/
+__pycache__/
+*.pyc
+ideas/
+plans/
+.git/
+.github/

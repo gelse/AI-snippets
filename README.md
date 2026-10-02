@@ -37,6 +37,17 @@ make check-py   # validate modes.json, lint scripts/ and skills/
 .venv/bin/python scripts/install.py install <tool> [flags]
 ```
 
+### Running without Python
+
+No Python 3.11 on the host? The generators run in Docker — you need Docker Engine with the Compose plugin.
+
+```bash
+docker compose run --rm ai-snippets make all        # generate artifacts, written to host ./output/
+docker compose run --rm ai-snippets make check-py   # validate modes.json, lint scripts/ and skills/
+```
+
+The first run builds the `ai-snippets:dev` image — `python:3.11-slim` with `pyyaml` and `ruff` pre-installed. The installer stays a host-side step: run [`scripts/install.py`](scripts/install.py) with Python 3.11+ as shown in [Quick Start](#quick-start).
+
 ## What You Get
 
 ### 13 Agent Modes

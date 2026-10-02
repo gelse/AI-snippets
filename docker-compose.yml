@@ -1,0 +1,8 @@
+services:
+  ai-snippets:
+    build: .
+    image: ai-snippets:dev
+    working_dir: /opt/ai-snippets
+    volumes:
+      - ./output:/opt/ai-snippets/output
+    command: ["make", "help"]
