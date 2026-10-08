@@ -39,6 +39,9 @@ if [ "$EXIT_CODE" -ne 0 ]; then
   exit 1
 fi
 
+# Primary regression gate: pre-fix, make exited 0 but the unmatched glob made
+# cp print "cannot stat 'output/opencode/skill/*.md'". LC_ALL=C (set on the
+# make invocation) keeps the message stable across locales.
 if echo "$MAKE_OUTPUT" | grep -q "cannot stat"; then
   echo "FAIL: 'cp: cannot stat' in make output — skill glob matched no files"
   exit 1
@@ -95,7 +98,7 @@ for skill_dir in "$ROOT_DIR"/output/opencode/skill/*/; do
   # Companion side files must land alongside SKILL.md
   for src in "$skill_dir"*; do
     base="$(basename "$src")"
-    if [ "$base" != "SKILL.md" ] && [ ! -e "$SKILLS_DST_DIR/$name/$base" ]; then
+    if [ -f "$src" ] && [ "$base" != "SKILL.md" ] && [ ! -e "$SKILLS_DST_DIR/$name/$base" ]; then
       echo "FAIL: expected side file $SKILLS_DST_DIR/$name/$base beside SKILL.md"
       exit 1
     fi
