@@ -10,7 +10,7 @@
 #   generated agent).
 # - Every generated skill lands at
 #   $OPENCODE_CONFIG_HOME/opencode/skills/<name>/SKILL.md (directory form),
-#   with a non-zero expected skill count.
+#   with a non-zero expected skill count; companion side files land alongside.
 #
 # Usage: bash scripts/smoke-test-opencode-install.sh
 #
@@ -92,6 +92,14 @@ for skill_dir in "$ROOT_DIR"/output/opencode/skill/*/; do
     echo "FAIL: expected $SKILLS_DST_DIR/$name/SKILL.md (directory form)"
     exit 1
   fi
+  # Companion side files must land alongside SKILL.md
+  for src in "$skill_dir"*; do
+    base="$(basename "$src")"
+    if [ "$base" != "SKILL.md" ] && [ ! -e "$SKILLS_DST_DIR/$name/$base" ]; then
+      echo "FAIL: expected side file $SKILLS_DST_DIR/$name/$base beside SKILL.md"
+      exit 1
+    fi
+  done
   INSTALLED=$((INSTALLED + 1))
 done
 
@@ -99,7 +107,7 @@ if [ "$INSTALLED" -ne "$EXPECTED_SKILLS" ]; then
   echo "FAIL: expected $EXPECTED_SKILLS skills installed, verified $INSTALLED"
   exit 1
 fi
-echo "Step 3: PASS ($INSTALLED skills installed as <name>/SKILL.md)"
+echo "Step 3: PASS ($INSTALLED skills installed as <name>/SKILL.md, side files included)"
 echo ""
 
 echo "=== All opencode-install smoke tests passed ==="

@@ -64,7 +64,7 @@ make help              # Show all available targets
 |--------|---------------|
 | [`scripts/smoke-test.sh`](../scripts/smoke-test.sh) | Installer against temporary `$HOME` dirs — dry-run, real install, collision prompts, abort, piped stdin, `--yes` overwrite, EOF non-zero exit, and double-install merge idempotency (no duplicate slugs) |
 | [`scripts/smoke-test-double-install.sh`](../scripts/smoke-test-double-install.sh) | Double-installs into a seeded `$HOME` and asserts no duplicate slugs, correct `replaced`/`kept` counts, foreign-mode order, repeat-install stability, and the empty-`customModes` edge case |
-| [`scripts/smoke-test-opencode-install.sh`](../scripts/smoke-test-opencode-install.sh) | `make opencode` + `make install-opencode-global` into an isolated `$OPENCODE_CONFIG_HOME` — asserts no `cp` errors, agents under `opencode/agents/`, and every generated skill as `opencode/skills/<name>/SKILL.md` |
+| [`scripts/smoke-test-opencode-install.sh`](../scripts/smoke-test-opencode-install.sh) | `make opencode` + `make install-opencode-global` into an isolated `$OPENCODE_CONFIG_HOME` — asserts no `cp` errors, agents under `opencode/agents/`, and every generated skill as `opencode/skills/<name>/SKILL.md` with companion side files alongside |
 
 ## Packaging and Release
 
