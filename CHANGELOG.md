@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-08
+
+### Fixed
+- [`Makefile`](Makefile) `install-opencode-global` skill copy: the loop globbed the flat `output/opencode/skill/*.md` path while the generator emits `output/opencode/skill/<name>/SKILL.md`, so no skills were installed (`cp: cannot stat`). The loop now iterates `output/opencode/skill/*/SKILL.md` and installs every skill as `$(OPENCODE_CONFIG_HOME)/opencode/skills/<name>/SKILL.md` with companion files alongside; a failing `SKILL.md` copy aborts the target. Regression test: [`scripts/smoke-test-opencode-install.sh`](scripts/smoke-test-opencode-install.sh).
+
 ## [0.3.0] - 2026-10-02
 
 ### Fixed

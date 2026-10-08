@@ -95,11 +95,10 @@ install-opencode-global: opencode ## Install opencode agents and skills globally
 	@mkdir -p $(OPENCODE_CONFIG_HOME)/opencode/agents
 	@cp output/opencode/agents/*.md $(OPENCODE_CONFIG_HOME)/opencode/agents/
 	@mkdir -p $(OPENCODE_CONFIG_HOME)/opencode/skills
-	@for f in output/opencode/skill/*.md; do \
-		n=$$(basename "$$f" .md); \
+	@for f in output/opencode/skill/*/SKILL.md; do \
+		n=$$(basename "$$(dirname "$$f")"); \
 		mkdir -p "$(OPENCODE_CONFIG_HOME)/opencode/skills/$$n"; \
-		cp "$$f" "$(OPENCODE_CONFIG_HOME)/opencode/skills/$$n/SKILL.md"; \
-		if [ -d "output/opencode/skill/$$n" ]; then \
-			cp output/opencode/skill/$$n/* "$(OPENCODE_CONFIG_HOME)/opencode/skills/$$n/" || true; \
-		fi; \
+		cp "$$f" "$(OPENCODE_CONFIG_HOME)/opencode/skills/$$n/SKILL.md" || exit 1; \
+		find "output/opencode/skill/$$n" -maxdepth 1 -type f ! -name SKILL.md \
+			-exec cp {} "$(OPENCODE_CONFIG_HOME)/opencode/skills/$$n/" \; || true; \
 	done
