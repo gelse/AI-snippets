@@ -45,7 +45,7 @@ make help              # Show all available targets
 
 | Target | What it does |
 |--------|-------------|
-| `make install-opencode-global` | Install opencode agents and skills globally. Agents copy correctly to `$OPENCODE_CONFIG_HOME/opencode/agents/*.md` (the agent glob `output/opencode/agents/*.md` matches the generator output). Skills target `$OPENCODE_CONFIG_HOME/opencode/skills/<name>/SKILL.md`, but the skill copy step globs the flat `output/opencode/skill/*.md` path while the generator emits `output/opencode/skill/<name>/SKILL.md`, so the glob matches no files and the target copies no skills. `$OPENCODE_CONFIG_HOME` defaults to `$XDG_CONFIG_HOME` or `~/.config` (see the OpenCode section in [`docs/architecture.md`](../docs/architecture.md)). Use the CLI installer (`.venv/bin/python scripts/install.py install opencode --global`) for opencode skill installation. |
+| `make install-opencode-global` | Install opencode agents and skills globally. Agents copy to `$OPENCODE_CONFIG_HOME/opencode/agents/*.md`; skills copy to `$OPENCODE_CONFIG_HOME/opencode/skills/<name>/SKILL.md` in directory form, companion files alongside. `$OPENCODE_CONFIG_HOME` defaults to `$XDG_CONFIG_HOME` or `~/.config` (see the OpenCode section in [`docs/architecture.md`](../docs/architecture.md)). |
 
 > The CLI installer (`.venv/bin/python scripts/install.py install opencode --global`) emits the same directory-form skills (`~/.config/opencode/skills/<name>/SKILL.md`) that OpenCode discovers.
 
@@ -64,6 +64,7 @@ make help              # Show all available targets
 |--------|---------------|
 | [`scripts/smoke-test.sh`](../scripts/smoke-test.sh) | Installer against temporary `$HOME` dirs — dry-run, real install, collision prompts, abort, piped stdin, `--yes` overwrite, EOF non-zero exit, and double-install merge idempotency (no duplicate slugs) |
 | [`scripts/smoke-test-double-install.sh`](../scripts/smoke-test-double-install.sh) | Double-installs into a seeded `$HOME` and asserts no duplicate slugs, correct `replaced`/`kept` counts, foreign-mode order, repeat-install stability, and the empty-`customModes` edge case |
+| [`scripts/smoke-test-opencode-install.sh`](../scripts/smoke-test-opencode-install.sh) | `make opencode` + `make install-opencode-global` into an isolated `$OPENCODE_CONFIG_HOME` — asserts no `cp` errors, agents under `opencode/agents/`, and every generated skill as `opencode/skills/<name>/SKILL.md` |
 
 ## Packaging and Release
 
