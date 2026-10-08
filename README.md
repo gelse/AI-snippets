@@ -95,7 +95,7 @@ The first run builds the `ai-snippets:dev` image — `python:3.11-slim` with `py
 
 ## Per-Tool Install Paths
 
-The Makefile install targets and CLI installer write to these locations depending on tool and scope. OpenCode skills require the directory form (`<name>/SKILL.md`). The generator emits that form; the CLI installer copies it as-is. The Makefile target `install-opencode-global` globs the flat `output/opencode/skill/*.md` path while the generator emits `output/opencode/skill/<name>/SKILL.md`, so the glob matches no files and the target copies no skills. Agents install correctly via the same target because the agent copy step uses a different glob. Use the CLI installer (`.venv/bin/python scripts/install.py install opencode --global`) for opencode skill installation.
+The Makefile install targets and CLI installer write to these locations depending on tool and scope. OpenCode skills require the directory form (`<name>/SKILL.md`). The generator emits that form; the Makefile target `install-opencode-global` and the CLI installer both install it as-is.
 
 | Tool | Agents (global) | Agents (local) | Skills (global) | Skills (local) |
 |------|----------------|----------------|-----------------|----------------|
