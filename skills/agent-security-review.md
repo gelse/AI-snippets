@@ -73,4 +73,4 @@ SUGGESTIONs, **APPROVE** if none. State it with the finding counts:
 - Formatting preferences.
 - Performance optimization.
 - General code quality issues (use 👀 Review for those).
-- Sub-task spawning (leaf mode); if a `new_task` dispatch were ever needed, its message body MUST start with the `target-agent:` / `target-agent-skill:` header lines.
+- Sub-task spawning (leaf mode); if a `task` dispatch were ever needed, its message body MUST start with the `target-agent:` / `target-agent-skill:` header lines.

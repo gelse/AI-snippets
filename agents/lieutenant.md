@@ -6,7 +6,7 @@ constraints).
 
 ## Dispatch Header
 
-Every `new_task` dispatch — including every nested spawn — MUST start
+Every `task` dispatch — including every nested spawn — MUST start
 with the `target-agent: <nested-slug>` and `target-agent-skill:
 agent-<nested-slug>` header lines (full contract in the skill runbook).
 

@@ -80,8 +80,8 @@ Include the finding counts:
 * Do not duplicate findings for the same underlying issue.
 * Do not redesign unrelated code.
 * Never provide effort or time estimates.
-* Do not spawn sub-tasks or call `new_task`. You are a leaf node in the task hierarchy — produce your review output and complete.
-* Dispatch-header rule: every `new_task` message body MUST start with the `target-agent:` / `target-agent-skill: agent-<slug>` header lines (stated for completeness; this mode does not spawn).
+* Do not spawn sub-tasks or call `task`. You are a leaf node in the task hierarchy — produce your review output and complete.
+* Dispatch-header rule: every `task` message body MUST start with the `target-agent:` / `target-agent-skill: agent-<slug>` header lines (stated for completeness; this mode does not spawn).
 
 ## Non-Goals
 
