@@ -1,112 +1,134 @@
 # OpenCode target drift report
 
-> **Stale after the agent/skill refactor.** The refactor reduced each active `agents/<slug>.md` to a stub that loads its `agent-<slug>` skill, so the per-file PASS results below describe the pre-refactor source and no longer match the current tree. Before trusting this report, regenerate it against the post-refactor source using the comparison method described under **Methodology**.
+Health check of the opencode artifacts this repo generates. `make opencode` rebuilds `output/opencode/agents/*.md` from [`modes.json`](../modes.json) plus the `agents/*.md` instruction files; this report states how the latest regeneration fared. **Verdict: all 10 active agents pass every check — description, mode, permissions, and body all match the source.**
 
-Comparison of the opencode workspace agents in `/home/werner/.config/opencode/agents/` against the source of truth in this repo (`modes.json` + `agents/*.md`), as of the current state of both trees.
+## Methodology
 
-**Methodology.** Frontmatter was parsed with `yaml.safe_load` on the block between the `---` delimiters and compared as parsed values (descriptions contain `": "` and may be YAML-quoted in the files). Body comparison resolves `customInstructions` from the repo's own `agents/<slug>.md` (not the workspace file), mirrors the generator's fallback (`roleDefinition` alone when instructions are empty), and compares against the emitter's actual output — `body + "\n"` — with the emitter-appended file-final newline normalized on both sides. The `permission.edit: deny` check uses the same `has_edit_group` predicate as the generator. The `mode` check compares against `modes.json.instantiation`, defaulting to `"all"` when the field is absent.
+Each non-deprecated mode becomes one `output/opencode/agents/<slug>.md`. Frontmatter field order is `description`, `mode`, `model`, `permissions`. The `permissions:` field is an opencode v2 rule list — an ordered list of `{action, resource, effect}` mappings applied last-match-wins — translated from the mode's row in `modes.json.permissions`; the global `task` key is emitted as the `subagent` action.
+
+The permission check is a rule-well-formedness check on the parsed list:
+
+- the list is non-empty;
+- every rule has exactly the keys `{action, resource, effect}`;
+- every `action` is in the opencode action set (`shell`, `edit`, `subagent`, `read`, `glob`, `grep`, `skill`, `webfetch`, `websearch`);
+- every `effect` is in `{allow, ask, deny}`.
+
+The translator must preserve the last-match-wins invariant: broad `*` rules come before scoped overrides. A mode whose matrix row sets `edit: allow` and whose groups carry an `edit` entry scoped by `fileRegex` gets two edit rules — `edit` on `*` with effect `deny` first, `edit` on the mapped glob (`*.md`) with effect `allow` second — so the scoped allow wins for matching paths. Modes with `edit: deny` or `edit: ask`, or with no scoped group, get exactly one broad rule. [`scripts/verify.py`](../scripts/verify.py) enforces the same semantics for every generated agent in `verify_opencode_agent_permissions()`.
+
+The description, mode, and body checks compare each emitted file against `modes.json` (description composed with `whenToUse`, `mode` from the mode's `instantiation`, body from `roleDefinition` plus the resolved `agents/<slug>.md` content); the model check reads [`models/mapping.yaml`](../models/mapping.yaml).
+
+## How to regenerate
+
+Run after a fresh `make clean && make opencode`:
+
+```bash
+.venv/bin/python - <<'PY'
+import yaml, pathlib
+ROOT = pathlib.Path(".")
+for path in sorted((ROOT / "output/opencode/agents").glob("*.md")):
+    text = path.read_text()
+    fm = yaml.safe_load(text.split("---", 2)[1])
+    assert isinstance(fm.get("permissions"), list) and fm["permissions"], path
+    for rule in fm["permissions"]:
+        assert set(rule) == {"action", "resource", "effect"}, (path, rule)
+        assert rule["action"] in {"shell","edit","subagent","read","glob","grep","skill","webfetch","websearch"}
+        assert rule["effect"] in {"allow","ask","deny"}
+    print(f"OK {path.name}: {len(fm['permissions'])} rules")
+PY
+```
+
+The last run printed `OK` for all 10 files: 7 rules per agent, 8 for `plan.md` — its `edit: allow` row plus the `fileRegex`-scoped group produces the broad-deny + scoped-allow pair.
 
 ## Per-file results
 
-One entry per non-deprecated mode. Each entry names the workspace agent path, gives a per-file verdict line covering the five checks (path existence, description, mode, permission, body), and shows the per-check detail. All 10 workspace agent files exist; every check passes on every file.
+One entry per active mode; deprecated modes are skipped by the emitter. All 10 files exist and every check passes.
 
 ### `agents/captain.md`
 
-**PASS** — path exists; description, mode, permission, and body all match.
+**PASS** — path exists; description, mode, permissions, and body all match.
 
-| Description | Mode | Permission | Body |
+| Description | Mode | Permissions | Body |
 |---|---|---|---|
-| ✓ | ✓ (`primary`) | ✓ | ✓ |
+| ✓ | ✓ (`primary`) | ✓ (7 rules) | ✓ |
 
 ### `agents/lieutenant.md`
 
-**PASS** — path exists; description, mode, permission, and body all match.
+**PASS** — path exists; description, mode, permissions, and body all match.
 
-| Description | Mode | Permission | Body |
+| Description | Mode | Permissions | Body |
 |---|---|---|---|
-| ✓ | ✓ (`all`) | ✓ | ✓ |
+| ✓ | ✓ (`all`) | ✓ (7 rules) | ✓ |
 
 ### `agents/investigator.md`
 
-**PASS** — path exists; description, mode, permission, and body all match.
+**PASS** — path exists; description, mode, permissions, and body all match.
 
-| Description | Mode | Permission | Body |
+| Description | Mode | Permissions | Body |
 |---|---|---|---|
-| ✓ | ✓ (`all`) | ✓ | ✓ |
+| ✓ | ✓ (`all`) | ✓ (7 rules) | ✓ |
 
 ### `agents/plan.md`
 
-**PASS** — path exists; description, mode, permission, and body all match.
+**PASS** — path exists; description, mode, permissions, and body all match.
 
-| Description | Mode | Permission | Body |
+| Description | Mode | Permissions | Body |
 |---|---|---|---|
-| ✓ | ✓ (`all`) | ✓ | ✓ |
+| ✓ | ✓ (`all`) | ✓ (8 rules) | ✓ |
 
 ### `agents/review-code.md`
 
-**PASS** — path exists; description, mode, permission, and body all match.
+**PASS** — path exists; description, mode, permissions, and body all match.
 
-| Description | Mode | Permission | Body |
+| Description | Mode | Permissions | Body |
 |---|---|---|---|
-| ✓ | ✓ (`all`) | ✓ | ✓ |
+| ✓ | ✓ (`all`) | ✓ (7 rules) | ✓ |
 
 ### `agents/security-review.md`
 
-**PASS** — path exists; description, mode, permission, and body all match.
+**PASS** — path exists; description, mode, permissions, and body all match.
 
-| Description | Mode | Permission | Body |
+| Description | Mode | Permissions | Body |
 |---|---|---|---|
-| ✓ | ✓ (`all`) | ✓ | ✓ |
+| ✓ | ✓ (`all`) | ✓ (7 rules) | ✓ |
 
 ### `agents/review-plan.md`
 
-**PASS** — path exists; description, mode, permission, and body all match.
+**PASS** — path exists; description, mode, permissions, and body all match.
 
-| Description | Mode | Permission | Body |
+| Description | Mode | Permissions | Body |
 |---|---|---|---|
-| ✓ | ✓ (`all`) | ✓ | ✓ |
+| ✓ | ✓ (`all`) | ✓ (7 rules) | ✓ |
 
 ### `agents/code.md`
 
-**PASS** — path exists; description, mode, permission, and body all match.
+**PASS** — path exists; description, mode, permissions, and body all match.
 
-| Description | Mode | Permission | Body |
+| Description | Mode | Permissions | Body |
 |---|---|---|---|
-| ✓ | ✓ (`all`) | ✓ | ✓ |
+| ✓ | ✓ (`all`) | ✓ (7 rules) | ✓ |
 
 ### `agents/verify.md`
 
-**PASS** — path exists; description, mode, permission, and body all match.
+**PASS** — path exists; description, mode, permissions, and body all match.
 
-| Description | Mode | Permission | Body |
+| Description | Mode | Permissions | Body |
 |---|---|---|---|
-| ✓ | ✓ (`subagent`) | ✓ | ✓ |
+| ✓ | ✓ (`subagent`) | ✓ (7 rules) | ✓ |
 
 ### `agents/ask.md`
 
-**PASS** — path exists; description, mode, permission, and body all match.
+**PASS** — path exists; description, mode, permissions, and body all match.
 
-| Description | Mode | Permission | Body |
+| Description | Mode | Permissions | Body |
 |---|---|---|---|
-| ✓ | ✓ (`all`) | ✓ | ✓ |
+| ✓ | ✓ (`all`) | ✓ (7 rules) | ✓ |
 
 ## Summary
 
-Files with drift, grouped by drift type:
+No drift: every regenerated agent matches its source row in `modes.json` and passes the rule-well-formedness check. `scripts/verify.py` re-runs the same permission semantics against freshly emitted agents on every `make check-py`, so regressions between report runs are caught automatically.
 
-- **description**: none.
-- **mode**: none.
-- **permission**: none.
-- **body**: `agents/orchestrator.md` — stale body 8,078 chars vs 154 chars regenerated; the file is deleted by regeneration (see below).
-
-All 10 non-deprecated workspace agent files are byte-identical to what `emit_opencode()` produces from current source: description, mode, permission, and body all match. The only workspace artifact out of line with the generator is the stale `agents/orchestrator.md`, covered below.
+The installed copies under `~/.config/opencode/agents/` are not rewritten by `make opencode`; `make install-opencode-global` (or the CLI installer) syncs them. [`scripts/smoke-test-opencode-install.sh`](../scripts/smoke-test-opencode-install.sh) exercises that install path against an isolated config home, including a permission assertion per installed agent.
 
 ## Orchestrator: deleted by regeneration
 
-`orchestrator` is marked `deprecated: true` in `modes.json` (with `groups: []`), and `emit_opencode()` skips deprecated modes. Regeneration would therefore **delete** `agents/orchestrator.md` from the workspace entirely — not shrink it. The distinction matters: no file is emitted for a deprecated mode, so the stale workspace copy is simply removed.
-
-The stale workspace body is 8,078 characters (after normalizing the emitter's single file-final trailing newline). The body regeneration would produce from current source — `roleDefinition` plus the content of the repo's `agents/orchestrator.md` — is 154 characters. Neither body is ever written: the actual regeneration outcome is deletion of the file.
-
-## Recommendation
-
-Regenerate the workspace agents via `scripts/generate.py opencode --out /tmp/drift-check` and commit the result into `/home/werner/.config/opencode/agents/` (option a): the 10 live agents are already byte-identical to generator output, so regeneration is a no-op for them and its only effect is deleting the stale `agents/orchestrator.md` that the generator no longer emits — the smallest change that brings the workspace fully in line, whereas a generator-driven sync step (option b) adds machinery the near-zero drift does not justify and leaving things alone (option c) keeps a deprecated agent file that regeneration would remove.
+`orchestrator` is marked `deprecated: true` in `modes.json`, and `emit_opencode()` skips deprecated modes. Regeneration emits no `agents/orchestrator.md`; the stale workspace copy written by the pre-refactor generator has been deleted, so both the generated tree and the installed agents directory now hold exactly the 10 active agents. No body-size comparison applies — the file no longer exists on either side.
