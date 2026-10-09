@@ -11,6 +11,8 @@
 # - Every generated skill lands at
 #   $OPENCODE_CONFIG_HOME/opencode/skills/<name>/SKILL.md (directory form),
 #   with a non-zero expected skill count; companion side files land alongside.
+# - Every installed agent carries a v2 `permissions:` list with at least one
+#   `allow` rule (checked with the repo venv python; skipped when absent).
 #
 # Usage: bash scripts/smoke-test-opencode-install.sh
 #
@@ -111,6 +113,30 @@ if [ "$INSTALLED" -ne "$EXPECTED_SKILLS" ]; then
   exit 1
 fi
 echo "Step 3: PASS ($INSTALLED skills installed as <name>/SKILL.md, side files included)"
+echo ""
+
+# ── 4. Permissions frontmatter on installed agents ──────────────────
+echo "--- Step 4: every installed agent carries a v2 permissions list ---"
+
+if [ ! -x "$ROOT_DIR/.venv/bin/python" ]; then
+  echo "SKIP: $ROOT_DIR/.venv/bin/python not available — permission assertions not run"
+  exit 0
+fi
+
+# An agent whose rules are all-deny is a misconfiguration: every emitted
+# permissions list must contain at least one `allow` effect. Deeper shape
+# and semantics are enforced by scripts/verify.py check (e).
+CHECKED=0
+for agent in "$AGENTS_DIR"/*.md; do
+  slug="$(basename "$agent" .md)"
+  if ! "$ROOT_DIR/.venv/bin/python" -c "import yaml, sys; d=yaml.safe_load(sys.stdin.read().split('---', 2)[1]); assert 'permissions' in d and isinstance(d['permissions'], list) and len(d['permissions']) > 0; effects={r['effect'] for r in d['permissions'] if isinstance(r, dict) and 'effect' in r}; assert 'allow' in effects" < "$agent"; then
+    echo "FAIL: agent $slug.md lacks a v2 permissions list with an 'allow' rule"
+    exit 1
+  fi
+  CHECKED=$((CHECKED + 1))
+done
+
+echo "Step 4: PASS ($CHECKED agents carry a permissions list with an allow rule)"
 echo ""
 
 echo "=== All opencode-install smoke tests passed ==="
