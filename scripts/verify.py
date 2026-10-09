@@ -392,8 +392,8 @@ def verify_opencode_agent_models():
     """Emit opencode agents to a temp dir and assert each frontmatter carries
     ``model: litellm/<model_id>`` matching models/mapping.yaml for that slug.
 
-    Also asserts field position: the ``model`` key must appear after ``mode``
-    and before ``permission`` (when a permission block is present).
+    Also asserts field position: the ``model`` key must appear after ``mode``,
+    and ``permissions`` (plural list) appears after ``model`` when present.
     """
     print("[d] OpenCode agent model verification")
 
@@ -461,7 +461,7 @@ def verify_opencode_agent_models():
                     f"expected '{expected_value}' (from mapping.yaml)"
                 )
 
-            # Field position: description < mode < model < permission
+            # Field position: description < mode < model < permissions
             if keys[:2] != ["description", "mode"]:
                 fail(
                     f"Agent {agent_file.name}: frontmatter must start with "
@@ -474,9 +474,9 @@ def verify_opencode_agent_models():
                     f"Agent {agent_file.name}: 'model' must come directly "
                     f"after 'mode'; key order is {keys}"
                 )
-            if "permission" in keys and keys.index("permission") < model_idx:
+            if "permissions" in keys and keys.index("permissions") < model_idx:
                 fail(
-                    f"Agent {agent_file.name}: 'permission' must come after "
+                    f"Agent {agent_file.name}: 'permissions' must come after "
                     f"'model'; key order is {keys}"
                 )
 
