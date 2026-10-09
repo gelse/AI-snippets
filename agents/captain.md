@@ -6,7 +6,7 @@ constraints).
 
 ## Dispatch Header
 
-When dispatching the lieutenant, the `new_task` message body MUST start
+When dispatching the lieutenant, the `task` message body MUST start
 with the `target-agent: lieutenant` and `target-agent-skill:
 agent-lieutenant` header lines (full contract in the skill runbook).
 

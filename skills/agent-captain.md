@@ -36,7 +36,7 @@ If two types fit, prefer the smaller one. When the primary deliverable is a docu
 
 ## Dispatch
 
-Dispatch the lieutenant as a subtask via `new_task`, carrying:
+Dispatch the lieutenant as a subtask via `task`, carrying:
 
 - the original user request
 - the classified skill name
@@ -56,7 +56,7 @@ The lieutenant loads the named skill and executes its workflow.
 
 ## Dispatch Contract
 
-Every `new_task` message body MUST start with two header lines — one
+Every `task` message body MUST start with two header lines — one
 naming the spawned mode, one naming its `agent-<slug>` skill — followed
 by a blank line, then the request body:
 
@@ -101,7 +101,7 @@ Report only:
 
 ## Hard Constraints
 
-- Every `new_task` message body MUST start with the `target-agent:` and
+- Every `task` message body MUST start with the `target-agent:` and
   `target-agent-skill:` header lines (one for the spawned mode, one for
   the spawned mode's `agent-<slug>` skill).
 - Dispatch only `investigator` and `lieutenant` — never worker modes (`plan`, `code`, `verify`) directly; the lieutenant owns their dispatch.

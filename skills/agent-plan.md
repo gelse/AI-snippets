@@ -78,7 +78,7 @@ Report the final review verdict in the output (see Review section below).
 
 ## Dispatch Contract
 
-If this mode spawns a `new_task` sub-task (nested `review-plan` or
+If this mode spawns a `task` sub-task (nested `review-plan` or
 `investigator`), the message body MUST start with two header lines
 naming the nested mode and its `agent-<slug>` skill, then a blank line:
 `target-agent: <nested-slug>` / `target-agent-skill: agent-<nested-slug>`
