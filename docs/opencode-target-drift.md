@@ -131,4 +131,4 @@ The installed copies under `~/.config/opencode/agents/` are not rewritten by `ma
 
 ## Orchestrator: deleted by regeneration
 
-`orchestrator` is marked `deprecated: true` in `modes.json`, and `emit_opencode()` skips deprecated modes. Regeneration emits no `agents/orchestrator.md`; the stale workspace copy written by the pre-refactor generator has been deleted, so both the generated tree and the installed agents directory now hold exactly the 10 active agents. No body-size comparison applies — the file no longer exists on either side.
+`orchestrator` is marked `deprecated: true` in `modes.json`, and `emit_opencode()` skips deprecated modes. Regeneration emits no `output/opencode/agents/orchestrator.md`; the stale installed copy written by the pre-refactor generator has been deleted, so both the generated tree and the installed agents directory now hold exactly the 10 active agents. No body-size comparison applies — the installed file no longer exists, and the generator no longer produces one.

@@ -317,7 +317,11 @@ def verify_opencode_agent_modes():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         sys.path.insert(0, str(REPO_ROOT / "scripts"))
-        from generate import emit_opencode, resolve_custom_instructions
+        from generate import (
+            FileRegexNotImplemented,
+            emit_opencode,
+            resolve_custom_instructions,
+        )
 
         json_path = REPO_ROOT / "modes.json"
         with open(json_path) as f:
@@ -325,7 +329,10 @@ def verify_opencode_agent_modes():
 
         resolved = json.loads(json.dumps(data))
         resolved["customModes"] = resolve_custom_instructions(resolved["customModes"])
-        emit_opencode(resolved, Path(tmpdir))
+        try:
+            emit_opencode(resolved, Path(tmpdir))
+        except FileRegexNotImplemented as exc:
+            fail(f"OpenCode emitter: {exc}")
 
         agents_dir = Path(tmpdir) / "opencode" / "agents"
         if not agents_dir.exists():
@@ -401,7 +408,11 @@ def verify_opencode_agent_models():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         sys.path.insert(0, str(REPO_ROOT / "scripts"))
-        from generate import emit_opencode, resolve_custom_instructions
+        from generate import (
+            FileRegexNotImplemented,
+            emit_opencode,
+            resolve_custom_instructions,
+        )
 
         json_path = REPO_ROOT / "modes.json"
         with open(json_path) as f:
@@ -409,7 +420,10 @@ def verify_opencode_agent_models():
 
         resolved = json.loads(json.dumps(data))
         resolved["customModes"] = resolve_custom_instructions(resolved["customModes"])
-        emit_opencode(resolved, Path(tmpdir))
+        try:
+            emit_opencode(resolved, Path(tmpdir))
+        except FileRegexNotImplemented as exc:
+            fail(f"OpenCode emitter: {exc}")
 
         agents_dir = Path(tmpdir) / "opencode" / "agents"
         if not agents_dir.exists():
