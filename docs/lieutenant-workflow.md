@@ -211,7 +211,7 @@ If the original issue contains **material ambiguity** that cannot be resolved fr
 
 ### Mode → Model Mapping
 
-Each mode has a backing model. For OpenCode, the model is preset into the agent's frontmatter from [`models/mapping.yaml`](../models/mapping.yaml) at generation time — the emitter inserts `model: litellm/<id>` between `mode` and `permission`, and [`scripts/verify.py`](../scripts/verify.py) at `verify_opencode_agent_models()` enforces the match. For Zoo and Kilo, the model is selected in the tool's settings. The principle: **never leave the pipeline's roles on a single uniform default.** Autonomy quality is bounded by the weakest model in the loop, and different roles fail in different ways.
+Each mode has a backing model. For OpenCode, the model is preset into the agent's frontmatter from [`models/mapping.yaml`](../models/mapping.yaml) at generation time — the emitter inserts `model: litellm/<id>` between `mode` and `permissions`, and [`scripts/verify.py`](../scripts/verify.py) at `verify_opencode_agent_models()` enforces the match. For Zoo and Kilo, the model is selected in the tool's settings. The principle: **never leave the pipeline's roles on a single uniform default.** Autonomy quality is bounded by the weakest model in the loop, and different roles fail in different ways.
 
 | Mode | Role | Model Class |
 |------|------|-------------|
