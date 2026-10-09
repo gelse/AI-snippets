@@ -29,7 +29,20 @@ REQUIRED_MODE_KEYS = {
     "instantiation",
 }
 
-REQUIRED_TOP_KEYS = {"customModes", "skills"}
+REQUIRED_TOP_KEYS = {"customModes", "skills", "permissions"}
+
+# Required keys per non-deprecated mode's permissions entry (global
+# terminology; 'task' maps to opencode's 'subagent' action at emit time)
+REQUIRED_PERMISSION_KEYS = {
+    "edit",
+    "shell",
+    "read",
+    "glob",
+    "grep",
+    "skill",
+    "task",
+}
+VALID_PERMISSION_EFFECTS = {"allow", "ask", "deny"}
 
 
 def fail(msg):
@@ -47,7 +60,7 @@ def ok(msg):
 
 def validate_structure():
     """Load modes.json and assert valid JSON, required keys, unique slugs,
-    groups shape, and skill file existence."""
+    groups shape, permissions coverage, and skill file existence."""
     print("[a] Structural validation")
 
     json_path = REPO_ROOT / "modes.json"
@@ -67,6 +80,15 @@ def validate_structure():
     if missing_top:
         fail(f"Missing top-level keys: {missing_top}")
     ok(f"Top-level keys present: {sorted(data.keys())}")
+
+    # Permissions block: dict of slug -> {edit, shell, read, glob, grep,
+    # skill, task}; per-mode entries are validated in the mode loop below
+    permissions = data["permissions"]
+    if not isinstance(permissions, dict):
+        fail(
+            "Top-level 'permissions' must be a dict; got "
+            f"{type(permissions).__name__}"
+        )
 
     # Modes
     modes = data["customModes"]
@@ -122,7 +144,37 @@ def validate_structure():
             else:
                 fail(f"Mode '{slug}' group entry must be string or list: {g!r}")
 
+        # Permissions entry: required for every non-deprecated mode
+        # (deprecated modes are skipped by the opencode emitter)
+        if not mode.get("deprecated"):
+            perms = permissions.get(slug)
+            if perms is None:
+                fail(f"Mode '{slug}' missing 'permissions' entry")
+            if not isinstance(perms, dict):
+                fail(
+                    f"Mode '{slug}' permissions entry must be a dict; got "
+                    f"{type(perms).__name__}"
+                )
+            if set(perms.keys()) != REQUIRED_PERMISSION_KEYS:
+                fail(
+                    f"Mode '{slug}' permissions keys must be exactly "
+                    f"{sorted(REQUIRED_PERMISSION_KEYS)}; got {sorted(perms.keys())}"
+                )
+            for key, effect in perms.items():
+                if effect not in VALID_PERMISSION_EFFECTS:
+                    fail(
+                        f"Mode '{slug}' permissions '{key}' must be one of "
+                        f"{sorted(VALID_PERMISSION_EFFECTS)}; got '{effect}'"
+                    )
+
     ok("All modes have required keys and valid groups shape")
+
+    # Inverse check: every permissions key must name a non-deprecated mode
+    for key in permissions:
+        source = next((m for m in modes if m["slug"] == key), None)
+        if source is None or source.get("deprecated"):
+            fail(f"permissions key '{key}' is not a known non-deprecated mode slug")
+    ok(f"Permissions block: {len(permissions)} entries, all non-deprecated slugs")
 
     # Unique slugs
     seen = set()
