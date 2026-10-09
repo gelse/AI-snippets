@@ -169,14 +169,83 @@ def ensure_skill_frontmatter(content, skill_name):
         return f"---\n{fm}\n---\n{content}"
 
 
-def has_edit_group(groups):
-    """Check if a mode's groups contain an edit group."""
+# ---------------------------------------------------------------------------
+# OpenCode v2 permission translation
+# ---------------------------------------------------------------------------
+
+# opencode v2 permission action vocabulary; 'task' in the modes.json global
+# block maps to the 'subagent' action at emit time
+OPENCODE_PERMISSION_ACTIONS = (
+    "edit",
+    "shell",
+    "subagent",
+    "read",
+    "glob",
+    "grep",
+    "skill",
+    "webfetch",
+    "websearch",
+)
+OPENCODE_PERMISSION_EFFECTS = {"allow", "ask", "deny"}
+
+# Decoded fileRegex (the value modes.json holds after JSON parse) -> opencode
+# glob. Extend this mapping when a mode introduces a new fileRegex; map to
+# the narrowest glob, never a bare '*'.
+FILEREGEX_TO_GLOB = {r"\.md$": "*.md"}
+
+
+class FileRegexNotImplemented(Exception):
+    """A mode's groups carry a fileRegex with no FILEREGEX_TO_GLOB entry."""
+
+
+def translate_opencode_permissions(slug, groups, global_perms) -> list[dict]:
+    """Translate a mode's permissions entry to opencode v2 permission rules.
+
+    Returns an ordered list of ``{action, resource, effect}`` dicts in the
+    stable order edit, shell, read, glob, grep, skill, subagent. opencode
+    applies the rules last-match-wins, so a broad ``*`` rule is emitted
+    before any scoped override.
+    """
+    if slug not in global_perms:
+        raise ValueError(
+            f"No permissions entry for mode '{slug}'; every non-deprecated "
+            "mode must declare one in modes.json.permissions"
+        )
+    perms = global_perms[slug]
+
+    # Scoped edit group: the ["edit", {"fileRegex": "..."}] shape in groups
+    scoped_glob = None
     for g in groups:
-        if g == "edit":
-            return True
-        if isinstance(g, list) and len(g) > 0 and g[0] == "edit":
-            return True
-    return False
+        if not (isinstance(g, list) and g and g[0] == "edit"):
+            continue
+        if len(g) < 2 or not isinstance(g[1], dict) or "fileRegex" not in g[1]:
+            continue
+        file_regex = g[1]["fileRegex"]
+        if file_regex not in FILEREGEX_TO_GLOB:
+            raise FileRegexNotImplemented(
+                f"Mode '{slug}': no FILEREGEX_TO_GLOB mapping for fileRegex "
+                f"{file_regex!r} — add one in scripts/generate.py, mapped to "
+                "the narrowest glob (never a bare '*')"
+            )
+        scoped_glob = FILEREGEX_TO_GLOB[file_regex]
+        break
+
+    rules = []
+    if perms["edit"] == "allow" and scoped_glob is not None:
+        # Broad deny first, scoped allow second: last-match-wins lets the
+        # scoped allow win for matching paths while the rest stays denied.
+        rules.append({"action": "edit", "resource": "*", "effect": "deny"})
+        rules.append({"action": "edit", "resource": scoped_glob, "effect": "allow"})
+    else:
+        # deny/ask gates the whole action, so no scoped override is ever
+        # emitted — a scoped allow would subvert that decision.
+        rules.append({"action": "edit", "resource": "*", "effect": perms["edit"]})
+
+    for action in ("shell", "read", "glob", "grep", "skill"):
+        rules.append({"action": action, "resource": "*", "effect": perms[action]})
+    # 'task' (global terminology) is opencode's 'subagent' action
+    rules.append({"action": "subagent", "resource": "*", "effect": perms["task"]})
+    return rules
 
 
 def extract_skill_description(content):
@@ -292,15 +361,16 @@ def emit_opencode(data, out_dir):
             "mode": mode.get("instantiation", "all"),
         }
 
-        # Inserted between 'mode' and 'permission' so frontmatter field order
-        # is: description, mode, model, permission. Skipped when the slug has
+        # Inserted between 'mode' and 'permissions' so frontmatter field order
+        # is: description, mode, model, permissions. Skipped when the slug has
         # no mapping entry.
         model_id = model_by_slug.get(slug)
         if model_id:
             frontmatter["model"] = f"litellm/{model_id}"
 
-        if not has_edit_group(groups):
-            frontmatter["permission"] = {"edit": "deny"}
+        frontmatter["permissions"] = translate_opencode_permissions(
+            slug, groups, data["permissions"]
+        )
 
         body = f"{role}\n\n{instructions}" if instructions else role
 
