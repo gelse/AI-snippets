@@ -68,7 +68,7 @@ OpenCode scans config directories for `{agent,agents}/**/*.md` and `{skill,skill
 
 The global config directory follows the XDG Base Directory specification: `$XDG_CONFIG_HOME/opencode/` if `XDG_CONFIG_HOME` is set, otherwise `~/.config/opencode/`. The `install-opencode-global` Makefile target respects this via the `OPENCODE_CONFIG_HOME` variable.
 
-Generated agent `.md` files include YAML frontmatter with `mode: <instantiation>` (defaulting to `all`), which makes each agent available both as a subagent and in the primary TUI picker. Agents with `mode: subagent` are filtered out of the TUI picker by opencode. When a slug appears in [`models/mapping.yaml`](../models/mapping.yaml), a `model: litellm/<id>` field is inserted between `mode` and `permission`; [`scripts/verify.py`](../scripts/verify.py) asserts the field is present, matches the mapping, and occupies that position.
+Generated agent `.md` files include YAML frontmatter with `mode: <instantiation>` (defaulting to `all`), which makes each agent available both as a subagent and in the primary TUI picker. Agents with `mode: subagent` are filtered out of the TUI picker by opencode. When a slug appears in [`models/mapping.yaml`](../models/mapping.yaml), a `model: litellm/<id>` field is inserted between `mode` and `permissions`; [`scripts/verify.py`](../scripts/verify.py) asserts the field is present, matches the mapping, and occupies that position.
 
 | Artifact | Emitted | Tool expects |
 |----------|---------|-------------|

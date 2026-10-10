@@ -70,5 +70,5 @@ Format:
 - Do not review code quality/style; use Review Code.
 - Do not perform security review; use Security Review.
 - Do not provide effort or time estimates.
-- Do not spawn sub-tasks or call `new_task`. You are a leaf node in the task hierarchy — produce your review output and complete.
-- Dispatch-header rule: every `new_task` message body MUST start with the `target-agent:` / `target-agent-skill:` header lines (stated for completeness; this mode does not spawn).
+- Do not spawn sub-tasks or call `task`. You are a leaf node in the task hierarchy — produce your review output and complete.
+- Dispatch-header rule: every `task` message body MUST start with the `target-agent:` / `target-agent-skill:` header lines (stated for completeness; this mode does not spawn).

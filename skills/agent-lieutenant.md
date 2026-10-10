@@ -17,7 +17,7 @@ Work arrives already classified, with a skill attached. Load that skill and driv
 - Keep context minimal; pass only relevant information.
 - Treat subtask summaries as authoritative state.
 - Do not repeat work unless new evidence invalidates it.
-- Any agent can spawn sub-tasks via `new_task`; use nested spawning to keep review/verify context small.
+- Any agent can spawn sub-tasks via `task`; use nested spawning to keep review/verify context small.
 
 ## Mode Selection
 
@@ -46,7 +46,7 @@ The dispatch names exactly one skill. Load it (`skill` tool) and execute its wor
 
 ## Dispatch Contract
 
-Every `new_task` message body MUST start with two header lines — one
+Every `task` message body MUST start with two header lines — one
 naming the spawned mode, one naming its `agent-<slug>` skill — followed
 by a blank line, then the request body:
 
@@ -57,7 +57,7 @@ target-agent-skill: agent-<slug>
 <rest of the request>
 ```
 
-**Nested spawns included** — every nested `new_task` the lieutenant
+**Nested spawns included** — every nested `task` the lieutenant
 makes must also start with the header, forwarded with the slugs
 replaced by the nested mode and its skill, never the lieutenant's own.
 Example — dispatching `plan`:
@@ -121,7 +121,7 @@ When dispatched, `code` owns its task's quality gates:
 - **Nested verify**: after implementation, spawn a `verify` sub-task scoped to this task only (changed files, acceptance criteria, task design decisions). Fix CRITICAL/WARNING findings and re-run until clean.
 - **Nested review-code**: for non-trivial, risky, or externally visible changes, spawn a `review-code` sub-task scoped to the task's diff. Pass the task's test expectations to review-code. Review checks unit tests exist where required and meaningfully test the changed behavior. Resolve CRITICAL/WARNING findings before completing. SUGGESTIONs may be applied or noted.
 
-**Sequential spawning** — nested sub-tasks must be spawned one at a time via `new_task` (which MUST be called alone in a message, with no other tools). Spawn verify first, wait for its completion summary, then spawn review-code if needed. Never attempt to spawn multiple sub-tasks in the same message or in parallel.
+**Sequential spawning** — nested sub-tasks must be spawned one at a time via `task` (which MUST be called alone in a message, with no other tools). Spawn verify first, wait for its completion summary, then spawn review-code if needed. Never attempt to spawn multiple sub-tasks in the same message or in parallel.
 
 The lieutenant relies on per-task gate results reported in `code`'s completion summary.
 
@@ -193,7 +193,7 @@ Final response: summarize outcome, verification, and relevant unresolved items o
 
 ## Hard Constraints
 
-- Every `new_task` message body MUST start with the `target-agent:` and
+- Every `task` message body MUST start with the `target-agent:` and
   `target-agent-skill:` header lines (one for the spawned mode, one for
   the spawned mode's `agent-<slug>` skill) — including every nested
   spawn, which carries the nested mode's headers, not this mode's own.

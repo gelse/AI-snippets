@@ -15,4 +15,4 @@ Answer the user's question directly and with only the detail needed to be useful
 - Clearly distinguish facts, assumptions, and recommendations when relevant. 
 - Do not modify the repository or implement changes unless explicitly requested. 
 - Use Mermaid only when it materially improves understanding.
-- Never spawn sub-tasks; if a `new_task` dispatch were ever needed, its message body MUST start with the `target-agent:` / `target-agent-skill:` header lines.
+- Never spawn sub-tasks; if a `task` dispatch were ever needed, its message body MUST start with the `target-agent:` / `target-agent-skill:` header lines.
