@@ -508,16 +508,25 @@ def _scoped_edit_glob(groups, fileregex_to_glob):
 
     Mirrors the emitter's nested-``["edit", {"fileRegex": "..."}]`` shape
     check so the semantic comparison in check (e) reads the mode's groups
-    directly instead of trusting the emitter's output.
+    directly instead of trusting the emitter's output. An unmapped pattern
+    raises ``FileRegexNotImplemented`` like the emitter does, keeping this
+    an independent fail-loud oracle rather than a silent fallback.
     """
+    from generate import FileRegexNotImplemented  # caller sets up sys.path
+
     for g in groups:
         if not (isinstance(g, list) and g and g[0] == "edit"):
             continue
         if len(g) < 2 or not isinstance(g[1], dict):
             continue
-        mapped = fileregex_to_glob.get(g[1].get("fileRegex"))
-        if mapped is not None:
-            return mapped
+        file_regex = g[1].get("fileRegex")
+        if file_regex is None:
+            continue
+        if file_regex not in fileregex_to_glob:
+            raise FileRegexNotImplemented(
+                f"no FILEREGEX_TO_GLOB mapping for fileRegex {file_regex!r}"
+            )
+        return fileregex_to_glob[file_regex]
     return None
 
 
@@ -635,9 +644,12 @@ def verify_opencode_agent_permissions():
 
             # Semantic last-match-wins on the edit rules
             edit_rules = [r for r in permissions if r["action"] == "edit"]
-            scoped_glob = _scoped_edit_glob(
-                source_mode.get("groups", []), FILEREGEX_TO_GLOB
-            )
+            try:
+                scoped_glob = _scoped_edit_glob(
+                    source_mode.get("groups", []), FILEREGEX_TO_GLOB
+                )
+            except FileRegexNotImplemented as exc:
+                fail(f"OpenCode translation: {exc}")
             edit_value = data["permissions"][slug]["edit"]
             if scoped_glob is not None and edit_value == "allow":
                 if len(edit_rules) != 2:

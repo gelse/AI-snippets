@@ -120,6 +120,8 @@ echo "--- Step 4: every installed agent carries a v2 permissions list ---"
 
 if [ ! -x "$ROOT_DIR/.venv/bin/python" ]; then
   echo "SKIP: $ROOT_DIR/.venv/bin/python not available — permission assertions not run"
+  echo ""
+  echo "=== All opencode-install smoke tests passed (step 4 skipped) ==="
   exit 0
 fi
 
