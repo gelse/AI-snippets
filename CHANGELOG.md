@@ -2,13 +2,24 @@
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-10-10
+
 ### Added
-- `permissions` block in [`modes.json`](modes.json): a per-mode `{edit, shell, read, glob, grep, skill, task}` matrix with `allow`/`ask`/`deny` values for all 10 active modes (deprecated modes excluded). The opencode emitter translates each row into the opencode v2 rule notation in [`scripts/generate.py`](scripts/generate.py), and [`scripts/verify.py`](scripts/verify.py) enforces the block structurally plus a per-agent content check — both documented in [`docs/development.md`](docs/development.md).
-- [`scripts/smoke-test-opencode-install.sh`](scripts/smoke-test-opencode-install.sh) step 4: every installed opencode agent must carry a non-empty v2 `permissions` list with at least one `allow` rule (asserted with the repo venv python, skipped with a notice when it is absent).
+- `permissions` block in `modes.json`: per-mode `{edit, shell, read, glob, grep, skill, task}`
+  matrix with `allow`/`ask`/`deny` for all 10 active modes; opencode emitter translates each
+  row into opencode v2 rule notation (`scripts/generate.py`); `scripts/verify.py` enforces the
+  block structurally plus a per-agent content check.
+- `scripts/smoke-test-opencode-install.sh` step 4: installed agents must carry a non-empty v2
+  `permissions` list with at least one `allow` rule.
 
 ### Changed
-- OpenCode agents now emit the v2 `permissions:` rule list (ordered `{action, resource, effect}` mappings, applied last-match-wins) instead of the v1 `permission:` dict. The `has_edit_group()` → `{"edit": "deny"}` shortcut is replaced by the per-mode matrix translation in [`scripts/generate.py`](scripts/generate.py), [`scripts/verify.py`](scripts/verify.py) field-order and content checks track the plural key, and [`docs/opencode-target-drift.md`](docs/opencode-target-drift.md), [`docs/development.md`](docs/development.md), [`docs/architecture.md`](docs/architecture.md), and [`docs/lieutenant-workflow.md`](docs/lieutenant-workflow.md) were regenerated for the new format.
-  - Breaking: downstream consumers parsing the legacy `permission:` dict must migrate to the v2 `permissions:` list.
+- OpenCode agents now emit the v2 `permissions:` rule list (ordered `{action, resource, effect}`,
+  last-match-wins) instead of the v1 `permission:` dict; verify field-order/content checks track
+  the plural key; drift report and docs regenerated.
+  - Breaking: consumers parsing the legacy `permission:` dict must migrate.
+- Skills/agents renamed `new_task` → `task` (0bd39e6).
+- Emitter fail-loud path routed through the verify fail helper (177af51); scoped-glob oracle and
+  smoke skip banner hardened (fbb46f2).
 
 ## [0.3.1] - 2026-10-08
 
