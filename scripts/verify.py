@@ -29,7 +29,20 @@ REQUIRED_MODE_KEYS = {
     "instantiation",
 }
 
-REQUIRED_TOP_KEYS = {"customModes", "skills"}
+REQUIRED_TOP_KEYS = {"customModes", "skills", "permissions"}
+
+# Required keys per non-deprecated mode's permissions entry (global
+# terminology; 'task' maps to opencode's 'subagent' action at emit time)
+REQUIRED_PERMISSION_KEYS = {
+    "edit",
+    "shell",
+    "read",
+    "glob",
+    "grep",
+    "skill",
+    "task",
+}
+VALID_PERMISSION_EFFECTS = {"allow", "ask", "deny"}
 
 
 def fail(msg):
@@ -47,7 +60,7 @@ def ok(msg):
 
 def validate_structure():
     """Load modes.json and assert valid JSON, required keys, unique slugs,
-    groups shape, and skill file existence."""
+    groups shape, permissions coverage, and skill file existence."""
     print("[a] Structural validation")
 
     json_path = REPO_ROOT / "modes.json"
@@ -67,6 +80,15 @@ def validate_structure():
     if missing_top:
         fail(f"Missing top-level keys: {missing_top}")
     ok(f"Top-level keys present: {sorted(data.keys())}")
+
+    # Permissions block: dict of slug -> {edit, shell, read, glob, grep,
+    # skill, task}; per-mode entries are validated in the mode loop below
+    permissions = data["permissions"]
+    if not isinstance(permissions, dict):
+        fail(
+            "Top-level 'permissions' must be a dict; got "
+            f"{type(permissions).__name__}"
+        )
 
     # Modes
     modes = data["customModes"]
@@ -122,7 +144,37 @@ def validate_structure():
             else:
                 fail(f"Mode '{slug}' group entry must be string or list: {g!r}")
 
+        # Permissions entry: required for every non-deprecated mode
+        # (deprecated modes are skipped by the opencode emitter)
+        if not mode.get("deprecated"):
+            perms = permissions.get(slug)
+            if perms is None:
+                fail(f"Mode '{slug}' missing 'permissions' entry")
+            if not isinstance(perms, dict):
+                fail(
+                    f"Mode '{slug}' permissions entry must be a dict; got "
+                    f"{type(perms).__name__}"
+                )
+            if set(perms.keys()) != REQUIRED_PERMISSION_KEYS:
+                fail(
+                    f"Mode '{slug}' permissions keys must be exactly "
+                    f"{sorted(REQUIRED_PERMISSION_KEYS)}; got {sorted(perms.keys())}"
+                )
+            for key, effect in perms.items():
+                if effect not in VALID_PERMISSION_EFFECTS:
+                    fail(
+                        f"Mode '{slug}' permissions '{key}' must be one of "
+                        f"{sorted(VALID_PERMISSION_EFFECTS)}; got '{effect}'"
+                    )
+
     ok("All modes have required keys and valid groups shape")
+
+    # Inverse check: every permissions key must name a non-deprecated mode
+    for key in permissions:
+        source = next((m for m in modes if m["slug"] == key), None)
+        if source is None or source.get("deprecated"):
+            fail(f"permissions key '{key}' is not a known non-deprecated mode slug")
+    ok(f"Permissions block: {len(permissions)} entries, all non-deprecated slugs")
 
     # Unique slugs
     seen = set()
@@ -265,7 +317,11 @@ def verify_opencode_agent_modes():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         sys.path.insert(0, str(REPO_ROOT / "scripts"))
-        from generate import emit_opencode, resolve_custom_instructions
+        from generate import (
+            FileRegexNotImplemented,
+            emit_opencode,
+            resolve_custom_instructions,
+        )
 
         json_path = REPO_ROOT / "modes.json"
         with open(json_path) as f:
@@ -273,7 +329,10 @@ def verify_opencode_agent_modes():
 
         resolved = json.loads(json.dumps(data))
         resolved["customModes"] = resolve_custom_instructions(resolved["customModes"])
-        emit_opencode(resolved, Path(tmpdir))
+        try:
+            emit_opencode(resolved, Path(tmpdir))
+        except FileRegexNotImplemented as exc:
+            fail(f"OpenCode emitter: {exc}")
 
         agents_dir = Path(tmpdir) / "opencode" / "agents"
         if not agents_dir.exists():
@@ -340,8 +399,8 @@ def verify_opencode_agent_models():
     """Emit opencode agents to a temp dir and assert each frontmatter carries
     ``model: litellm/<model_id>`` matching models/mapping.yaml for that slug.
 
-    Also asserts field position: the ``model`` key must appear after ``mode``
-    and before ``permission`` (when a permission block is present).
+    Also asserts field position: the ``model`` key must appear after ``mode``,
+    and ``permissions`` (plural list) appears after ``model`` when present.
     """
     print("[d] OpenCode agent model verification")
 
@@ -349,7 +408,11 @@ def verify_opencode_agent_models():
 
     with tempfile.TemporaryDirectory() as tmpdir:
         sys.path.insert(0, str(REPO_ROOT / "scripts"))
-        from generate import emit_opencode, resolve_custom_instructions
+        from generate import (
+            FileRegexNotImplemented,
+            emit_opencode,
+            resolve_custom_instructions,
+        )
 
         json_path = REPO_ROOT / "modes.json"
         with open(json_path) as f:
@@ -357,7 +420,10 @@ def verify_opencode_agent_models():
 
         resolved = json.loads(json.dumps(data))
         resolved["customModes"] = resolve_custom_instructions(resolved["customModes"])
-        emit_opencode(resolved, Path(tmpdir))
+        try:
+            emit_opencode(resolved, Path(tmpdir))
+        except FileRegexNotImplemented as exc:
+            fail(f"OpenCode emitter: {exc}")
 
         agents_dir = Path(tmpdir) / "opencode" / "agents"
         if not agents_dir.exists():
@@ -409,7 +475,7 @@ def verify_opencode_agent_models():
                     f"expected '{expected_value}' (from mapping.yaml)"
                 )
 
-            # Field position: description < mode < model < permission
+            # Field position: description < mode < model < permissions
             if keys[:2] != ["description", "mode"]:
                 fail(
                     f"Agent {agent_file.name}: frontmatter must start with "
@@ -422,15 +488,228 @@ def verify_opencode_agent_models():
                     f"Agent {agent_file.name}: 'model' must come directly "
                     f"after 'mode'; key order is {keys}"
                 )
-            if "permission" in keys and keys.index("permission") < model_idx:
+            if "permissions" in keys and keys.index("permissions") < model_idx:
                 fail(
-                    f"Agent {agent_file.name}: 'permission' must come after "
+                    f"Agent {agent_file.name}: 'permissions' must come after "
                     f"'model'; key order is {keys}"
                 )
 
             ok(f"{agent_file.name}: model={model_value}")
 
     ok(f"All {len(agent_files)} opencode agents match mapping.yaml (model + position)")
+
+
+# ---------------------------------------------------------------------------
+# (e) OpenCode agents: permissions list content and rule semantics
+# ---------------------------------------------------------------------------
+
+def _scoped_edit_glob(groups, fileregex_to_glob):
+    """Return the mapped glob for the mode's first fileRegex edit group.
+
+    Mirrors the emitter's nested-``["edit", {"fileRegex": "..."}]`` shape
+    check so the semantic comparison in check (e) reads the mode's groups
+    directly instead of trusting the emitter's output. An unmapped pattern
+    raises ``FileRegexNotImplemented`` like the emitter does, keeping this
+    an independent fail-loud oracle rather than a silent fallback.
+    """
+    from generate import FileRegexNotImplemented  # caller sets up sys.path
+
+    for g in groups:
+        if not (isinstance(g, list) and g and g[0] == "edit"):
+            continue
+        if len(g) < 2 or not isinstance(g[1], dict):
+            continue
+        file_regex = g[1].get("fileRegex")
+        if file_regex is None:
+            continue
+        if file_regex not in fileregex_to_glob:
+            raise FileRegexNotImplemented(
+                f"no FILEREGEX_TO_GLOB mapping for fileRegex {file_regex!r}"
+            )
+        return fileregex_to_glob[file_regex]
+    return None
+
+
+def verify_opencode_agent_permissions():
+    """Emit opencode agents to a temp dir and assert each frontmatter's
+    ``permissions`` list matches the mode's entry in modes.json.permissions.
+
+    Per agent: list shape (list of ``{action, resource, effect}`` rules),
+    the opencode action/effect vocabularies, round-trip equivalence with
+    ``translate_opencode_permissions``, the last-match-wins semantics for
+    scoped edit rules (broad deny first, scoped allow last; no scoped rule
+    when edit is denied/gated or has no scoped group), and the stable
+    action ordering edit, shell, read, glob, grep, skill, subagent.
+    """
+    print("[e] OpenCode agent permissions verification")
+
+    json_path = REPO_ROOT / "modes.json"
+    with open(json_path) as f:
+        data = json.load(f)
+
+    modes_by_slug = {m["slug"]: m for m in data["customModes"]}
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        sys.path.insert(0, str(REPO_ROOT / "scripts"))
+        from generate import (
+            FILEREGEX_TO_GLOB,
+            OPENCODE_PERMISSION_ACTIONS,
+            OPENCODE_PERMISSION_EFFECTS,
+            FileRegexNotImplemented,
+            emit_opencode,
+            resolve_custom_instructions,
+            translate_opencode_permissions,
+        )
+
+        resolved = json.loads(json.dumps(data))
+        resolved["customModes"] = resolve_custom_instructions(resolved["customModes"])
+        try:
+            emit_opencode(resolved, Path(tmpdir))
+        except FileRegexNotImplemented as exc:
+            fail(f"OpenCode emitter: {exc}")
+
+        agents_dir = Path(tmpdir) / "opencode" / "agents"
+        if not agents_dir.exists():
+            fail("OpenCode emitter did not create agents/ directory")
+
+        agent_files = sorted(agents_dir.glob("*.md"))
+        if not agent_files:
+            fail("No agent .md files found in emitted opencode/agents/")
+
+        for agent_file in agent_files:
+            slug = agent_file.stem
+            content = agent_file.read_text()
+            if not content.startswith("---\n"):
+                fail(f"Agent {slug}.md: missing frontmatter")
+
+            end = content.index("---", 4)
+            fm = yaml.safe_load(content[4:end])
+
+            source_mode = modes_by_slug.get(slug)
+            if source_mode is None:
+                fail(f"Agent {slug}.md: no matching mode in modes.json")
+
+            permissions = fm.get("permissions")
+            if not isinstance(permissions, list) or not permissions:
+                fail(
+                    f"Agent {slug}.md: 'permissions' must be a non-empty "
+                    f"list; got {permissions!r}"
+                )
+
+            # Rule shape and action/effect vocabularies
+            for rule in permissions:
+                if not isinstance(rule, dict) or set(rule.keys()) != {
+                    "action",
+                    "resource",
+                    "effect",
+                }:
+                    fail(f"Agent {slug}.md: malformed permission rule: {rule!r}")
+                if rule["action"] not in OPENCODE_PERMISSION_ACTIONS:
+                    fail(
+                        f"Agent {slug}.md: rule action '{rule['action']}' "
+                        f"not in opencode action set "
+                        f"{sorted(OPENCODE_PERMISSION_ACTIONS)}"
+                    )
+                if rule["effect"] not in OPENCODE_PERMISSION_EFFECTS:
+                    fail(
+                        f"Agent {slug}.md: rule effect '{rule['effect']}' "
+                        f"not in {sorted(OPENCODE_PERMISSION_EFFECTS)}"
+                    )
+                if not isinstance(rule["resource"], str) or not rule["resource"]:
+                    fail(
+                        f"Agent {slug}.md: rule resource must be a non-empty "
+                        f"string: {rule!r}"
+                    )
+
+            # Round-trip equivalence with the translator
+            try:
+                expected = translate_opencode_permissions(
+                    slug, source_mode.get("groups", []), data["permissions"]
+                )
+            except FileRegexNotImplemented as exc:
+                fail(f"OpenCode translation: {exc}")
+            canonical = sorted(
+                (r["action"], r["resource"], r["effect"]) for r in permissions
+            )
+            expected_canonical = sorted(
+                (r["action"], r["resource"], r["effect"]) for r in expected
+            )
+            if canonical != expected_canonical:
+                fail(
+                    f"Agent {slug}.md: emitted permissions diverge from the "
+                    f"translation of modes.json.permissions['{slug}']:\n"
+                    f"  emitted:  {canonical}\n"
+                    f"  expected: {expected_canonical}"
+                )
+
+            # Semantic last-match-wins on the edit rules
+            edit_rules = [r for r in permissions if r["action"] == "edit"]
+            try:
+                scoped_glob = _scoped_edit_glob(
+                    source_mode.get("groups", []), FILEREGEX_TO_GLOB
+                )
+            except FileRegexNotImplemented as exc:
+                fail(f"OpenCode translation: {exc}")
+            edit_value = data["permissions"][slug]["edit"]
+            if scoped_glob is not None and edit_value == "allow":
+                if len(edit_rules) != 2:
+                    fail(
+                        f"Agent {slug}.md: edit='{edit_value}' with a scoped "
+                        f"group expects exactly two edit rules (broad deny + "
+                        f"scoped allow); got {edit_rules!r}"
+                    )
+                if edit_rules[0] != {
+                    "action": "edit",
+                    "resource": "*",
+                    "effect": "deny",
+                }:
+                    fail(
+                        f"Agent {slug}.md: first edit rule must be the broad "
+                        f"'*' deny; got {edit_rules[0]!r}"
+                    )
+                if edit_rules[1] != {
+                    "action": "edit",
+                    "resource": scoped_glob,
+                    "effect": "allow",
+                }:
+                    fail(
+                        f"Agent {slug}.md: second edit rule must be the "
+                        f"scoped '{scoped_glob}' allow; got {edit_rules[1]!r}"
+                    )
+            else:
+                # No scoped group, or edit denied/gated: the scoped group is
+                # dead at the opencode layer, so exactly one broad rule
+                if len(edit_rules) != 1 or edit_rules[0]["resource"] != "*":
+                    fail(
+                        f"Agent {slug}.md: edit='{edit_value}' without a "
+                        "live scoped group expects exactly one broad '*' "
+                        f"edit rule; got {edit_rules!r}"
+                    )
+
+            # Stable action ordering (first occurrence per action)
+            first_seen = list(dict.fromkeys(r["action"] for r in permissions))
+            expected_order = [
+                a
+                for a in (
+                    "edit",
+                    "shell",
+                    "read",
+                    "glob",
+                    "grep",
+                    "skill",
+                    "subagent",
+                )
+                if a in first_seen
+            ]
+            if first_seen != expected_order:
+                fail(
+                    f"Agent {slug}.md: rule order {first_seen} does not "
+                    f"match the stable order {expected_order}"
+                )
+
+            ok(f"{agent_file.name}: {len(permissions)} rules, semantics OK")
+
+    ok(f"All {len(agent_files)} opencode agents carry the expected permissions")
 
 
 # ---------------------------------------------------------------------------
@@ -442,6 +721,7 @@ def main():
     round_trip(data)
     verify_opencode_agent_modes()
     verify_opencode_agent_models()
+    verify_opencode_agent_permissions()
     print("\nAll checks passed.")
 
 

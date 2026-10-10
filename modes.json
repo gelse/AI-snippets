@@ -209,6 +209,98 @@
       "deprecated": true
     }
   ],
+  "permissions": {
+    "captain": {
+      "edit": "deny",
+      "shell": "ask",
+      "read": "allow",
+      "glob": "allow",
+      "grep": "allow",
+      "skill": "allow",
+      "task": "allow"
+    },
+    "lieutenant": {
+      "edit": "deny",
+      "shell": "ask",
+      "read": "allow",
+      "glob": "allow",
+      "grep": "allow",
+      "skill": "allow",
+      "task": "allow"
+    },
+    "investigator": {
+      "edit": "deny",
+      "shell": "ask",
+      "read": "allow",
+      "glob": "allow",
+      "grep": "allow",
+      "skill": "allow",
+      "task": "deny"
+    },
+    "plan": {
+      "edit": "allow",
+      "shell": "ask",
+      "read": "allow",
+      "glob": "allow",
+      "grep": "allow",
+      "skill": "allow",
+      "task": "allow"
+    },
+    "review-code": {
+      "edit": "deny",
+      "shell": "ask",
+      "read": "allow",
+      "glob": "allow",
+      "grep": "allow",
+      "skill": "allow",
+      "task": "deny"
+    },
+    "security-review": {
+      "edit": "deny",
+      "shell": "ask",
+      "read": "allow",
+      "glob": "allow",
+      "grep": "allow",
+      "skill": "allow",
+      "task": "deny"
+    },
+    "review-plan": {
+      "edit": "deny",
+      "shell": "ask",
+      "read": "allow",
+      "glob": "allow",
+      "grep": "allow",
+      "skill": "allow",
+      "task": "deny"
+    },
+    "code": {
+      "edit": "allow",
+      "shell": "ask",
+      "read": "allow",
+      "glob": "allow",
+      "grep": "allow",
+      "skill": "allow",
+      "task": "allow"
+    },
+    "verify": {
+      "edit": "allow",
+      "shell": "ask",
+      "read": "allow",
+      "glob": "allow",
+      "grep": "allow",
+      "skill": "allow",
+      "task": "deny"
+    },
+    "ask": {
+      "edit": "deny",
+      "shell": "deny",
+      "read": "allow",
+      "glob": "allow",
+      "grep": "allow",
+      "skill": "allow",
+      "task": "deny"
+    }
+  },
   "skills": [
     {
       "name": "github-issue",

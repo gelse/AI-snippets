@@ -33,7 +33,7 @@ Execute one scoped task — smallest correct change, the repository's own conven
 
 ## Dispatch Contract
 
-When this mode spawns a `new_task` sub-task (`verify` or
+When this mode spawns a `task` sub-task (`verify` or
 `review-code`), the message body MUST start with two header lines
 naming the nested mode and its `agent-<slug>` skill, then a blank line:
 `target-agent: <nested-slug>` / `target-agent-skill: agent-<nested-slug>`
@@ -43,7 +43,7 @@ Forward the nested mode's headers, not this mode's own slugs.
 
 After implementing, spawn a nested `verify` sub-task scoped to this task only.
 
-**Spawning mechanics** — the `new_task` tool MUST be called alone in a single message (no other tools alongside it). Spawn one sub-task at a time: first verify, then wait for its completion summary before deciding next steps. Do NOT attempt to call `new_task` multiple times in the same message.
+**Spawning mechanics** — the `task` tool MUST be called alone in a single message (no other tools alongside it). Spawn one sub-task at a time: first verify, then wait for its completion summary before deciding next steps. Do NOT attempt to call `task` multiple times in the same message.
 
 Pass to verify:
 - task scope and acceptance criteria
@@ -64,7 +64,7 @@ When implementation reveals the milestone file is flawed:
 
 ## Nested Code Review
 
-For non-trivial, risky, or externally visible changes, spawn a nested `review-code` sub-task — but only **after** the verify sub-task has completed and returned its summary. Each sub-task must be spawned sequentially via a separate `new_task` call (one tool per message). Do NOT attempt to spawn verify and review-code in the same message or in parallel.
+For non-trivial, risky, or externally visible changes, spawn a nested `review-code` sub-task — but only **after** the verify sub-task has completed and returned its summary. Each sub-task must be spawned sequentially via a separate `task` call (one tool per message). Do NOT attempt to spawn verify and review-code in the same message or in parallel.
 
 Pass only:
 - changed files
