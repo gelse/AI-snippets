@@ -90,6 +90,12 @@ def load_model_mapping():
     }
 
 
+def load_harnesses():
+    """Load harnesses.json from repo root and return the parsed dict."""
+    with open(REPO_ROOT / "harnesses.json") as f:
+        return json.load(f)
+
+
 def resolve_custom_instructions(modes):
     """Replace agents/*.md paths in modes with their file contents."""
     for mode in modes:
@@ -173,20 +179,44 @@ def ensure_skill_frontmatter(content, skill_name):
 # OpenCode v2 permission translation
 # ---------------------------------------------------------------------------
 
-# opencode v2 permission action vocabulary; 'task' in the modes.json global
-# block maps to the 'subagent' action at emit time
+# opencode V1 permission names accepted in the agent frontmatter
+# 'permission' map. These are the names the opencode runtime (1.18.35)
+# actually matches on when compiling {permission, pattern, action} rules:
+# there is no 'shell' or 'subagent' name at runtime — modes.json's 'shell'
+# emits as 'bash' and 'task' emits as 'task'.
 OPENCODE_PERMISSION_ACTIONS = (
-    "edit",
-    "shell",
-    "subagent",
     "read",
+    "edit",
     "glob",
     "grep",
+    "bash",
+    "task",
     "skill",
+    "lsp",
+    "question",
     "webfetch",
     "websearch",
+    "external_directory",
+    "doom_loop",
 )
 OPENCODE_PERMISSION_EFFECTS = {"allow", "ask", "deny"}
+
+# modes.json key -> the opencode V1 permission name it emits as. The
+# modes.json vocabulary ('shell', 'task') is the repo's own and must not be
+# renamed; only the emitted opencode name changes.
+MODES_KEY_TO_ACTION = {
+    "edit": "edit",
+    "shell": "bash",
+    "read": "read",
+    "glob": "glob",
+    "grep": "grep",
+    "skill": "skill",
+    "task": "task",
+    "lsp": "lsp",
+    "question": "question",
+    "external_directory": "external_directory",
+    "doom_loop": "doom_loop",
+}
 
 # Decoded fileRegex (the value modes.json holds after JSON parse) -> opencode
 # glob. Extend this mapping when a mode introduces a new fileRegex; map to
@@ -198,13 +228,37 @@ class FileRegexNotImplemented(Exception):
     """A mode's groups carry a fileRegex with no FILEREGEX_TO_GLOB entry."""
 
 
-def translate_opencode_permissions(slug, groups, global_perms) -> list[dict]:
-    """Translate a mode's permissions entry to opencode v2 permission rules.
+def translate_opencode_permissions(slug, groups, global_perms) -> dict:
+    """Translate a mode's permissions entry to an opencode V1 permission map.
 
-    Returns an ordered list of ``{action, resource, effect}`` dicts in the
-    stable order edit, shell, read, glob, grep, skill, subagent. opencode
-    applies the rules last-match-wins, so a broad ``*`` rule is emitted
-    before any scoped override.
+    Returns the agent frontmatter ``permission`` map: opencode name ->
+    effect string, or name -> {pattern: effect} for scoped entries.
+    opencode compiles the map into ``{permission, pattern, action}`` rules
+    in insertion order and keeps the last matching rule, so a scoped edit
+    entry lists the broad ``*`` deny first and the scoped allow second.
+    The modes.json keys 'shell' and 'task' are repo vocabulary; they are
+    emitted as 'bash' and 'task', the names the runtime matches on.
+
+    When ``perms['shell']`` is a dict, the dict is passed through verbatim
+    (Python preserves insertion order; ``_yaml_dump`` emits dicts in
+    insertion order via ``sort_keys=False``), so the author-supplied order
+    is policy and is not re-sorted or re-arranged here. Map values for any
+    of the other keys (``read``, ``glob``, ``grep``, ``skill``, ``task``,
+    ``lsp``, ``external_directory``) are also passed through unvalidated by
+    the translator (``edit`` is not: a scoped edit group is synthesized into
+    the broad-deny/scoped-allow map above); the structural check in
+    ``scripts/verify.py`` and verify (f)'s value-shape check cover them.
+
+    The four new keys (``lsp``, ``question``, ``external_directory``,
+    ``doom_loop``) are emitted verbatim from the modes.json row — no
+    implicit runtime fallback is added (a silent fallback could
+    reintroduce upstream's default-``ask`` stall risk for partial rows).
+
+    When ``perms['question']`` or ``perms['doom_loop']`` is a dict, the
+    translator raises ``TypeError`` — these two actions are upstream
+    ``actionOnly`` and accept scalar effects only. ``lsp`` and
+    ``external_directory`` accept scalar or pattern map; the structural
+    check in ``scripts/verify.py`` covers their shape.
     """
     if slug not in global_perms:
         raise ValueError(
@@ -230,22 +284,59 @@ def translate_opencode_permissions(slug, groups, global_perms) -> list[dict]:
         scoped_glob = FILEREGEX_TO_GLOB[file_regex]
         break
 
-    rules = []
+    perm_map = {}
     if perms["edit"] == "allow" and scoped_glob is not None:
         # Broad deny first, scoped allow second: last-match-wins lets the
         # scoped allow win for matching paths while the rest stays denied.
-        rules.append({"action": "edit", "resource": "*", "effect": "deny"})
-        rules.append({"action": "edit", "resource": scoped_glob, "effect": "allow"})
+        perm_map["edit"] = {"*": "deny", scoped_glob: "allow"}
     else:
         # deny/ask gates the whole action, so no scoped override is ever
         # emitted — a scoped allow would subvert that decision.
-        rules.append({"action": "edit", "resource": "*", "effect": perms["edit"]})
+        perm_map["edit"] = perms["edit"]
 
-    for action in ("shell", "read", "glob", "grep", "skill"):
-        rules.append({"action": action, "resource": "*", "effect": perms[action]})
-    # 'task' (global terminology) is opencode's 'subagent' action
-    rules.append({"action": "subagent", "resource": "*", "effect": perms["task"]})
-    return rules
+    # Map-valued 'shell' (per-command bash patterns): the author-supplied
+    # entry order is policy and passes through untouched, but each entry
+    # must at least be shape-valid (non-empty string pattern -> effect in
+    # the opencode vocabulary) — mirroring the missing-slug guard above.
+    if isinstance(perms["shell"], dict):
+        if not perms["shell"]:
+            raise ValueError(
+                f"Mode '{slug}': permissions 'shell' pattern map must not "
+                "be empty"
+            )
+        for pattern, effect in perms["shell"].items():
+            if (
+                not isinstance(pattern, str)
+                or not pattern
+                or not isinstance(effect, str)
+                or effect not in OPENCODE_PERMISSION_EFFECTS
+            ):
+                raise ValueError(
+                    f"Mode '{slug}': permissions 'shell' pattern map "
+                    f"entries must map non-empty string patterns to one "
+                    f"of {sorted(OPENCODE_PERMISSION_EFFECTS)}; got "
+                    f"{pattern!r}: {effect!r}"
+                )
+
+    # Scalar-only actions: upstream marks 'question' and 'doom_loop' as
+    # actionOnly (scalar effects only), so a pattern map would be silently
+    # inert there. Fail loud at generate time — symmetric with the shell
+    # guard above — instead of emitting a map the runtime cannot apply.
+    for scalar_only_key in ("question", "doom_loop"):
+        v = perms[scalar_only_key]
+        if isinstance(v, dict):
+            raise TypeError(
+                f"Mode '{slug}': permissions '{scalar_only_key}' must be a "
+                f"plain scalar in {sorted(OPENCODE_PERMISSION_EFFECTS)}; "
+                f"opencode's '{scalar_only_key}' action is actionOnly "
+                "(scalar effects only). Got "
+                f"{v!r}"
+            )
+
+    for key in ("shell", "read", "glob", "grep", "skill", "task",
+                "lsp", "question", "external_directory", "doom_loop"):
+        perm_map[MODES_KEY_TO_ACTION[key]] = perms[key]
+    return perm_map
 
 
 def extract_skill_description(content):
@@ -343,6 +434,7 @@ def emit_opencode(data, out_dir):
     agents_dir.mkdir(parents=True, exist_ok=True)
 
     model_by_slug = load_model_mapping()
+    subtask_instructions = load_harnesses().get("opencode", {}).get("subtaskInstructions", [])
 
     count = 0
     for mode in data["customModes"]:
@@ -361,18 +453,25 @@ def emit_opencode(data, out_dir):
             "mode": mode.get("instantiation", "all"),
         }
 
-        # Inserted between 'mode' and 'permissions' so frontmatter field order
-        # is: description, mode, model, permissions. Skipped when the slug has
+        # Inserted between 'mode' and 'permission' so frontmatter field order
+        # is: description, mode, model, permission. Skipped when the slug has
         # no mapping entry.
         model_id = model_by_slug.get(slug)
         if model_id:
             frontmatter["model"] = f"litellm/{model_id}"
 
-        frontmatter["permissions"] = translate_opencode_permissions(
+        frontmatter["permission"] = translate_opencode_permissions(
             slug, groups, data["permissions"]
         )
 
-        body = f"{role}\n\n{instructions}" if instructions else role
+        subtask_block = "## Starting Subtasks"
+        joined = "\n\n".join(subtask_instructions)
+        if joined:
+            subtask_block += "\n\n" + joined
+        if instructions:
+            body = f"{role}\n\n{subtask_block}\n\n{instructions}"
+        else:
+            body = f"{role}\n\n{subtask_block}"
 
         fm_str = _yaml_dump(frontmatter)
         content = f"---\n{fm_str}---\n{body}\n"
