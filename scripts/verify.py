@@ -31,9 +31,13 @@ REQUIRED_MODE_KEYS = {
 
 REQUIRED_TOP_KEYS = {"customModes", "skills", "permissions"}
 
-# Required keys per non-deprecated mode's permissions entry (global
-# terminology; 'task' maps to opencode's 'subagent' action at emit time)
-REQUIRED_PERMISSION_KEYS = {
+# Required keys per non-deprecated mode's permissions entry, in the
+# canonical row order. This is the repo's own vocabulary (modes.json) and
+# is deliberately NOT renamed to opencode's action names; the emitter
+# translates at emit time ('shell' -> 'bash', 'task' -> 'task').
+# EXPECTED_PERMS_KEY_ORDER asserts the modes.json row order itself: every
+# permissions row must key its entries exactly in this order.
+EXPECTED_PERMS_KEY_ORDER = (
     "edit",
     "shell",
     "read",
@@ -41,8 +45,61 @@ REQUIRED_PERMISSION_KEYS = {
     "grep",
     "skill",
     "task",
-}
+    "lsp",
+    "question",
+    "external_directory",
+    "doom_loop",
+)
+REQUIRED_PERMISSION_KEYS = frozenset(EXPECTED_PERMS_KEY_ORDER)
 VALID_PERMISSION_EFFECTS = {"allow", "ask", "deny"}
+
+# Ground-truth oracle: the permission names opencode 1.18.35 actually
+# compiles into permission rulesets (V1 AgentConfig `permission` map; the
+# field is a map of name -> effect | {pattern -> effect}, verified against
+# the binary via `opencode debug agent <name>`). Deliberately NOT imported
+# from generate.py: if the emitter invents or misnames actions (e.g. the
+# repo-vocabulary names 'shell'/'subagent'), this set is the independent
+# regression tripwire that keeps verify green only for runtime-true names.
+OPENCODE_V1_PERMISSION_NAMES = {
+    "read",
+    "edit",
+    "glob",
+    "grep",
+    "list",
+    "bash",
+    "task",
+    "external_directory",
+    "todowrite",
+    "question",
+    "webfetch",
+    "websearch",
+    "lsp",
+    "doom_loop",
+    "skill",
+}
+
+# modes.json key -> the opencode V1 permission name the emitter must use.
+# 'shell' and 'task' are repo vocabulary; only their EMITTED names change.
+# The 4 new keys are identity (same name in modes.json and opencode
+# frontmatter).
+MODES_KEY_TO_V1_NAME = {
+    "edit": "edit",
+    "shell": "bash",
+    "read": "read",
+    "glob": "glob",
+    "grep": "grep",
+    "skill": "skill",
+    "task": "task",
+    "lsp": "lsp",
+    "question": "question",
+    "external_directory": "external_directory",
+    "doom_loop": "doom_loop",
+}
+
+# Required keys of harnesses.json (per-harness prose blocks injected into
+# emitted agent bodies; zoo/kilo stay present-and-empty)
+REQUIRED_HARNESS_KEYS = {"zoo", "kilo", "opencode"}
+HARNESS_INNER_KEY = "subtaskInstructions"
 
 
 def fail(msg):
@@ -82,7 +139,12 @@ def validate_structure():
     ok(f"Top-level keys present: {sorted(data.keys())}")
 
     # Permissions block: dict of slug -> {edit, shell, read, glob, grep,
-    # skill, task}; per-mode entries are validated in the mode loop below
+    # skill, task, lsp, question, external_directory, doom_loop}, keyed in
+    # the canonical row order; per-mode entries are validated in the mode
+    # loop below. Values are an effect string or a non-empty pattern map of
+    # such effects (plan.shell / review-code.shell are pattern maps; lsp /
+    # external_directory may be); question / doom_loop are scalar-only
+    # (upstream actionOnly).
     permissions = data["permissions"]
     if not isinstance(permissions, dict):
         fail(
@@ -155,17 +217,41 @@ def validate_structure():
                     f"Mode '{slug}' permissions entry must be a dict; got "
                     f"{type(perms).__name__}"
                 )
-            if set(perms.keys()) != REQUIRED_PERMISSION_KEYS:
+            if list(perms.keys()) != list(EXPECTED_PERMS_KEY_ORDER):
                 fail(
                     f"Mode '{slug}' permissions keys must be exactly "
-                    f"{sorted(REQUIRED_PERMISSION_KEYS)}; got {sorted(perms.keys())}"
+                    f"{list(EXPECTED_PERMS_KEY_ORDER)} in this order; got "
+                    f"{list(perms.keys())}"
                 )
             for key, effect in perms.items():
-                if effect not in VALID_PERMISSION_EFFECTS:
-                    fail(
-                        f"Mode '{slug}' permissions '{key}' must be one of "
-                        f"{sorted(VALID_PERMISSION_EFFECTS)}; got '{effect}'"
+                if isinstance(effect, str) and effect in VALID_PERMISSION_EFFECTS:
+                    continue
+                if (
+                    isinstance(effect, dict)
+                    and effect
+                    and all(
+                        isinstance(pattern, str) and pattern for pattern in effect
                     )
+                    and all(
+                        isinstance(value, str)
+                        and value in VALID_PERMISSION_EFFECTS
+                        for value in effect.values()
+                    )
+                ):
+                    if key in {"question", "doom_loop"}:
+                        fail(
+                            f"Mode '{slug}' permissions '{key}' must be a "
+                            f"plain scalar in {sorted(VALID_PERMISSION_EFFECTS)}; "
+                            f"opencode's '{key}' action is actionOnly "
+                            f"(scalar effects only). Got {effect!r}"
+                        )
+                    continue
+                fail(
+                    f"Mode '{slug}' permissions '{key}' must be a string in "
+                    f"{sorted(VALID_PERMISSION_EFFECTS)} or a non-empty "
+                    "pattern map of non-empty string keys to those effects; "
+                    f"got {effect!r}"
+                )
 
     ok("All modes have required keys and valid groups shape")
 
@@ -239,13 +325,81 @@ def validate_structure():
 
 
 # ---------------------------------------------------------------------------
-# (b) Round-trip: emit to zoo, load back, deep-compare
+# (b) harnesses.json schema
+# ---------------------------------------------------------------------------
+
+def verify_harnesses_schema():
+    """Load harnesses.json and assert its schema: exact top-level key set,
+    exactly one inner key per harness, list-of-string values, empty lists
+    for zoo/kilo, and a non-empty list for opencode."""
+    print("[b] harnesses.json schema")
+
+    json_path = REPO_ROOT / "harnesses.json"
+    if not json_path.exists():
+        fail("harnesses.json not found")
+
+    try:
+        with open(json_path) as f:
+            harnesses = json.load(f)
+    except json.JSONDecodeError as exc:
+        fail(f"harnesses.json: invalid JSON: {exc}")
+
+    ok("Valid JSON")
+
+    if set(harnesses.keys()) != REQUIRED_HARNESS_KEYS:
+        fail(
+            "harnesses.json top-level keys must be exactly "
+            f"{sorted(REQUIRED_HARNESS_KEYS)}; got {sorted(harnesses.keys())}"
+        )
+    ok(f"Top-level keys: {sorted(harnesses.keys())}")
+
+    for key in sorted(REQUIRED_HARNESS_KEYS):
+        entry = harnesses[key]
+        if not isinstance(entry, dict):
+            fail(
+                f"harnesses.json '{key}' must be a dict; got "
+                f"{type(entry).__name__}"
+            )
+        if set(entry.keys()) != {HARNESS_INNER_KEY}:
+            fail(
+                f"harnesses.json '{key}' keys must be exactly "
+                f"['{HARNESS_INNER_KEY}']; got {sorted(entry.keys())}"
+            )
+        instructions = entry[HARNESS_INNER_KEY]
+        if not isinstance(instructions, list):
+            fail(
+                f"harnesses.json '{key}.{HARNESS_INNER_KEY}' must be a "
+                f"list; got {type(instructions).__name__}"
+            )
+        for i, instruction in enumerate(instructions):
+            if not isinstance(instruction, str):
+                fail(
+                    f"harnesses.json '{key}.{HARNESS_INNER_KEY}'[{i}] must "
+                    f"be a string; got {type(instruction).__name__}"
+                )
+        if key in {"zoo", "kilo"} and instructions:
+            fail(
+                f"harnesses.json '{key}' must carry an empty "
+                f"'{HARNESS_INNER_KEY}' list; got {len(instructions)} "
+                "instruction(s)"
+            )
+        if key == "opencode" and not instructions:
+            fail(
+                f"harnesses.json 'opencode' '{HARNESS_INNER_KEY}' must be "
+                "non-empty"
+            )
+
+    ok("Per-harness schema valid (zoo/kilo empty, opencode non-empty)")
+
+
+# ---------------------------------------------------------------------------
+# (c) Round-trip: emit to zoo, load back, deep-compare
 # ---------------------------------------------------------------------------
 
 def round_trip(data):
     """Emit to a temp dir via zoo emitter, yaml.safe_load the result,
     and deep-compare customModes to the JSON source (ignoring 'deprecated')."""
-    print("[b] Round-trip verification")
+    print("[c] Round-trip verification")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         # Import and run zoo emitter
@@ -301,7 +455,7 @@ def round_trip(data):
 
 
 # ---------------------------------------------------------------------------
-# (c) OpenCode agents: mode must match the mode's instantiation value
+# (d) OpenCode agents: mode must match the mode's instantiation value
 # ---------------------------------------------------------------------------
 
 def verify_opencode_agent_modes():
@@ -313,7 +467,7 @@ def verify_opencode_agent_modes():
     primary TUI picker, ``subagent`` agents are only invocable as subagents,
     and ``all`` agents are available in both places.
     """
-    print("[c] OpenCode agent mode verification")
+    print("[d] OpenCode agent mode verification")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         sys.path.insert(0, str(REPO_ROOT / "scripts"))
@@ -377,7 +531,7 @@ def verify_opencode_agent_modes():
 
 
 # ---------------------------------------------------------------------------
-# (d) OpenCode agents: model must match models/mapping.yaml, in field position
+# (e) OpenCode agents: model must match models/mapping.yaml, in field position
 # ---------------------------------------------------------------------------
 
 def load_agent_model_mapping():
@@ -400,9 +554,10 @@ def verify_opencode_agent_models():
     ``model: litellm/<model_id>`` matching models/mapping.yaml for that slug.
 
     Also asserts field position: the ``model`` key must appear after ``mode``,
-    and ``permissions`` (plural list) appears after ``model`` when present.
+    and ``permission`` (the V1 rules map) appears after ``model`` when
+    present.
     """
-    print("[d] OpenCode agent model verification")
+    print("[e] OpenCode agent model verification")
 
     model_by_slug = load_agent_model_mapping()
 
@@ -475,7 +630,7 @@ def verify_opencode_agent_models():
                     f"expected '{expected_value}' (from mapping.yaml)"
                 )
 
-            # Field position: description < mode < model < permissions
+            # Field position: description < mode < model < permission
             if keys[:2] != ["description", "mode"]:
                 fail(
                     f"Agent {agent_file.name}: frontmatter must start with "
@@ -488,9 +643,9 @@ def verify_opencode_agent_models():
                     f"Agent {agent_file.name}: 'model' must come directly "
                     f"after 'mode'; key order is {keys}"
                 )
-            if "permissions" in keys and keys.index("permissions") < model_idx:
+            if "permission" in keys and keys.index("permission") < model_idx:
                 fail(
-                    f"Agent {agent_file.name}: 'permissions' must come after "
+                    f"Agent {agent_file.name}: 'permission' must come after "
                     f"'model'; key order is {keys}"
                 )
 
@@ -500,14 +655,14 @@ def verify_opencode_agent_models():
 
 
 # ---------------------------------------------------------------------------
-# (e) OpenCode agents: permissions list content and rule semantics
+# (f) OpenCode agents: permission map content and rule semantics
 # ---------------------------------------------------------------------------
 
 def _scoped_edit_glob(groups, fileregex_to_glob):
     """Return the mapped glob for the mode's first fileRegex edit group.
 
     Mirrors the emitter's nested-``["edit", {"fileRegex": "..."}]`` shape
-    check so the semantic comparison in check (e) reads the mode's groups
+    check so the semantic comparison in check (f) reads the mode's groups
     directly instead of trusting the emitter's output. An unmapped pattern
     raises ``FileRegexNotImplemented`` like the emitter does, keeping this
     an independent fail-loud oracle rather than a silent fallback.
@@ -532,16 +687,29 @@ def _scoped_edit_glob(groups, fileregex_to_glob):
 
 def verify_opencode_agent_permissions():
     """Emit opencode agents to a temp dir and assert each frontmatter's
-    ``permissions`` list matches the mode's entry in modes.json.permissions.
+    ``permission`` map matches the mode's entry in modes.json.permissions.
 
-    Per agent: list shape (list of ``{action, resource, effect}`` rules),
-    the opencode action/effect vocabularies, round-trip equivalence with
-    ``translate_opencode_permissions``, the last-match-wins semantics for
-    scoped edit rules (broad deny first, scoped allow last; no scoped rule
-    when edit is denied/gated or has no scoped group), and the stable
-    action ordering edit, shell, read, glob, grep, skill, subagent.
+    This is the regression check for the subagent-spawn defect: opencode
+    1.18.35 compiles only the V1 ``permission`` map (name -> effect |
+    {pattern: effect}) into permission rulesets. A v2 ``permissions`` list
+    of ``{action, resource, effect}`` rules is swept into ``options`` and
+    never enforced, so a ruleset built from it contains no ``task`` rule
+    and the subagent-spawn gate injects ``{permission:"task", pattern:"*",
+    action:"deny"}`` which strips the ``task`` tool from every spawned
+    subagent.
+
+    Per agent: the frontmatter must carry the V1 ``permission`` map and no
+    inert ``permissions`` list; names must be opencode's V1 permission
+    names (modes.json 'shell'/'task' must emit as 'bash'/'task', never as
+    'shell'/'subagent'); values must be valid effects or pattern->effect
+    maps; the map must equal both an independent modes.json oracle and the
+    emitter's own translation; and scoped edit entries must be ordered
+    broad-deny first, scoped-allow last (last-match-wins). A map-valued
+    ``bash`` entry must additionally match the modes.json oracle
+    order-sensitively and carry exactly one catch-all ``*`` pattern
+    (emitter-fidelity guard); a scalar ``bash`` entry must stay scalar.
     """
-    print("[e] OpenCode agent permissions verification")
+    print("[f] OpenCode agent permissions verification")
 
     json_path = REPO_ROOT / "modes.json"
     with open(json_path) as f:
@@ -554,7 +722,6 @@ def verify_opencode_agent_permissions():
         from generate import (
             FILEREGEX_TO_GLOB,
             OPENCODE_PERMISSION_ACTIONS,
-            OPENCODE_PERMISSION_EFFECTS,
             FileRegexNotImplemented,
             emit_opencode,
             resolve_custom_instructions,
@@ -589,127 +756,317 @@ def verify_opencode_agent_permissions():
             if source_mode is None:
                 fail(f"Agent {slug}.md: no matching mode in modes.json")
 
-            permissions = fm.get("permissions")
-            if not isinstance(permissions, list) or not permissions:
+            permissions = fm.get("permission")
+            if "permissions" in fm:
                 fail(
-                    f"Agent {slug}.md: 'permissions' must be a non-empty "
-                    f"list; got {permissions!r}"
+                    f"Agent {slug}.md: found the inert v2 'permissions' "
+                    "list; opencode 1.18.35 sweeps it into 'options' and "
+                    "never enforces it (no ruleset entry is compiled from "
+                    "it, so the spawn gate injects a 'task': deny and "
+                    "strips the task tool from subagents). Emit the V1 "
+                    "'permission' map instead."
                 )
-
-            # Rule shape and action/effect vocabularies
-            for rule in permissions:
-                if not isinstance(rule, dict) or set(rule.keys()) != {
-                    "action",
-                    "resource",
-                    "effect",
-                }:
-                    fail(f"Agent {slug}.md: malformed permission rule: {rule!r}")
-                if rule["action"] not in OPENCODE_PERMISSION_ACTIONS:
-                    fail(
-                        f"Agent {slug}.md: rule action '{rule['action']}' "
-                        f"not in opencode action set "
-                        f"{sorted(OPENCODE_PERMISSION_ACTIONS)}"
-                    )
-                if rule["effect"] not in OPENCODE_PERMISSION_EFFECTS:
-                    fail(
-                        f"Agent {slug}.md: rule effect '{rule['effect']}' "
-                        f"not in {sorted(OPENCODE_PERMISSION_EFFECTS)}"
-                    )
-                if not isinstance(rule["resource"], str) or not rule["resource"]:
-                    fail(
-                        f"Agent {slug}.md: rule resource must be a non-empty "
-                        f"string: {rule!r}"
-                    )
-
-            # Round-trip equivalence with the translator
-            try:
-                expected = translate_opencode_permissions(
-                    slug, source_mode.get("groups", []), data["permissions"]
-                )
-            except FileRegexNotImplemented as exc:
-                fail(f"OpenCode translation: {exc}")
-            canonical = sorted(
-                (r["action"], r["resource"], r["effect"]) for r in permissions
-            )
-            expected_canonical = sorted(
-                (r["action"], r["resource"], r["effect"]) for r in expected
-            )
-            if canonical != expected_canonical:
+            if not isinstance(permissions, dict) or not permissions:
                 fail(
-                    f"Agent {slug}.md: emitted permissions diverge from the "
-                    f"translation of modes.json.permissions['{slug}']:\n"
-                    f"  emitted:  {canonical}\n"
-                    f"  expected: {expected_canonical}"
+                    f"Agent {slug}.md: 'permission' must be a non-empty "
+                    f"map of name -> effect | {{pattern: effect}}; got "
+                    f"{permissions!r}"
                 )
 
-            # Semantic last-match-wins on the edit rules
-            edit_rules = [r for r in permissions if r["action"] == "edit"]
+            # Name vocabulary: runtime-true V1 names only — never the
+            # repo's 'shell'/'subagent' vocabulary, which the runtime does
+            # not recognize (this is the regression tripwire for the
+            # permission-action name mismatch).
+            for name in permissions:
+                if name in {"shell", "subagent"}:
+                    fail(
+                        f"Agent {slug}.md: permission name '{name}' is "
+                        "modes.json vocabulary, not an opencode action; "
+                        "'shell' must emit as 'bash' and 'task' as 'task'"
+                    )
+                if name not in OPENCODE_V1_PERMISSION_NAMES:
+                    fail(
+                        f"Agent {slug}.md: permission name '{name}' not in "
+                        f"opencode's V1 permission names "
+                        f"{sorted(OPENCODE_V1_PERMISSION_NAMES)}"
+                    )
+
+            # Value shape: effect string, or non-empty pattern -> effect
+            for name, entry in permissions.items():
+                if isinstance(entry, str):
+                    if entry not in VALID_PERMISSION_EFFECTS:
+                        fail(
+                            f"Agent {slug}.md: permission '{name}' effect "
+                            f"must be in {sorted(VALID_PERMISSION_EFFECTS)}; "
+                            f"got '{entry}'"
+                        )
+                    continue
+                if not isinstance(entry, dict) or not entry:
+                    fail(
+                        f"Agent {slug}.md: permission '{name}' must be an "
+                        f"effect or a non-empty pattern map; got {entry!r}"
+                    )
+                for pattern, effect in entry.items():
+                    if not isinstance(pattern, str) or not pattern:
+                        fail(
+                            f"Agent {slug}.md: permission '{name}' has a "
+                            f"non-string pattern: {pattern!r}"
+                        )
+                    if effect not in VALID_PERMISSION_EFFECTS:
+                        fail(
+                            f"Agent {slug}.md: permission '{name}' pattern "
+                            f"'{pattern}' effect must be in "
+                            f"{sorted(VALID_PERMISSION_EFFECTS)}; got "
+                            f"'{effect}'"
+                        )
+
+            # Independent oracle straight from modes.json: every matrix key
+            # must appear under its translated opencode name with the same
+            # effect (scoped edit excepted), in the stable emit order.
+            perms_row = data["permissions"][slug]
             try:
                 scoped_glob = _scoped_edit_glob(
                     source_mode.get("groups", []), FILEREGEX_TO_GLOB
                 )
             except FileRegexNotImplemented as exc:
                 fail(f"OpenCode translation: {exc}")
-            edit_value = data["permissions"][slug]["edit"]
-            if scoped_glob is not None and edit_value == "allow":
-                if len(edit_rules) != 2:
-                    fail(
-                        f"Agent {slug}.md: edit='{edit_value}' with a scoped "
-                        f"group expects exactly two edit rules (broad deny + "
-                        f"scoped allow); got {edit_rules!r}"
-                    )
-                if edit_rules[0] != {
-                    "action": "edit",
-                    "resource": "*",
-                    "effect": "deny",
-                }:
-                    fail(
-                        f"Agent {slug}.md: first edit rule must be the broad "
-                        f"'*' deny; got {edit_rules[0]!r}"
-                    )
-                if edit_rules[1] != {
-                    "action": "edit",
-                    "resource": scoped_glob,
-                    "effect": "allow",
-                }:
-                    fail(
-                        f"Agent {slug}.md: second edit rule must be the "
-                        f"scoped '{scoped_glob}' allow; got {edit_rules[1]!r}"
-                    )
-            else:
-                # No scoped group, or edit denied/gated: the scoped group is
-                # dead at the opencode layer, so exactly one broad rule
-                if len(edit_rules) != 1 or edit_rules[0]["resource"] != "*":
-                    fail(
-                        f"Agent {slug}.md: edit='{edit_value}' without a "
-                        "live scoped group expects exactly one broad '*' "
-                        f"edit rule; got {edit_rules!r}"
-                    )
+            edit_value = perms_row["edit"]
 
-            # Stable action ordering (first occurrence per action)
-            first_seen = list(dict.fromkeys(r["action"] for r in permissions))
-            expected_order = [
-                a
-                for a in (
-                    "edit",
-                    "shell",
-                    "read",
-                    "glob",
-                    "grep",
-                    "skill",
-                    "subagent",
-                )
-                if a in first_seen
-            ]
-            if first_seen != expected_order:
+            expected_map = {}
+            for key in EXPECTED_PERMS_KEY_ORDER:
+                name = MODES_KEY_TO_V1_NAME[key]
+                if key == "edit" and edit_value == "allow" and scoped_glob:
+                    expected_map[name] = {"*": "deny", scoped_glob: "allow"}
+                else:
+                    expected_map[name] = perms_row[key]
+
+            if list(permissions.keys()) != list(expected_map.keys()):
                 fail(
-                    f"Agent {slug}.md: rule order {first_seen} does not "
-                    f"match the stable order {expected_order}"
+                    f"Agent {slug}.md: permission names/order "
+                    f"{list(permissions.keys())} != expected "
+                    f"{list(expected_map.keys())} (modes.json keys mapped "
+                    f"through {MODES_KEY_TO_V1_NAME})"
                 )
 
-            ok(f"{agent_file.name}: {len(permissions)} rules, semantics OK")
+            # bash-specific: scalar rows keep the plain effect; map-valued
+            # rows are compared order-sensitively (dict == is order-insensitive,
+            # so a reordered map would slip past the deep equality below) and
+            # must carry exactly one catch-all '*' pattern. Entry order is
+            # policy set in modes.json; this guards emitter fidelity only.
+            expected_bash = expected_map["bash"]
+            emitted_bash = permissions["bash"]
+            if isinstance(expected_bash, str):
+                # Scalar row: the dict checks must not run (a str has no
+                # .items() and would count zero '*' keys).
+                if not isinstance(emitted_bash, str):
+                    fail(
+                        f"Agent {slug}.md: permission 'bash' must be the "
+                        f"string {expected_bash!r}; got {emitted_bash!r}"
+                    )
+            elif not isinstance(emitted_bash, dict):
+                fail(
+                    f"Agent {slug}.md: permission 'bash' must be a pattern "
+                    f"map matching the modes.json entry for '{slug}'; got "
+                    f"{emitted_bash!r}"
+                )
+            elif list(emitted_bash.items()) != list(expected_bash.items()):
+                fail(
+                    f"Agent {slug}.md: emitted 'bash' pattern map diverges "
+                    f"from the modes.json oracle for '{slug}' (entries are "
+                    "applied in order and the runtime keeps the last match, "
+                    "so entry order is policy):\n"
+                    f"  emitted:  {list(emitted_bash.items())!r}\n"
+                    f"  expected: {list(expected_bash.items())!r}"
+                )
+            elif list(emitted_bash).count("*") != 1:
+                fail(
+                    f"Agent {slug}.md: 'bash' pattern map for '{slug}' must "
+                    f"have exactly one catch-all '*' key; got "
+                    f"{list(emitted_bash).count('*')}"
+                )
 
-    ok(f"All {len(agent_files)} opencode agents carry the expected permissions")
+            if permissions != expected_map:
+                fail(
+                    f"Agent {slug}.md: emitted permission map diverges from "
+                    f"the modes.json oracle for '{slug}':\n"
+                    f"  emitted:  {permissions!r}\n"
+                    f"  expected: {expected_map!r}"
+                )
+
+            # Semantic last-match-wins on the scoped edit entry: the
+            # pattern map is applied in order and the runtime keeps the
+            # last matching rule, so the broad '*' deny must come first and
+            # the scoped allow last.
+            if edit_value == "allow" and scoped_glob:
+                edit_entry = permissions.get("edit")
+                if not isinstance(edit_entry, dict):
+                    fail(
+                        f"Agent {slug}.md: edit='{edit_value}' with a "
+                        f"scoped group expects a pattern map; got "
+                        f"{edit_entry!r}"
+                    )
+                if list(edit_entry.keys()) != ["*", scoped_glob]:
+                    fail(
+                        f"Agent {slug}.md: scoped edit patterns must be "
+                        f"ordered ['*', {scoped_glob!r}] (broad deny first, "
+                        f"scoped allow last, last-match-wins); got "
+                        f"{list(edit_entry.keys())!r}"
+                    )
+            elif not isinstance(permissions.get("edit"), str):
+                # No scoped group, or edit denied/gated: the scoped group
+                # is dead at the opencode layer, so one plain effect
+                fail(
+                    f"Agent {slug}.md: edit='{edit_value}' without a live "
+                    f"scoped group expects a plain effect; got "
+                    f"{permissions.get('edit')!r}"
+                )
+
+            # Round-trip equivalence with the translator
+            try:
+                translated = translate_opencode_permissions(
+                    slug, source_mode.get("groups", []), data["permissions"]
+                )
+            except FileRegexNotImplemented as exc:
+                fail(f"OpenCode translation: {exc}")
+            if translated != permissions:
+                fail(
+                    f"Agent {slug}.md: emitted permission map diverges from "
+                    f"the translation of modes.json.permissions['{slug}']:\n"
+                    f"  emitted:    {permissions!r}\n"
+                    f"  translated: {translated!r}"
+                )
+
+            ok(
+                f"{agent_file.name}: permission map "
+                f"({len(permissions)} entries), names+semantics OK"
+            )
+
+        # Hygiene: the emitter's own vocabulary tuple must never drift back
+        # to repo names ('shell', 'subagent') the runtime does not accept.
+        if not set(OPENCODE_PERMISSION_ACTIONS).issubset(
+            OPENCODE_V1_PERMISSION_NAMES
+        ):
+            fail(
+                "generate.OPENCODE_PERMISSION_ACTIONS contains names the "
+                "opencode runtime does not recognize: "
+                f"{sorted(set(OPENCODE_PERMISSION_ACTIONS) - OPENCODE_V1_PERMISSION_NAMES)}"
+            )
+
+    ok(
+        f"All {len(agent_files)} opencode agents carry a runtime-true "
+        "V1 permission map"
+    )
+
+
+# ---------------------------------------------------------------------------
+# (g) OpenCode agents: subtask block presence, position, and provenance
+# ---------------------------------------------------------------------------
+
+def verify_opencode_subtask_block():
+    """Emit all three harnesses to a temp dir and verify the subtask block.
+
+    Per opencode agent: the body must carry ``## Starting Subtasks`` exactly
+    once, positioned directly between the role prose and the first stub
+    heading, with content matching ``harnesses.json['opencode']
+    ['subtaskInstructions']`` (round-trip oracle via
+    ``generate.load_harnesses()``). Zoo and kilo emitted files must not
+    contain the heading at all — their harnesses.json lists are empty, so
+    any occurrence would break their byte-identity guarantee.
+    """
+    print("[g] OpenCode subtask-block verification")
+
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    from generate import (
+        emit_kilo,
+        emit_opencode,
+        emit_zoo,
+        load_harnesses,
+        resolve_custom_instructions,
+    )
+
+    subtask_instructions = load_harnesses().get("opencode", {}).get(
+        "subtaskInstructions", []
+    )
+    joined = "\n\n".join(subtask_instructions)
+
+    json_path = REPO_ROOT / "modes.json"
+    with open(json_path) as f:
+        data = json.load(f)
+
+    resolved = json.loads(json.dumps(data))
+    resolved["customModes"] = resolve_custom_instructions(resolved["customModes"])
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        emit_zoo(resolved, Path(tmpdir))
+        emit_kilo(resolved, Path(tmpdir))
+        emit_opencode(resolved, Path(tmpdir))
+
+        # Byte-identity guard: zoo/kilo carry empty subtaskInstructions
+        for tool in ("zoo", "kilo"):
+            tool_dir = Path(tmpdir) / tool
+            for path in sorted(tool_dir.rglob("*")):
+                if not path.is_file():
+                    continue
+                if "## Starting Subtasks" in path.read_text():
+                    fail(
+                        f"{tool} output {path.name} must not contain "
+                        "'## Starting Subtasks'"
+                    )
+        ok("zoo/kilo outputs carry no '## Starting Subtasks' heading")
+
+        agents_dir = Path(tmpdir) / "opencode" / "agents"
+        if not agents_dir.exists():
+            fail("OpenCode emitter did not create agents/ directory")
+
+        agent_files = sorted(agents_dir.glob("*.md"))
+        if not agent_files:
+            fail("No agent .md files found in emitted opencode/agents/")
+
+        for agent_file in agent_files:
+            content = agent_file.read_text()
+            if not content.startswith("---\n"):
+                fail(f"Agent {agent_file.name}: missing frontmatter")
+
+            end = content.index("---", 4)
+            body = content[end + 3:].removeprefix("\n")
+
+            occurrences = body.count("## Starting Subtasks")
+            if occurrences != 1:
+                fail(
+                    f"Agent {agent_file.name}: '## Starting Subtasks' must "
+                    f"appear exactly once; got {occurrences}"
+                )
+
+            expected_block = f"## Starting Subtasks\n\n{joined}"
+            if expected_block not in body:
+                fail(
+                    f"Agent {agent_file.name}: subtask block does not match "
+                    "harnesses.json opencode subtaskInstructions; expected "
+                    f"{expected_block!r}"
+                )
+
+            # Position: split on '\n## ' — section 0 is the role prose and
+            # the subtask section must follow it directly, before any stub
+            # heading (## Skill, ## Tools, ...).
+            sections = body.split("\n## ")
+            if len(sections) < 2 or not sections[1].startswith(
+                "Starting Subtasks"
+            ):
+                fail(
+                    f"Agent {agent_file.name}: 'Starting Subtasks' must be "
+                    "the first heading after the role; section headings are "
+                    f"{[s.splitlines()[0] for s in sections]}"
+                )
+
+            ok(
+                f"{agent_file.name}: subtask block present, positioned, "
+                "matches config"
+            )
+
+    ok(
+        f"All {len(agent_files)} opencode agents carry the subtask block "
+        "from harnesses.json"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -718,10 +1075,12 @@ def verify_opencode_agent_permissions():
 
 def main():
     data = validate_structure()
+    verify_harnesses_schema()
     round_trip(data)
     verify_opencode_agent_modes()
     verify_opencode_agent_models()
     verify_opencode_agent_permissions()
+    verify_opencode_subtask_block()
     print("\nAll checks passed.")
 
 

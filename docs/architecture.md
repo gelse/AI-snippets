@@ -7,6 +7,7 @@ This document covers the generation pipeline, install manifest, and installer me
 [`modes.json`](../modes.json) is the single source of truth for all mode definitions. It contains:
 
 - `customModes` — array of mode objects, each with `slug`, `name`, `description`, `roleDefinition`, `whenToUse`, `customInstructions` (a repo-relative path `agents/<slug>.md` resolved at generation time), `instantiation` (one of `primary`, `subagent`, `all`; defaults to `all` in opencode frontmatter and controls whether the agent appears in opencode's TUI picker), `groups`, `source`
+- `permissions` — per-mode permission matrix keyed by slug: 11 keys per row (`edit`, `shell`, `read`, `glob`, `grep`, `skill`, `task`, `lsp`, `question`, `external_directory`, `doom_loop`), each an `allow`/`ask`/`deny` effect or a per-command pattern map (`plan`/`review-code` `shell`); `question`/`doom_loop` are scalar-only (upstream `actionOnly`)
 - `skills` — array of skill objects, each with `name` and `file` (path to the runbook)
 
 Agent instruction files live in `agents/<slug>.md` — one file per mode, no frontmatter, source-only content inlined verbatim at generation time.
@@ -24,10 +25,14 @@ Skills support two layout forms:
 
 Both forms emit identically to all tools. `scripts/verify.py` enforces that only one form exists per skill name and rejects duplicates or coexistence.
 
+## Source of Truth: harnesses.json
+
+[`harnesses.json`](../harnesses.json) is a second build-time source, parallel to `modes.json`: it carries per-harness configuration of prose blocks injected into emitted agent bodies. Today only `opencode` carries content — a `## Starting Subtasks` section telling every emitted opencode agent to use the `task` tool for subtasks; `zoo` and `kilo` are present-and-empty. The schema is exactly three top-level keys (`zoo`, `kilo`, `opencode`), each a dict with the key `subtaskInstructions` (a list of instruction strings).
+
 ## Generation Pipeline
 
 ```
-modes.json + agents/<slug>.md
+modes.json + agents/<slug>.md + models/mapping.yaml (+ harnesses.json for opencode)
     │
     ▼
 scripts/generate.py <tool|manifest>
@@ -68,7 +73,9 @@ OpenCode scans config directories for `{agent,agents}/**/*.md` and `{skill,skill
 
 The global config directory follows the XDG Base Directory specification: `$XDG_CONFIG_HOME/opencode/` if `XDG_CONFIG_HOME` is set, otherwise `~/.config/opencode/`. The `install-opencode-global` Makefile target respects this via the `OPENCODE_CONFIG_HOME` variable.
 
-Generated agent `.md` files include YAML frontmatter with `mode: <instantiation>` (defaulting to `all`), which makes each agent available both as a subagent and in the primary TUI picker. Agents with `mode: subagent` are filtered out of the TUI picker by opencode. When a slug appears in [`models/mapping.yaml`](../models/mapping.yaml), a `model: litellm/<id>` field is inserted between `mode` and `permissions`; [`scripts/verify.py`](../scripts/verify.py) asserts the field is present, matches the mapping, and occupies that position.
+Generated agent `.md` files include YAML frontmatter with `mode: <instantiation>` (defaulting to `all`), which makes each agent available both as a subagent and in the primary TUI picker. Agents with `mode: subagent` are filtered out of the TUI picker by opencode. When a slug appears in [`models/mapping.yaml`](../models/mapping.yaml), a `model: litellm/<id>` field is inserted between `mode` and `permission`. The frontmatter's `permission` field is the opencode v1 permission map translated from the mode's `modes.json.permissions` row — 11 keys (`edit`, `bash`, `read`, `glob`, `grep`, `skill`, `task`, `lsp`, `question`, `external_directory`, `doom_loop`), each an `allow`/`ask`/`deny` effect or a per-command pattern map — with `shell`/`task` emitted under the runtime names `bash`/`task`; [`scripts/verify.py`](../scripts/verify.py) asserts the model field is present, matches the mapping, and occupies that position, and checks the permission map's shape and translation fidelity.
+
+Every emitted agent body also carries a `## Starting Subtasks` block, read from `harnesses.json["opencode"].subtaskInstructions` (list items joined with a blank line). The block sits between the role line and the resolved `agents/<slug>.md` stub instructions; `scripts/verify.py` asserts the heading, the exact paragraph text, and the position on every regenerated agent.
 
 | Artifact | Emitted | Tool expects |
 |----------|---------|-------------|

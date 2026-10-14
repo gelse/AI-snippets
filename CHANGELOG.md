@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Added
+- `harnesses.json` (repo root): per-harness configuration of prose blocks injected into emitted agent bodies. Today only `opencode` carries content — a `## Starting Subtasks` section whose paragraph is `harnesses.json["opencode"].subtaskInstructions` joined with blank lines, telling every emitted opencode agent to use the `task` tool for subtasks; `zoo` and `kilo` are present-and-empty. Schema: three top-level keys, each a dict with `subtaskInstructions` (list of strings). Loader: `scripts/generate.py` `load_harnesses()`, invoked only from `emit_opencode`.
+- `scripts/generate.py` `emit_opencode` body assembly: every emitted `output/opencode/agents/*.md` body now contains a `## Starting Subtasks` block sourced from `harnesses.json["opencode"].subtaskInstructions`, positioned between the role line and the resolved `agents/<slug>.md` stub. The block is uniform across all 10 emitted agents; the `zoo` and `kilo` emitters and their output are unchanged.
+- `scripts/verify.py` check (2) `verify_harnesses_schema` — structural validation of `harnesses.json` (top-level keys exactly `zoo`/`kilo`/`opencode`, each value a dict with exactly `subtaskInstructions`, list of strings, `zoo`/`kilo` empty, `opencode` non-empty). Banner re-lettered: existing checks `[b]`–`[e]` shift to `[c]`–`[f]`.
+- `scripts/verify.py` check (7) `verify_opencode_subtask_block` — regenerates opencode agents and asserts every emitted body carries the `## Starting Subtasks` heading with paragraph text round-tripped from `harnesses.json["opencode"].subtaskInstructions` (not a hardcoded string), positioned between the role line and the resolved `agents/<slug>.md` stub; also guards the byte-identity invariant by asserting the heading does not appear in zoo or kilo bodies.
+- docs/development.md verify.py check list extended from 5 to 7 items in execution order; `docs/development.md:15` one-liner and `Makefile:27` help text mention `harnesses.json`; `docs/architecture.md` Source of Truth and Generation Pipeline sections describe `harnesses.json` (with the opencode-only annotation); `docs/opencode-target-drift.md` body-composition description names `harnesses.json` as a source; `README.md` How It Works section describes the opencode subtask-instructions block.
+
+### Changed
+- OpenCode agents now emit the v1 `permission:` map (action name to effect, or to per-command pattern map) instead of the v2 `permissions:` rule list: opencode compiles only the v1 map into runtime permission rulesets (verified against the binary for 1.18.35) and ignores the v2 list, so the emitted agents are runtime-true. The map carries the full 11-key action set `edit`, `bash`, `read`, `glob`, `grep`, `skill`, `task`, `lsp`, `question`, `external_directory`, `doom_loop`; the `modes.json` vocabulary keys `shell`/`task` are emitted under the runtime names `bash`/`task`.
+  - Breaking: consumers parsing the 0.3.2 `permissions:` rule list must migrate to the map.
+- `modes.json` permissions matrix: every row is the canonical 11-key set above (was 7: `edit`, `shell`, `read`, `glob`, `grep`, `skill`, `task`) with `lsp`, `question`, `external_directory`, `doom_loop` added; row key order is enforced. `shell` accepts per-command pattern maps (`plan` and `review-code` keep their broad-`*`-deny-first allow lists, order preserved as last-match-wins policy); `question`/`doom_loop` are scalar-only (upstream `actionOnly`) and `translate_opencode_permissions` raises `TypeError` on a pattern map there.
+- `scripts/verify.py` and `scripts/smoke-test-opencode-install.sh` assert the v1 map and the four new actions and reject the inert v2 list; `README.md`, `docs/architecture.md`, `docs/development.md`, `docs/opencode-target-drift.md`, and `docs/lieutenant-workflow.md` describe the v1 map (11 keys, pattern maps, `actionOnly` scalars), and the drift report is regenerated.
+
 ## [0.3.2] - 2026-10-10
 
 ### Added
