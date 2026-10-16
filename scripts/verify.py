@@ -53,6 +53,12 @@ EXPECTED_PERMS_KEY_ORDER = (
 REQUIRED_PERMISSION_KEYS = frozenset(EXPECTED_PERMS_KEY_ORDER)
 VALID_PERMISSION_EFFECTS = {"allow", "ask", "deny"}
 
+# The modes.json shell value 'auto' (repo vocabulary, expanded at emit time
+# by generate.expand_auto_shell into a safe-command pattern map). Valid as a
+# scalar for the 'shell' key only: it is never an emitted effect and never
+# valid on another action — the structural check below enforces that.
+SHELL_AUTO = "auto"
+
 # Ground-truth oracle: the permission names opencode 1.18.35 actually
 # compiles into permission rulesets (V1 AgentConfig `permission` map; the
 # field is a map of name -> effect | {pattern -> effect}, verified against
@@ -115,6 +121,7 @@ def ok(msg):
 # (a) Structural validation of modes.json
 # ---------------------------------------------------------------------------
 
+
 def validate_structure():
     """Load modes.json and assert valid JSON, required keys, unique slugs,
     groups shape, permissions coverage, and skill file existence."""
@@ -144,12 +151,12 @@ def validate_structure():
     # loop below. Values are an effect string or a non-empty pattern map of
     # such effects (plan.shell / review-code.shell are pattern maps; lsp /
     # external_directory may be); question / doom_loop are scalar-only
-    # (upstream actionOnly).
+    # (upstream actionOnly); shell additionally accepts the scalar 'auto',
+    # which generate.expand_auto_shell expands at emit time.
     permissions = data["permissions"]
     if not isinstance(permissions, dict):
         fail(
-            "Top-level 'permissions' must be a dict; got "
-            f"{type(permissions).__name__}"
+            f"Top-level 'permissions' must be a dict; got {type(permissions).__name__}"
         )
 
     # Modes
@@ -174,8 +181,7 @@ def validate_structure():
         expected_ci = f"agents/{slug}.md"
         if ci != expected_ci:
             fail(
-                f"Mode '{slug}' customInstructions must be "
-                f"'{expected_ci}', got '{ci}'"
+                f"Mode '{slug}' customInstructions must be '{expected_ci}', got '{ci}'"
             )
         ci_path = REPO_ROOT / ci
         if not ci_path.exists():
@@ -202,7 +208,9 @@ def validate_structure():
                 if len(g) < 1 or not isinstance(g[0], str):
                     fail(f"Mode '{slug}' nested group must start with a string: {g}")
                 if len(g) >= 2 and not isinstance(g[1], dict):
-                    fail(f"Mode '{slug}' nested group second element must be a dict: {g}")
+                    fail(
+                        f"Mode '{slug}' nested group second element must be a dict: {g}"
+                    )
             else:
                 fail(f"Mode '{slug}' group entry must be string or list: {g!r}")
 
@@ -226,15 +234,14 @@ def validate_structure():
             for key, effect in perms.items():
                 if isinstance(effect, str) and effect in VALID_PERMISSION_EFFECTS:
                     continue
+                if key == "shell" and effect == SHELL_AUTO:
+                    continue
                 if (
                     isinstance(effect, dict)
                     and effect
+                    and all(isinstance(pattern, str) and pattern for pattern in effect)
                     and all(
-                        isinstance(pattern, str) and pattern for pattern in effect
-                    )
-                    and all(
-                        isinstance(value, str)
-                        and value in VALID_PERMISSION_EFFECTS
+                        isinstance(value, str) and value in VALID_PERMISSION_EFFECTS
                         for value in effect.values()
                     )
                 ):
@@ -248,9 +255,10 @@ def validate_structure():
                     continue
                 fail(
                     f"Mode '{slug}' permissions '{key}' must be a string in "
-                    f"{sorted(VALID_PERMISSION_EFFECTS)} or a non-empty "
-                    "pattern map of non-empty string keys to those effects; "
-                    f"got {effect!r}"
+                    f"{sorted(VALID_PERMISSION_EFFECTS)}"
+                    + (" or 'auto'" if key == "shell" else "")
+                    + " or a non-empty pattern map of non-empty string keys "
+                    f"to those effects; got {effect!r}"
                 )
 
     ok("All modes have required keys and valid groups shape")
@@ -328,6 +336,7 @@ def validate_structure():
 # (b) harnesses.json schema
 # ---------------------------------------------------------------------------
 
+
 def verify_harnesses_schema():
     """Load harnesses.json and assert its schema: exact top-level key set,
     exactly one inner key per harness, list-of-string values, empty lists
@@ -356,10 +365,7 @@ def verify_harnesses_schema():
     for key in sorted(REQUIRED_HARNESS_KEYS):
         entry = harnesses[key]
         if not isinstance(entry, dict):
-            fail(
-                f"harnesses.json '{key}' must be a dict; got "
-                f"{type(entry).__name__}"
-            )
+            fail(f"harnesses.json '{key}' must be a dict; got {type(entry).__name__}")
         if set(entry.keys()) != {HARNESS_INNER_KEY}:
             fail(
                 f"harnesses.json '{key}' keys must be exactly "
@@ -384,10 +390,7 @@ def verify_harnesses_schema():
                 "instruction(s)"
             )
         if key == "opencode" and not instructions:
-            fail(
-                f"harnesses.json 'opencode' '{HARNESS_INNER_KEY}' must be "
-                "non-empty"
-            )
+            fail(f"harnesses.json 'opencode' '{HARNESS_INNER_KEY}' must be non-empty")
 
     ok("Per-harness schema valid (zoo/kilo empty, opencode non-empty)")
 
@@ -395,6 +398,7 @@ def verify_harnesses_schema():
 # ---------------------------------------------------------------------------
 # (c) Round-trip: emit to zoo, load back, deep-compare
 # ---------------------------------------------------------------------------
+
 
 def round_trip(data):
     """Emit to a temp dir via zoo emitter, yaml.safe_load the result,
@@ -457,6 +461,7 @@ def round_trip(data):
 # ---------------------------------------------------------------------------
 # (d) OpenCode agents: mode must match the mode's instantiation value
 # ---------------------------------------------------------------------------
+
 
 def verify_opencode_agent_modes():
     """Emit opencode agents to a temp dir and assert frontmatter mode matches
@@ -533,6 +538,7 @@ def verify_opencode_agent_modes():
 # ---------------------------------------------------------------------------
 # (e) OpenCode agents: model must match models/mapping.yaml, in field position
 # ---------------------------------------------------------------------------
+
 
 def load_agent_model_mapping():
     """Load models/mapping.yaml and build an agent-slug -> model-id dict.
@@ -658,6 +664,7 @@ def verify_opencode_agent_models():
 # (f) OpenCode agents: permission map content and rule semantics
 # ---------------------------------------------------------------------------
 
+
 def _scoped_edit_glob(groups, fileregex_to_glob):
     """Return the mapped glob for the mode's first fileRegex edit group.
 
@@ -685,6 +692,27 @@ def _scoped_edit_glob(groups, fileregex_to_glob):
     return None
 
 
+def _expand_auto_shell_oracle(instantiation, safe_commands):
+    """Independent expansion of the modes.json shell value ``'auto'``.
+
+    Mirrors the emitter's ``expand_auto_shell`` without calling it, so an
+    emitter bug in the expansion is caught rather than round-tripped. The
+    command list is passed in (``SAFE_SHELL_COMMANDS`` from generate.py,
+    like ``FILEREGEX_TO_GLOB``) — this oracle checks the expansion
+    semantics, not the list contents: catch-all ``'*'`` first ('ask' for
+    ``instantiation == 'primary'`` modes — they converse with the user —
+    'deny' for every other instantiation, which run headless), then a bare
+    ``cmd`` and a ``cmd *`` allow for every safe command. Entry order is
+    last-match-wins policy.
+    """
+    catch_all = "ask" if instantiation == "primary" else "deny"
+    expected = {"*": catch_all}
+    for cmd in safe_commands:
+        expected[cmd] = "allow"
+        expected[f"{cmd} *"] = "allow"
+    return expected
+
+
 def verify_opencode_agent_permissions():
     """Emit opencode agents to a temp dir and assert each frontmatter's
     ``permission`` map matches the mode's entry in modes.json.permissions.
@@ -708,6 +736,10 @@ def verify_opencode_agent_permissions():
     ``bash`` entry must additionally match the modes.json oracle
     order-sensitively and carry exactly one catch-all ``*`` pattern
     (emitter-fidelity guard); a scalar ``bash`` entry must stay scalar.
+    A shell ``'auto'`` row is expanded by the oracle too (catch-all gate
+    first — 'ask' for ``instantiation == 'primary'`` modes, 'deny'
+    otherwise — then bare and ``cmd *`` allows per SAFE command), so the
+    emitted expansion must match the independently computed one.
     """
     print("[f] OpenCode agent permissions verification")
 
@@ -722,6 +754,8 @@ def verify_opencode_agent_permissions():
         from generate import (
             FILEREGEX_TO_GLOB,
             OPENCODE_PERMISSION_ACTIONS,
+            SAFE_SHELL_COMMANDS,
+            SHELL_AUTO,
             FileRegexNotImplemented,
             emit_opencode,
             resolve_custom_instructions,
@@ -822,7 +856,9 @@ def verify_opencode_agent_permissions():
 
             # Independent oracle straight from modes.json: every matrix key
             # must appear under its translated opencode name with the same
-            # effect (scoped edit excepted), in the stable emit order.
+            # effect (scoped edit excepted), in the stable emit order. A
+            # shell 'auto' row expands here too — the oracle never trusts the
+            # emitter's expansion of it.
             perms_row = data["permissions"][slug]
             try:
                 scoped_glob = _scoped_edit_glob(
@@ -831,12 +867,17 @@ def verify_opencode_agent_permissions():
             except FileRegexNotImplemented as exc:
                 fail(f"OpenCode translation: {exc}")
             edit_value = perms_row["edit"]
+            instantiation = source_mode.get("instantiation", "all")
 
             expected_map = {}
             for key in EXPECTED_PERMS_KEY_ORDER:
                 name = MODES_KEY_TO_V1_NAME[key]
                 if key == "edit" and edit_value == "allow" and scoped_glob:
                     expected_map[name] = {"*": "deny", scoped_glob: "allow"}
+                elif key == "shell" and perms_row[key] == SHELL_AUTO:
+                    expected_map[name] = _expand_auto_shell_oracle(
+                        instantiation, SAFE_SHELL_COMMANDS
+                    )
                 else:
                     expected_map[name] = perms_row[key]
 
@@ -924,7 +965,10 @@ def verify_opencode_agent_permissions():
             # Round-trip equivalence with the translator
             try:
                 translated = translate_opencode_permissions(
-                    slug, source_mode.get("groups", []), data["permissions"]
+                    slug,
+                    source_mode.get("groups", []),
+                    data["permissions"],
+                    instantiation=instantiation,
                 )
             except FileRegexNotImplemented as exc:
                 fail(f"OpenCode translation: {exc}")
@@ -943,24 +987,63 @@ def verify_opencode_agent_permissions():
 
         # Hygiene: the emitter's own vocabulary tuple must never drift back
         # to repo names ('shell', 'subagent') the runtime does not accept.
-        if not set(OPENCODE_PERMISSION_ACTIONS).issubset(
-            OPENCODE_V1_PERMISSION_NAMES
-        ):
+        if not set(OPENCODE_PERMISSION_ACTIONS).issubset(OPENCODE_V1_PERMISSION_NAMES):
             fail(
                 "generate.OPENCODE_PERMISSION_ACTIONS contains names the "
                 "opencode runtime does not recognize: "
                 f"{sorted(set(OPENCODE_PERMISSION_ACTIONS) - OPENCODE_V1_PERMISSION_NAMES)}"
             )
 
-    ok(
-        f"All {len(agent_files)} opencode agents carry a runtime-true "
-        "V1 permission map"
-    )
+        # Synthetic 'auto' rows: no live mode uses shell 'auto' yet, so the
+        # expansion is exercised here directly against the translator — the
+        # catch-all gate must be 'ask' for a 'primary' instantiation and
+        # 'deny' for any other ('all', 'subagent'), and the full expansion
+        # must equal the independent oracle. Also: 'auto' on any non-shell
+        # key must be rejected at translate time.
+        for inst, gate in (("primary", "ask"), ("all", "deny"), ("subagent", "deny")):
+            auto_row = dict.fromkeys(EXPECTED_PERMS_KEY_ORDER, "deny")
+            auto_row["shell"] = SHELL_AUTO
+            translated = translate_opencode_permissions(
+                "synthetic", [], {"synthetic": auto_row}, instantiation=inst
+            )
+            expected_auto = _expand_auto_shell_oracle(inst, SAFE_SHELL_COMMANDS)
+            if translated["bash"] != expected_auto:
+                fail(
+                    f"shell 'auto' (instantiation {inst!r}): translation "
+                    f"diverges from the oracle:\n"
+                    f"  translated: {list(translated['bash'].items())!r}\n"
+                    f"  expected:   {list(expected_auto.items())!r}"
+                )
+            if translated["bash"]["*"] != gate:
+                fail(
+                    f"shell 'auto' (instantiation {inst!r}): catch-all gate "
+                    f"must be {gate!r}; got {translated['bash']['*']!r}"
+                )
+            bad_row = dict(auto_row)
+            bad_row["question"] = SHELL_AUTO
+            try:
+                translate_opencode_permissions(
+                    "synthetic", [], {"synthetic": bad_row}, instantiation=inst
+                )
+            except ValueError:
+                pass
+            else:
+                fail(
+                    "permissions 'question': 'auto' must be rejected — the "
+                    "'auto' expansion is valid for 'shell' only"
+                )
+        ok(
+            "shell 'auto' expansion: catch-all gate per instantiation + "
+            "safe-command allows match the oracle; non-shell 'auto' rejected"
+        )
+
+    ok(f"All {len(agent_files)} opencode agents carry a runtime-true V1 permission map")
 
 
 # ---------------------------------------------------------------------------
 # (g) OpenCode agents: subtask block presence, position, and provenance
 # ---------------------------------------------------------------------------
+
 
 def verify_opencode_subtask_block():
     """Emit all three harnesses to a temp dir and verify the subtask block.
@@ -984,8 +1067,8 @@ def verify_opencode_subtask_block():
         resolve_custom_instructions,
     )
 
-    subtask_instructions = load_harnesses().get("opencode", {}).get(
-        "subtaskInstructions", []
+    subtask_instructions = (
+        load_harnesses().get("opencode", {}).get("subtaskInstructions", [])
     )
     joined = "\n\n".join(subtask_instructions)
 
@@ -1028,7 +1111,7 @@ def verify_opencode_subtask_block():
                 fail(f"Agent {agent_file.name}: missing frontmatter")
 
             end = content.index("---", 4)
-            body = content[end + 3:].removeprefix("\n")
+            body = content[end + 3 :].removeprefix("\n")
 
             occurrences = body.count("## Starting Subtasks")
             if occurrences != 1:
@@ -1049,19 +1132,14 @@ def verify_opencode_subtask_block():
             # the subtask section must follow it directly, before any stub
             # heading (## Skill, ## Tools, ...).
             sections = body.split("\n## ")
-            if len(sections) < 2 or not sections[1].startswith(
-                "Starting Subtasks"
-            ):
+            if len(sections) < 2 or not sections[1].startswith("Starting Subtasks"):
                 fail(
                     f"Agent {agent_file.name}: 'Starting Subtasks' must be "
                     "the first heading after the role; section headings are "
                     f"{[s.splitlines()[0] for s in sections]}"
                 )
 
-            ok(
-                f"{agent_file.name}: subtask block present, positioned, "
-                "matches config"
-            )
+            ok(f"{agent_file.name}: subtask block present, positioned, matches config")
 
     ok(
         f"All {len(agent_files)} opencode agents carry the subtask block "
@@ -1072,6 +1150,7 @@ def verify_opencode_subtask_block():
 # ---------------------------------------------------------------------------
 # main
 # ---------------------------------------------------------------------------
+
 
 def main():
     data = validate_structure()

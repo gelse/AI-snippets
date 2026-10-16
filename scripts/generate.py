@@ -34,9 +34,11 @@ class _LiteralDumper(yaml.SafeDumper):
     """
 
     def choose_scalar_style(self):
-        if (self.event.style in ("|", ">")
-                and not self.flow_level
-                and not self.simple_key_context):
+        if (
+            self.event.style in ("|", ">")
+            and not self.flow_level
+            and not self.simple_key_context
+        ):
             return self.event.style
         return yaml.emitter.Emitter.choose_scalar_style(self)
 
@@ -53,8 +55,14 @@ _LiteralDumper.add_representer(str, _str_representer)
 
 def _yaml_dump(obj):
     """Dump obj to YAML with literal block scalars for multiline strings."""
-    return yaml.dump(obj, Dumper=_LiteralDumper, default_flow_style=False,
-                     allow_unicode=True, sort_keys=False, width=4096)
+    return yaml.dump(
+        obj,
+        Dumper=_LiteralDumper,
+        default_flow_style=False,
+        allow_unicode=True,
+        sort_keys=False,
+        width=4096,
+    )
 
 
 def load_modes():
@@ -155,7 +163,7 @@ def ensure_skill_frontmatter(content, skill_name):
     if content.startswith("---\n"):
         end = _find_frontmatter_end(content)
         frontmatter = content[3:end].strip()
-        body = content[end + 3:].removeprefix("\n")
+        body = content[end + 3 :].removeprefix("\n")
 
         has_name = bool(re.search(r"^name:", frontmatter, re.MULTILINE))
         has_desc = bool(re.search(r"^description:", frontmatter, re.MULTILINE))
@@ -228,7 +236,180 @@ class FileRegexNotImplemented(Exception):
     """A mode's groups carry a fileRegex with no FILEREGEX_TO_GLOB entry."""
 
 
-def translate_opencode_permissions(slug, groups, global_perms) -> dict:
+# ---------------------------------------------------------------------------
+# Shell 'auto' permission expansion
+# ---------------------------------------------------------------------------
+
+# The modes.json shell permission value 'auto' is repo vocabulary expanded at
+# generate time — modes.json never carries the expanded map. It becomes a
+# per-command pattern map: a catch-all '*' gate first ('ask' for primary
+# modes, 'deny' for every other instantiation), then an 'allow' pair for each
+# read-only command below (bare `cmd` for no-arg invocations and `cmd *` for
+# invocations with arguments). Entry order is the last-match-wins policy: the
+# broad '*' gate first, the safe-command allows after, so safe commands win.
+#
+# The list is copied from scripts/reference/approve_readonly_bash.py# (REFERENCE ONLY — not imported; nothing executes that file): upstream's
+# SAFE_COMMANDS allow list. Upstream's DESTRUCTIVE_COMMANDS,
+# WRAPPER_COMMANDS and DANGEROUS_PATTERNS are deliberately NOT implemented:
+# those commands are absent from this list, so they fall through to the
+# catch-all effect. Upstream's finer-grained flag logic (git write
+# subcommands, sed -i, curl -o, ...) is also not modelled — the pattern-map
+# format cannot express it — so those invocations match their command's
+# allow entry like any other argument set.
+SHELL_AUTO = "auto"
+
+SAFE_SHELL_COMMANDS = (
+    # Display
+    "echo",
+    "printf",
+    "cat",
+    "head",
+    "tail",
+    "less",
+    "more",
+    "bat",
+    # File info (read-only)
+    "ls",
+    "find",
+    "file",
+    "stat",
+    "du",
+    "df",
+    "wc",
+    "tree",
+    "realpath",
+    "dirname",
+    "basename",
+    "readlink",
+    "pwd",
+    "md5",
+    "shasum",
+    "sha256sum",
+    "md5sum",
+    "cksum",
+    # Text processing (read-only when no -i flag)
+    "grep",
+    "egrep",
+    "fgrep",
+    "rg",
+    "ag",
+    "ack",
+    "awk",
+    "gawk",
+    "sed",
+    "gsed",
+    "sort",
+    "uniq",
+    "cut",
+    "tr",
+    "rev",
+    "fold",
+    "column",
+    "paste",
+    "join",
+    "comm",
+    "diff",
+    "cmp",
+    "jq",
+    "yq",
+    "xmllint",
+    "fmt",
+    # Git (subcommand checked separately upstream)
+    "git",
+    # Network diagnostics (read-only)
+    "ifconfig",
+    "netstat",
+    "ss",
+    "route",
+    "dig",
+    "nslookup",
+    "host",
+    "ping",
+    "traceroute",
+    "mtr",
+    "curl",
+    # System info
+    "ps",
+    "pgrep",
+    "top",
+    "htop",
+    "who",
+    "whoami",
+    "w",
+    "id",
+    "groups",
+    "uname",
+    "hostname",
+    "uptime",
+    "date",
+    "cal",
+    "printenv",
+    "locale",
+    "which",
+    "where",
+    "type",
+    "command",
+    "sw_vers",
+    "system_profiler",
+    "sysctl",
+    "vm_stat",
+    "iostat",
+    "lsof",
+    "nettop",
+    "arch",
+    "getconf",
+    "ulimit",
+    # macOS (read-only; commands with write modes checked separately upstream)
+    "pbpaste",
+    "plutil",
+    "mdls",
+    "mdfind",
+    "dscacheutil",
+    "klist",
+    "log",
+    "ioreg",
+    "open",  # opens files/URLs, non-destructive
+    "scutil",  # --dns/--proxy safe; --set blocked by flag check upstream
+    "defaults",  # read safe; write/delete blocked by flag check upstream
+    "networksetup",  # list* safe; set* blocked by flag check upstream
+    # Navigation
+    "cd",
+    # Shell builtins (safe)
+    "test",
+    "[",
+    "true",
+    "false",
+    "time",
+    # Version / help
+    "man",
+    "info",
+    "help",
+)
+
+
+def expand_auto_shell(instantiation):
+    """Expand the shell permission value ``'auto'`` into a pattern map.
+
+    The catch-all ``'*'`` gate comes first: ``'ask'`` for modes whose
+    ``instantiation`` is ``'primary'`` (they converse with the user, so a
+    prompt is answerable), ``'deny'`` for every other instantiation
+    (``'all'`` and ``'subagent'`` run headless as subagents, where a prompt
+    would stall). Each ``SAFE_SHELL_COMMANDS`` entry then adds ``'allow'``
+    patterns — bare ``cmd`` and ``cmd *`` — so read-only commands run
+    without friction regardless of arguments. The runtime applies map
+    entries in order and keeps the last match.
+    """
+    catch_all = "ask" if instantiation == "primary" else "deny"
+    shell_map = {"*": catch_all}
+    for cmd in SAFE_SHELL_COMMANDS:
+        shell_map[cmd] = "allow"
+        shell_map[f"{cmd} *"] = "allow"
+    return shell_map
+
+
+def translate_opencode_permissions(
+    slug, groups, global_perms, instantiation="all"
+) -> dict:
     """Translate a mode's permissions entry to an opencode V1 permission map.
 
     Returns the agent frontmatter ``permission`` map: opencode name ->
@@ -239,10 +420,18 @@ def translate_opencode_permissions(slug, groups, global_perms) -> dict:
     The modes.json keys 'shell' and 'task' are repo vocabulary; they are
     emitted as 'bash' and 'task', the names the runtime matches on.
 
-    When ``perms['shell']`` is a dict, the dict is passed through verbatim
-    (Python preserves insertion order; ``_yaml_dump`` emits dicts in
-    insertion order via ``sort_keys=False``), so the author-supplied order
-    is policy and is not re-sorted or re-arranged here. Map values for any
+    ``perms['shell']`` accepts three shapes. A scalar effect passes through
+    verbatim. The scalar ``'auto'`` (valid for 'shell' only) expands via
+    ``expand_auto_shell(instantiation)`` into the safe-command pattern map
+    — catch-all ``'*'`` gate first ('ask' for ``instantiation == 'primary'``
+    modes, 'deny' otherwise), then the ``SAFE_SHELL_COMMANDS`` allows —
+    so the emitter (not modes.json) carries the expanded list. ``'auto'``
+    on any other key raises ``ValueError``: the runtime knows no such
+    effect and a silent pass-through would emit a broken map. A dict is
+    passed through verbatim (Python preserves insertion order;
+    ``_yaml_dump`` emits dicts in insertion order via ``sort_keys=False``),
+    so the author-supplied order is policy and is not re-sorted or
+    re-arranged here. Map values for any
     of the other keys (``read``, ``glob``, ``grep``, ``skill``, ``task``,
     ``lsp``, ``external_directory``) are also passed through unvalidated by
     the translator (``edit`` is not: a scoped edit group is synthesized into
@@ -301,8 +490,7 @@ def translate_opencode_permissions(slug, groups, global_perms) -> dict:
     if isinstance(perms["shell"], dict):
         if not perms["shell"]:
             raise ValueError(
-                f"Mode '{slug}': permissions 'shell' pattern map must not "
-                "be empty"
+                f"Mode '{slug}': permissions 'shell' pattern map must not be empty"
             )
         for pattern, effect in perms["shell"].items():
             if (
@@ -317,6 +505,18 @@ def translate_opencode_permissions(slug, groups, global_perms) -> dict:
                     f"of {sorted(OPENCODE_PERMISSION_EFFECTS)}; got "
                     f"{pattern!r}: {effect!r}"
                 )
+
+    # 'auto' is repo vocabulary valid for 'shell' only: on any other key it
+    # would emit an effect string the runtime does not know, so fail loud at
+    # generate time instead of silently producing a broken map (the
+    # structural check in scripts/verify.py rejects it at check time too).
+    for key, value in perms.items():
+        if key != "shell" and value == SHELL_AUTO:
+            raise ValueError(
+                f"Mode '{slug}': permissions '{key}' must not be "
+                f"{SHELL_AUTO!r} — the {SHELL_AUTO!r} expansion is valid "
+                "for 'shell' only"
+            )
 
     # Scalar-only actions: upstream marks 'question' and 'doom_loop' as
     # actionOnly (scalar effects only), so a pattern map would be silently
@@ -333,8 +533,23 @@ def translate_opencode_permissions(slug, groups, global_perms) -> dict:
                 f"{v!r}"
             )
 
-    for key in ("shell", "read", "glob", "grep", "skill", "task",
-                "lsp", "question", "external_directory", "doom_loop"):
+    for key in (
+        "shell",
+        "read",
+        "glob",
+        "grep",
+        "skill",
+        "task",
+        "lsp",
+        "question",
+        "external_directory",
+        "doom_loop",
+    ):
+        if key == "shell" and perms["shell"] == SHELL_AUTO:
+            # Expanded form: catch-all gate first, then SAFE_SHELL_COMMANDS
+            # allows (see expand_auto_shell)
+            perm_map[MODES_KEY_TO_ACTION[key]] = expand_auto_shell(instantiation)
+            continue
         perm_map[MODES_KEY_TO_ACTION[key]] = perms[key]
     return perm_map
 
@@ -354,7 +569,7 @@ def extract_body_after_frontmatter(content):
     """Extract body content after YAML frontmatter."""
     if content.startswith("---\n"):
         end = _find_frontmatter_end(content)
-        body = content[end + 3:].removeprefix("\n")
+        body = content[end + 3 :].removeprefix("\n")
         return body
     return content
 
@@ -367,6 +582,7 @@ def mode_to_dict(mode):
 # ---------------------------------------------------------------------------
 # Zoo Code emitter
 # ---------------------------------------------------------------------------
+
 
 def emit_zoo(data, out_dir):
     """Emit Zoo Code artifacts."""
@@ -397,6 +613,7 @@ def emit_zoo(data, out_dir):
 # Kilo Code emitter
 # ---------------------------------------------------------------------------
 
+
 def emit_kilo(data, out_dir):
     """Emit Kilo Code artifacts."""
     kilo_dir = out_dir / "kilo"
@@ -426,6 +643,7 @@ def emit_kilo(data, out_dir):
 # OpenCode emitter
 # ---------------------------------------------------------------------------
 
+
 def emit_opencode(data, out_dir):
     """Emit OpenCode artifacts."""
     oc_dir = out_dir / "opencode"
@@ -434,7 +652,9 @@ def emit_opencode(data, out_dir):
     agents_dir.mkdir(parents=True, exist_ok=True)
 
     model_by_slug = load_model_mapping()
-    subtask_instructions = load_harnesses().get("opencode", {}).get("subtaskInstructions", [])
+    subtask_instructions = (
+        load_harnesses().get("opencode", {}).get("subtaskInstructions", [])
+    )
 
     count = 0
     for mode in data["customModes"]:
@@ -461,7 +681,10 @@ def emit_opencode(data, out_dir):
             frontmatter["model"] = f"litellm/{model_id}"
 
         frontmatter["permission"] = translate_opencode_permissions(
-            slug, groups, data["permissions"]
+            slug,
+            groups,
+            data["permissions"],
+            instantiation=mode.get("instantiation", "all"),
         )
 
         subtask_block = "## Starting Subtasks"
@@ -506,13 +729,16 @@ def emit_opencode(data, out_dir):
 # Manifest emitter
 # ---------------------------------------------------------------------------
 
+
 def _read_version():
     """Read package version from scripts/package.json or root package.json.
 
     Returns version string or None if unavailable.
     """
-    for candidate in (REPO_ROOT / "scripts" / "package.json",
-                      REPO_ROOT / "package.json"):
+    for candidate in (
+        REPO_ROOT / "scripts" / "package.json",
+        REPO_ROOT / "package.json",
+    ):
         try:
             with open(candidate) as f:
                 pkg = json.load(f)

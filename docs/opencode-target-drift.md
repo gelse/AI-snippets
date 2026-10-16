@@ -13,7 +13,7 @@ The permission check is a map-well-formedness check on the parsed map:
 - `question` and `doom_loop` hold scalar effects only — both are upstream `actionOnly`, and the generator raises `TypeError` on a pattern map there;
 - the inert v2 `permissions` list is rejected wherever it appears.
 
-The translator must preserve the last-match-wins invariant: broad `*` entries come before scoped overrides. A mode whose matrix row sets `edit: allow` and whose groups carry an `edit` entry scoped by `fileRegex` gets the edit map `{'*': 'deny', '*.md': 'allow'}` — broad deny first, scoped allow second — so the scoped allow wins for matching paths. Modes with `edit: deny` or `edit: ask`, or with no scoped group, get the scalar effect. `shell` pattern maps pass through in author order (`plan` and `review-code` put the broad `*` deny first, then their scoped allows), because the runtime applies map entries in order and keeps the last match — the order is policy and is never re-sorted. [`scripts/verify.py`](../scripts/verify.py) enforces the same semantics for every generated agent in `verify_opencode_agent_permissions()`.
+The translator must preserve the last-match-wins invariant: broad `*` entries come before scoped overrides. A mode whose matrix row sets `edit: allow` and whose groups carry an `edit` entry scoped by `fileRegex` gets the edit map `{'*': 'deny', '*.md': 'allow'}` — broad deny first, scoped allow second — so the scoped allow wins for matching paths. Modes with `edit: deny` or `edit: ask`, or with no scoped group, get the scalar effect. `shell` pattern maps pass through in author order (`plan` and `review-code` put the broad `*` deny first, then their scoped allows), because the runtime applies map entries in order and keeps the last match — the order is policy and is never re-sorted. A `shell: auto` row (none present today) expands to the same shape: a catch-all `*` gate first (`ask` for `instantiation: primary` modes, `deny` otherwise), then bare and `cmd *` allows per read-only command from `SAFE_SHELL_COMMANDS` in [`scripts/generate.py`](../scripts/generate.py) (copied from the vendored [`scripts/reference/approve_readonly_bash.py`](../scripts/reference/approve_readonly_bash.py), which is kept for reference and not used directly). [`scripts/verify.py`](../scripts/verify.py) enforces the same semantics for every generated agent in `verify_opencode_agent_permissions()`.
 
 The description, mode, and body checks compare each emitted file against `modes.json` and `harnesses.json` (description composed with `whenToUse`, `mode` from the mode's `instantiation`, body from `roleDefinition`, a `## Starting Subtasks` block whose paragraph text equals `"\n\n".join(harnesses.json["opencode"].subtaskInstructions)`, and the resolved `agents/<slug>.md` content — in that order); the model check reads [`models/mapping.yaml`](../models/mapping.yaml).
 
@@ -54,81 +54,81 @@ One entry per active mode; deprecated modes are skipped by the emitter. All 10 f
 
 **PASS** — path exists; description, mode, permission, and body all match.
 
-| Description | Mode | Permission | Body |
-|---|---|---|---|
-| ✓ | ✓ (`primary`) | ✓ (11 keys) | ✓ |
+| Description | Mode          | Permission  | Body |
+| ----------- | ------------- | ----------- | ---- |
+| ✓           | ✓ (`primary`) | ✓ (11 keys) | ✓    |
 
 ### `agents/lieutenant.md`
 
 **PASS** — path exists; description, mode, permission, and body all match.
 
-| Description | Mode | Permission | Body |
-|---|---|---|---|
-| ✓ | ✓ (`all`) | ✓ (11 keys) | ✓ |
+| Description | Mode      | Permission  | Body |
+| ----------- | --------- | ----------- | ---- |
+| ✓           | ✓ (`all`) | ✓ (11 keys) | ✓    |
 
 ### `agents/investigator.md`
 
 **PASS** — path exists; description, mode, permission, and body all match.
 
-| Description | Mode | Permission | Body |
-|---|---|---|---|
-| ✓ | ✓ (`all`) | ✓ (11 keys) | ✓ |
+| Description | Mode      | Permission  | Body |
+| ----------- | --------- | ----------- | ---- |
+| ✓           | ✓ (`all`) | ✓ (11 keys) | ✓    |
 
 ### `agents/plan.md`
 
 **PASS** — path exists; description, mode, permission, and body all match.
 
-| Description | Mode | Permission | Body |
-|---|---|---|---|
-| ✓ | ✓ (`all`) | ✓ (11 keys; scoped `edit` map + 11-entry `bash` map) | ✓ |
+| Description | Mode      | Permission                                           | Body |
+| ----------- | --------- | ---------------------------------------------------- | ---- |
+| ✓           | ✓ (`all`) | ✓ (11 keys; scoped `edit` map + 11-entry `bash` map) | ✓    |
 
 ### `agents/review-code.md`
 
 **PASS** — path exists; description, mode, permission, and body all match.
 
-| Description | Mode | Permission | Body |
-|---|---|---|---|
-| ✓ | ✓ (`all`) | ✓ (11 keys; 9-entry `bash` map) | ✓ |
+| Description | Mode      | Permission                      | Body |
+| ----------- | --------- | ------------------------------- | ---- |
+| ✓           | ✓ (`all`) | ✓ (11 keys; 9-entry `bash` map) | ✓    |
 
 ### `agents/security-review.md`
 
 **PASS** — path exists; description, mode, permission, and body all match.
 
-| Description | Mode | Permission | Body |
-|---|---|---|---|
-| ✓ | ✓ (`all`) | ✓ (11 keys) | ✓ |
+| Description | Mode      | Permission  | Body |
+| ----------- | --------- | ----------- | ---- |
+| ✓           | ✓ (`all`) | ✓ (11 keys) | ✓    |
 
 ### `agents/review-plan.md`
 
 **PASS** — path exists; description, mode, permission, and body all match.
 
-| Description | Mode | Permission | Body |
-|---|---|---|---|
-| ✓ | ✓ (`all`) | ✓ (11 keys) | ✓ |
+| Description | Mode      | Permission  | Body |
+| ----------- | --------- | ----------- | ---- |
+| ✓           | ✓ (`all`) | ✓ (11 keys) | ✓    |
 
 ### `agents/code.md`
 
 **PASS** — path exists; description, mode, permission, and body all match.
 
-| Description | Mode | Permission | Body |
-|---|---|---|---|
-| ✓ | ✓ (`all`) | ✓ (11 keys) | ✓ |
+| Description | Mode      | Permission  | Body |
+| ----------- | --------- | ----------- | ---- |
+| ✓           | ✓ (`all`) | ✓ (11 keys) | ✓    |
 
 ### `agents/verify.md`
 
 **PASS** — path exists; description, mode, permission, and body all match.
 
-| Description | Mode | Permission | Body |
-|---|---|---|---|
-| ✓ | ✓ (`subagent`) | ✓ (11 keys) | ✓ |
+| Description | Mode           | Permission  | Body |
+| ----------- | -------------- | ----------- | ---- |
+| ✓           | ✓ (`subagent`) | ✓ (11 keys) | ✓    |
 
 ### `agents/ask.md`
 
 **PASS** — path exists; description, mode, permission, and body all match.
 
-| Description | Mode | Permission | Body |
-|---|---|---|---|
-| ✓ | ✓ (`all`) | ✓ (11 keys) | ✓ |
+| Description | Mode      | Permission  | Body |
+| ----------- | --------- | ----------- | ---- |
+| ✓           | ✓ (`all`) | ✓ (11 keys) | ✓    |
 
 ## Summary
 
