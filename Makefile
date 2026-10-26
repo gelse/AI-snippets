@@ -24,7 +24,7 @@ $(STAMP): ## Bootstrap venv (idempotent)
 	$(VENV)/bin/pip install --quiet pyyaml ruff
 	touch $(STAMP)
 
-check-py: $(STAMP) ## Validate modes.json, lint scripts/skills (Python only)
+check-py: $(STAMP) ## Validate modes.json and harnesses.json, lint scripts/skills (Python only)
 	$(VENV)/bin/python scripts/verify.py
 	$(VENV)/bin/ruff check scripts/ skills/
 

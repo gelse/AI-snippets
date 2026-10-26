@@ -8,11 +8,7 @@
       "whenToUse": "always",
       "customInstructions": "agents/captain.md",
       "instantiation": "primary",
-      "groups": [
-        "read",
-        "command",
-        "mcp"
-      ],
+      "groups": ["read", "command", "mcp"],
       "source": "global"
     },
     {
@@ -23,11 +19,7 @@
       "whenToUse": "when the task type is already known",
       "customInstructions": "agents/lieutenant.md",
       "instantiation": "all",
-      "groups": [
-        "read",
-        "command",
-        "mcp"
-      ],
+      "groups": ["read", "command", "mcp"],
       "source": "global"
     },
     {
@@ -38,11 +30,7 @@
       "whenToUse": "Use before planning when repository scope or behavior must be established.",
       "customInstructions": "agents/investigator.md",
       "instantiation": "all",
-      "groups": [
-        "read",
-        "command",
-        "mcp"
-      ],
+      "groups": ["read", "command", "mcp"],
       "source": "global"
     },
     {
@@ -75,11 +63,7 @@
       "whenToUse": "Use when reviewing uncommitted changes, a branch diff against main or develop, or a pull request. Covers correctness, performance, and style. For security-specific reviews (credential leaks, injection, access control, data exposure), use the security-review mode instead.",
       "customInstructions": "agents/review-code.md",
       "instantiation": "all",
-      "groups": [
-        "read",
-        "command",
-        "mcp"
-      ],
+      "groups": ["read", "command", "mcp"],
       "source": "global"
     },
     {
@@ -134,12 +118,7 @@
       "whenToUse": "Use when writing, modifying, or refactoring code, implementing features, fixing bugs, or creating files.",
       "customInstructions": "agents/code.md",
       "instantiation": "all",
-      "groups": [
-        "read",
-        "command",
-        "edit",
-        "mcp"
-      ],
+      "groups": ["read", "command", "edit", "mcp"],
       "source": "global"
     },
     {
@@ -150,12 +129,7 @@
       "description": "Test, verify, and diagnose software",
       "customInstructions": "agents/verify.md",
       "instantiation": "subagent",
-      "groups": [
-        "read",
-        "edit",
-        "command",
-        "mcp"
-      ],
+      "groups": ["read", "edit", "command", "mcp"],
       "source": "global"
     },
     {
@@ -164,12 +138,9 @@
       "roleDefinition": "You are a knowledgeable technical assistant for software development, technology, and related topics. Answer questions, explain concepts, analyze code, and provide recommendations without modifying the repository.",
       "whenToUse": "Use for technical questions, explanations, documentation, code analysis, technology comparisons, recommendations, and learning.",
       "description": "Answer technical questions and explain concepts",
-      "groups": [
-        "read",
-        "mcp"
-      ],
+      "groups": ["read", "mcp"],
       "customInstructions": "agents/ask.md",
-      "instantiation": "all",
+      "instantiation": "primary",
       "source": "global"
     },
     {
@@ -212,93 +183,143 @@
   "permissions": {
     "captain": {
       "edit": "deny",
-      "shell": "ask",
+      "shell": "auto",
       "read": "allow",
       "glob": "allow",
       "grep": "allow",
       "skill": "allow",
-      "task": "allow"
+      "task": "allow",
+      "lsp": "deny",
+      "question": "allow",
+      "external_directory": "deny",
+      "doom_loop": "ask"
     },
     "lieutenant": {
       "edit": "deny",
-      "shell": "ask",
+      "shell": "auto",
       "read": "allow",
       "glob": "allow",
       "grep": "allow",
       "skill": "allow",
-      "task": "allow"
+      "task": "allow",
+      "lsp": "deny",
+      "question": "allow",
+      "external_directory": "allow",
+      "doom_loop": "ask"
     },
     "investigator": {
       "edit": "deny",
-      "shell": "ask",
+      "shell": "auto",
       "read": "allow",
       "glob": "allow",
       "grep": "allow",
       "skill": "allow",
-      "task": "deny"
+      "task": "deny",
+      "lsp": "deny",
+      "question": "deny",
+      "external_directory": "allow",
+      "doom_loop": "allow"
     },
     "plan": {
       "edit": "allow",
-      "shell": "ask",
+      "shell": "auto",
       "read": "allow",
       "glob": "allow",
       "grep": "allow",
       "skill": "allow",
-      "task": "allow"
+      "task": "allow",
+      "lsp": "deny",
+      "question": "deny",
+      "external_directory": "deny",
+      "doom_loop": "allow"
     },
     "review-code": {
       "edit": "deny",
-      "shell": "ask",
+      "shell": {
+        "*": "deny",
+        "git log": "allow",
+        "git log *": "allow",
+        "git show": "allow",
+        "git show *": "allow",
+        "git blame": "allow",
+        "git blame *": "allow",
+        "git diff": "allow",
+        "git diff *": "allow"
+      },
       "read": "allow",
       "glob": "allow",
       "grep": "allow",
       "skill": "allow",
-      "task": "deny"
+      "task": "deny",
+      "lsp": "deny",
+      "question": "deny",
+      "external_directory": "deny",
+      "doom_loop": "allow"
     },
     "security-review": {
       "edit": "deny",
-      "shell": "ask",
+      "shell": "auto",
       "read": "allow",
       "glob": "allow",
       "grep": "allow",
       "skill": "allow",
-      "task": "deny"
+      "task": "deny",
+      "lsp": "deny",
+      "question": "deny",
+      "external_directory": "deny",
+      "doom_loop": "allow"
     },
     "review-plan": {
-      "edit": "deny",
-      "shell": "ask",
-      "read": "allow",
-      "glob": "allow",
-      "grep": "allow",
-      "skill": "allow",
-      "task": "deny"
-    },
-    "code": {
-      "edit": "allow",
-      "shell": "ask",
-      "read": "allow",
-      "glob": "allow",
-      "grep": "allow",
-      "skill": "allow",
-      "task": "allow"
-    },
-    "verify": {
-      "edit": "allow",
-      "shell": "ask",
-      "read": "allow",
-      "glob": "allow",
-      "grep": "allow",
-      "skill": "allow",
-      "task": "deny"
-    },
-    "ask": {
       "edit": "deny",
       "shell": "deny",
       "read": "allow",
       "glob": "allow",
       "grep": "allow",
       "skill": "allow",
-      "task": "deny"
+      "task": "deny",
+      "lsp": "deny",
+      "question": "deny",
+      "external_directory": "deny",
+      "doom_loop": "allow"
+    },
+    "code": {
+      "edit": "allow",
+      "shell": "auto",
+      "read": "allow",
+      "glob": "allow",
+      "grep": "allow",
+      "skill": "allow",
+      "task": "allow",
+      "lsp": "allow",
+      "question": "deny",
+      "external_directory": "deny",
+      "doom_loop": "allow"
+    },
+    "verify": {
+      "edit": "allow",
+      "shell": "auto",
+      "read": "allow",
+      "glob": "allow",
+      "grep": "allow",
+      "skill": "allow",
+      "task": "deny",
+      "lsp": "allow",
+      "question": "deny",
+      "external_directory": "allow",
+      "doom_loop": "allow"
+    },
+    "ask": {
+      "edit": "deny",
+      "shell": "auto",
+      "read": "allow",
+      "glob": "allow",
+      "grep": "allow",
+      "skill": "allow",
+      "task": "deny",
+      "lsp": "deny",
+      "question": "allow",
+      "external_directory": "deny",
+      "doom_loop": "ask"
     }
   },
   "skills": [

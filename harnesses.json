@@ -1,0 +1,9 @@
+{
+  "zoo": { "subtaskInstructions": [] },
+  "kilo": { "subtaskInstructions": [] },
+  "opencode": {
+    "subtaskInstructions": [
+      "Never start another instance of opencode to get a subtask done. Start subtasks only with the `task` tool."
+    ]
+  }
+}

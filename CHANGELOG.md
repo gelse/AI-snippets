@@ -2,9 +2,29 @@
 
 ## [Unreleased]
 
+### Added
+
+- `modes.json` permissions: new scalar `shell` value `auto` (valid for `shell` only). At generate time `scripts/generate.py` expands it into a `bash` per-command pattern map: catch-all `'*'` gate first — `ask` for modes with `instantiation: primary`, `deny` for every other instantiation (`all`/`subagent` run headless, where a prompt would stall) — then `allow` patterns for the read-only command list (`SAFE_SHELL_COMMANDS`): bare `cmd` and `cmd *` per entry. Entry order is last-match-wins policy (gate first, safe allows after), so read-only commands run without friction and everything else hits the gate. `auto` on any non-shell key raises `ValueError` in `translate_opencode_permissions`; hand-written `shell` pattern maps and scalar effects pass through unchanged.
+- `scripts/reference/approve_readonly_bash.py`: vendored upstream PreToolUse hook (`approve_readonly_bash.py`) kept verbatim for reference only — a header comment states it is not used directly and nothing imports it. Its `SAFE_COMMANDS` list is copied into `scripts/generate.py` (`SAFE_SHELL_COMMANDS`) as the `auto` allow list; its deny-first lists (`DANGEROUS_PATTERNS`, `WRAPPER_COMMANDS`, `DESTRUCTIVE_COMMANDS`) are deliberately not implemented because those commands are absent from the allow list and fall through to the `auto` catch-all gate. `pyproject.toml` gains a ruff `extend-exclude` for `scripts/reference/` so the vendored file stays verbatim.
+- `scripts/verify.py`: structural check (1) accepts `auto` for `shell` only (any other key still fails); check (f) gains `_expand_auto_shell_oracle` — an independent expansion of `shell: auto` (catch-all gate per `instantiation`, then bare/`cmd *` allows per `SAFE_SHELL_COMMANDS`) that the emitted map must match order-sensitively — plus synthetic-row coverage of the expansion for `primary`/`all`/`subagent` instantiations and a negative check that `auto` on a non-shell key raises `ValueError`. The round-trip call to `translate_opencode_permissions` now passes `instantiation`.
+- `docs/architecture.md`, `docs/development.md`, `docs/opencode-target-drift.md` describe the `auto` expansion, the catch-all-per-instantiation gate, and the reference-only provenance of the safe-command list.
+- `harnesses.json` (repo root): per-harness configuration of prose blocks injected into emitted agent bodies. Today only `opencode` carries content — a `## Starting Subtasks` section whose paragraph is `harnesses.json["opencode"].subtaskInstructions` joined with blank lines, telling every emitted opencode agent to use the `task` tool for subtasks; `zoo` and `kilo` are present-and-empty. Schema: three top-level keys, each a dict with `subtaskInstructions` (list of strings). Loader: `scripts/generate.py` `load_harnesses()`, invoked only from `emit_opencode`.
+- `scripts/generate.py` `emit_opencode` body assembly: every emitted `output/opencode/agents/*.md` body now contains a `## Starting Subtasks` block sourced from `harnesses.json["opencode"].subtaskInstructions`, positioned between the role line and the resolved `agents/<slug>.md` stub. The block is uniform across all 10 emitted agents; the `zoo` and `kilo` emitters and their output are unchanged.
+- `scripts/verify.py` check (2) `verify_harnesses_schema` — structural validation of `harnesses.json` (top-level keys exactly `zoo`/`kilo`/`opencode`, each value a dict with exactly `subtaskInstructions`, list of strings, `zoo`/`kilo` empty, `opencode` non-empty). Banner re-lettered: existing checks `[b]`–`[e]` shift to `[c]`–`[f]`.
+- `scripts/verify.py` check (7) `verify_opencode_subtask_block` — regenerates opencode agents and asserts every emitted body carries the `## Starting Subtasks` heading with paragraph text round-tripped from `harnesses.json["opencode"].subtaskInstructions` (not a hardcoded string), positioned between the role line and the resolved `agents/<slug>.md` stub; also guards the byte-identity invariant by asserting the heading does not appear in zoo or kilo bodies.
+- docs/development.md verify.py check list extended from 5 to 7 items in execution order; `docs/development.md:15` one-liner and `Makefile:27` help text mention `harnesses.json`; `docs/architecture.md` Source of Truth and Generation Pipeline sections describe `harnesses.json` (with the opencode-only annotation); `docs/opencode-target-drift.md` body-composition description names `harnesses.json` as a source; `README.md` How It Works section describes the opencode subtask-instructions block.
+
+### Changed
+
+- OpenCode agents now emit the v1 `permission:` map (action name to effect, or to per-command pattern map) instead of the v2 `permissions:` rule list: opencode compiles only the v1 map into runtime permission rulesets (verified against the binary for 1.18.35) and ignores the v2 list, so the emitted agents are runtime-true. The map carries the full 11-key action set `edit`, `bash`, `read`, `glob`, `grep`, `skill`, `task`, `lsp`, `question`, `external_directory`, `doom_loop`; the `modes.json` vocabulary keys `shell`/`task` are emitted under the runtime names `bash`/`task`.
+  - Breaking: consumers parsing the 0.3.2 `permissions:` rule list must migrate to the map.
+- `modes.json` permissions matrix: every row is the canonical 11-key set above (was 7: `edit`, `shell`, `read`, `glob`, `grep`, `skill`, `task`) with `lsp`, `question`, `external_directory`, `doom_loop` added; row key order is enforced. `shell` accepts per-command pattern maps (`plan` and `review-code` keep their broad-`*`-deny-first allow lists, order preserved as last-match-wins policy); `question`/`doom_loop` are scalar-only (upstream `actionOnly`) and `translate_opencode_permissions` raises `TypeError` on a pattern map there.
+- `scripts/verify.py` and `scripts/smoke-test-opencode-install.sh` assert the v1 map and the four new actions and reject the inert v2 list; `README.md`, `docs/architecture.md`, `docs/development.md`, `docs/opencode-target-drift.md`, and `docs/lieutenant-workflow.md` describe the v1 map (11 keys, pattern maps, `actionOnly` scalars), and the drift report is regenerated.
+
 ## [0.3.2] - 2026-10-10
 
 ### Added
+
 - `permissions` block in `modes.json`: per-mode `{edit, shell, read, glob, grep, skill, task}`
   matrix with `allow`/`ask`/`deny` for all 10 active modes; opencode emitter translates each
   row into opencode v2 rule notation (`scripts/generate.py`); `scripts/verify.py` enforces the
@@ -13,6 +33,7 @@
   `permissions` list with at least one `allow` rule.
 
 ### Changed
+
 - OpenCode agents now emit the v2 `permissions:` rule list (ordered `{action, resource, effect}`,
   last-match-wins) instead of the v1 `permission:` dict; verify field-order/content checks track
   the plural key; drift report and docs regenerated.
@@ -24,19 +45,23 @@
 ## [0.3.1] - 2026-10-08
 
 ### Fixed
+
 - [`Makefile`](Makefile) `install-opencode-global` skill copy: the loop globbed the flat `output/opencode/skill/*.md` path while the generator emits `output/opencode/skill/<name>/SKILL.md`, so no skills were installed (`cp: cannot stat`). The loop now iterates `output/opencode/skill/*/SKILL.md` and installs every skill as `$(OPENCODE_CONFIG_HOME)/opencode/skills/<name>/SKILL.md` with companion files alongside; a failing `SKILL.md` copy aborts the target. Regression test: [`scripts/smoke-test-opencode-install.sh`](scripts/smoke-test-opencode-install.sh).
 
 ## [0.3.0] - 2026-10-02
 
 ### Fixed
+
 - [`docs/development.md`](docs/development.md) CLI-installer note states the CLI emits directory-form skills that OpenCode discovers; the [`scripts/smoke-test.sh`](scripts/smoke-test.sh) post-overwrite assertion comment references the generated `output/` tree.
 - OpenCode skill emitter dir form: [`generate.py`](scripts/generate.py) emitted flat `output/opencode/skill/<name>.md` files — a latent pre-existing bug, since OpenCode only discovers `{skill,skills}/**/SKILL.md` and silently ignored the flat output. Skills are now written as `output/opencode/skill/<name>/SKILL.md` (frontmatter and body unchanged), matching what OpenCode discovers.
 
 ### Changed
+
 - Agent/skill refactor: each active mode's `agents/<slug>.md` instruction file is reduced to a stub that names its `agent-<slug>` runbook skill, and ten new `skills/agent-<slug>.md` skills carry the full workflows; `modes.json` wires the two together. [`docs/architecture.md`](docs/architecture.md) documents the stub/runbook split and the opencode dir-form emitter, [`docs/lieutenant-workflow.md`](docs/lieutenant-workflow.md) documents the dispatch header and the ten mode runbooks, and [`README.md`](README.md) reflects the new counts and layout.
 - Dispatch contract: the `target-agent` / `target-agent-skill` header every `new_task` dispatch must carry is specified in the matching runbook skills — [`skills/agent-captain.md`](skills/agent-captain.md) and [`skills/agent-lieutenant.md`](skills/agent-lieutenant.md).
 
 ### Added
+
 - `scripts/install.py` — Python installer mirroring the deleted TS CLI: plan-then-execute, collision prompts `[o]verwrite/[s]kip/[a]bort` (files and directories), `--yes`/`--dry-run`, `--global|--local`, `--skills-only|--agents-only`, interactive wizard, summary lines (`INSTALL SUMMARY` / `DRY RUN SUMMARY (no files were written)`, `Installed/updated:`, `Skipped:`, `Merged:`, `Replaced slugs:`, `Kept user slugs:`, `Nothing to install.`), and the non-TTY stdin contract. Reads `output/install-manifest.json` (emit via `make manifest` / `make all`).
 - `scripts/merge-modes.py` minimal refactor — extract importable `merge(gen_path, dest_path) -> tuple[list[str], list[str], list[str]]` returning replaced/kept/added slug lists; `main()` is now a thin wrapper that keeps the existing CLI output and exit behavior byte-identical so the Makefile subprocess call still works.
 - `scripts/smoke-test.sh` and `scripts/smoke-test-double-install.sh` rewritten to invoke the Python installer via `.venv/bin/python`; `count_slugs_yaml()` swapped for a PyYAML one-liner.
@@ -44,17 +69,20 @@
 - Claude Code is documented in [`README.md`](README.md) as a research-phase target that is not officially supported; the install manifest does not list it as an installable tool.
 
 ### Removed
+
 - npm publishing: the `npm-publish` GitHub Actions workflow (`.github/workflows/npm-publish.yml`) and `docs/npm-trusted-publishing.md` are removed, along with the release skill's Publish phase — `release.py finalize` (GitHub release + tag on `main`) is now the sole release automation.
 - npm packaging + npx install path: `package.json`, `package-lock.json`, `tsconfig.json`, `tsup.config.ts`, the `src/` TypeScript sources, `scripts/stage-embedded.mjs`, `skills/release/release.ts`, `skills/release/tsconfig.json`, and the Makefile `NODE`/`NPM`/`NPM_STAMP` variables, `check-node`, and `package-npx*` targets. The `skills-embedded/` staging tree and `.npm-stamp` are gone. `make verify` is now a thin alias of `make check-py`.
 
 ## [0.2.0] - 2026-09-29
 
 ### Fixed
+
 - Duplicate entries when re-installing zoo global modes: [`mergeModesYaml()`](src/merge.ts) replaced the stale-index `existingSlugs` splice with a single-pass `filter()` by slug, so repeated installs no longer duplicate generated slugs and pre-existing duplicates are cleaned up.
 - OpenCode skills documentation: [`docs/architecture.md`](docs/architecture.md) and [`README.md`](README.md) claimed OpenCode expects flat `skills/<name>.md` files. OpenCode's skill discovery only matches `{skill,skills}/**/SKILL.md` (per-name directory containing `SKILL.md`), so the documented destination now reflects the directory form.
 - `make install-opencode-global` now honors `XDG_CONFIG_HOME` instead of assuming `~/.config`.
 
 ### Added
+
 - `make install-opencode-global` (new) installs agents and skills globally in the layout OpenCode discovers (`~/.config/opencode/skills/<name>/SKILL.md`); note the CLI installer still emits flat skills, which OpenCode ignores.
 - `scripts/smoke-test-double-install.sh` — double-install regression test asserting 14 slugs (13 generated + 1 foreign), no duplicates, correct `replaced`/`kept`, preserved foreign order, repeat-install stability, and the empty-`customModes` edge case.
 - Step 7 in `scripts/smoke-test.sh` — inline merge-idempotency gate: double install into a seeded `$HOME` must yield 14 unique slugs with the foreign mode kept and never listed as replaced.
@@ -70,11 +98,13 @@
 - `docs/opencode-target-drift.md` — drift report comparing generated OpenCode targets against the installed baseline, with a clarified verdict format and corrected comparison baseline.
 
 ### Removed
+
 - Legacy Makefile JS-only targets: `verify-js`, `zoo-js`, `kilo-js`, `opencode-js`, `claude-js`, `all-js`.
 - `scripts/package.json` and `scripts/package-lock.json` — npm dependencies are now managed at the repo root.
 - Legacy dual-stack JS scripts: `scripts/generate.mjs` and `scripts/verify.mjs` — Python equivalents (`generate.py`, `verify.py`) are the sole generators.
 
 ### Changed
+
 - Mode instructions moved from embedded strings in `modes.json` to `agents/<slug>.md` files; generated output unchanged.
 - README updated to Node-only documentation: removed dual-stack (JS/Python) prose, added `npx @gelse/ai-snippets install` usage section, updated workspace tree listing to reflect `src/`, root `package.json`, and `tsup.config.ts`.
 - The `orchestrator` mode is deprecated in favour of the new `lieutenant` mode, which fills the same role (skill-driven workflow dispatch from `captain`). `orchestrator` now behaves as a gatekeeper that aborts and directs users to `lieutenant`. The OpenCode and Claude outputs omit deprecated modes, so their installed agent count is unchanged; `zoo` and `kilo` gain the new `lieutenant` mode alongside the deprecated `orchestrator` entry.
@@ -84,6 +114,7 @@
 - Documentation restructure: new `docs/architecture.md`, `docs/development.md`, and `docs/lieutenant-workflow.md` (renamed from `orchestrator-workflow`); README rewritten around the captain/skills layout; `github-issue` routed through `captain`.
 
 ### Added (package scaffold)
+
 - npm package scaffold (`@gelse/ai-snippets` 0.1.0): tsup build emitting `dist/cli.cjs` (CommonJS, entry for the `ai-snippets` bin) and `dist/release.js` (ESM), with `yaml` bundled into the CLI so it runs from a bare tarball unpack; prebuild step stages `skills-embedded/` from `output/`, `files` field ships only `dist/` + `skills-embedded/`.
 - Installer CLI (`ai-snippets install <tool>`): reads bundled `install-manifest.json` and embedded skills tree, installs modes and skills for zoo, kilo, opencode, and claude.
 - Interactive wizard: launches when no tool is specified, walks through tool selection, scope, and confirmation.
@@ -97,11 +128,13 @@
 Initial development release of the AI-snippets toolkit.
 
 ### Added
+
 - `modes.json` mode definitions with `generate.py` generator and Makefile targets for Zoo, Claude Code, OpenCode, and Kilo Code deployment.
 - Skills: `github-issue`, `grilling`, `writing-for-humans`, `release` (dual-form: markdown and directory with companion scripts).
 - `release.py` CLI with `preflight`, `changes`, `check-version`, `finalize`, and `post-verify` subcommands, plus SKILL.md with pause gates.
 - `verify.py` with dual-form skill validation and collision checks.
 
 ### Fixed
+
 - `release.py` now tags the release on `main` (after promotion) instead of `testing`.
 - Moved `finalize` ancestry guards before checkout so aborted runs leave the tree on the original branch.

@@ -11,8 +11,8 @@
 # - Every generated skill lands at
 #   $OPENCODE_CONFIG_HOME/opencode/skills/<name>/SKILL.md (directory form),
 #   with a non-zero expected skill count; companion side files land alongside.
-# - Every installed agent carries a v2 `permissions:` list with at least one
-#   `allow` rule (checked with the repo venv python; skipped when absent).
+# - Every installed agent carries a V1 `permission:` map with at least one
+#   `allow` effect (checked with the repo venv python; skipped when absent).
 #
 # Usage: bash scripts/smoke-test-opencode-install.sh
 #
@@ -116,7 +116,7 @@ echo "Step 3: PASS ($INSTALLED skills installed as <name>/SKILL.md, side files i
 echo ""
 
 # ── 4. Permissions frontmatter on installed agents ──────────────────
-echo "--- Step 4: every installed agent carries a v2 permissions list ---"
+echo "--- Step 4: every installed agent carries a V1 permission map ---"
 
 if [ ! -x "$ROOT_DIR/.venv/bin/python" ]; then
   echo "SKIP: $ROOT_DIR/.venv/bin/python not available — permission assertions not run"
@@ -126,19 +126,40 @@ if [ ! -x "$ROOT_DIR/.venv/bin/python" ]; then
 fi
 
 # An agent whose rules are all-deny is a misconfiguration: every emitted
-# permissions list must contain at least one `allow` effect. Deeper shape
-# and semantics are enforced by scripts/verify.py check (e).
+# permission map must contain at least one `allow` effect. The v2
+# `permissions` list is rejected here: opencode 1.18.35 ignores it. Deeper
+# shape and semantics are enforced by scripts/verify.py check (f).
 CHECKED=0
 for agent in "$AGENTS_DIR"/*.md; do
   slug="$(basename "$agent" .md)"
-  if ! "$ROOT_DIR/.venv/bin/python" -c "import yaml, sys; d=yaml.safe_load(sys.stdin.read().split('---', 2)[1]); assert 'permissions' in d and isinstance(d['permissions'], list) and len(d['permissions']) > 0; effects={r['effect'] for r in d['permissions'] if isinstance(r, dict) and 'effect' in r}; assert 'allow' in effects" < "$agent"; then
-    echo "FAIL: agent $slug.md lacks a v2 permissions list with an 'allow' rule"
+  if ! "$ROOT_DIR/.venv/bin/python" -c "
+import yaml, sys
+d = yaml.safe_load(sys.stdin.read().split('---', 2)[1])
+assert 'permissions' not in d, 'inert v2 permissions list present'
+p = d.get('permission')
+assert isinstance(p, dict) and len(p) > 0, 'missing V1 permission map'
+def effects(entry):
+    return {entry} if isinstance(entry, str) else set(entry.values())
+assert any('allow' in effects(v) for v in p.values()), 'no allow effect'
+for k in ('lsp','question','external_directory','doom_loop'):
+    assert k in p, f'missing new action {k!r} in permission map'
+    v = p[k]
+    if isinstance(v, str):
+        assert v in {'allow','ask','deny'}, f'new action {k!r} effect {v!r} not in allow/ask/deny'
+    elif isinstance(v, dict) and v and all(isinstance(pat, str) and pat and isinstance(eff, str) and eff in {'allow','ask','deny'} for pat, eff in v.items()):
+        pass  # pattern map is valid for lsp / external_directory
+    else:
+        raise AssertionError(f'new action {k!r} value {v!r} is not a string in allow/ask/deny nor a non-empty pattern map of such effects')
+assert isinstance(p['question'], str), 'question is actionOnly; must be a plain scalar, got ' + type(p['question']).__name__
+assert isinstance(p['doom_loop'], str), 'doom_loop is actionOnly; must be a plain scalar, got ' + type(p['doom_loop']).__name__
+" < "$agent"; then
+    echo "FAIL: agent $slug.md failed a V1 permission map assertion (missing key, invalid effect, or non-scalar actionOnly action)"
     exit 1
   fi
   CHECKED=$((CHECKED + 1))
 done
 
-echo "Step 4: PASS ($CHECKED agents carry a permissions list with an allow rule)"
+echo "Step 4: PASS ($CHECKED agents carry a permission map with an allow effect)"
 echo ""
 
 echo "=== All opencode-install smoke tests passed ==="
